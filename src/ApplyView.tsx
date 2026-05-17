@@ -31,17 +31,17 @@ export class ApplyView extends View {
   setState(state: ApplyViewState): Promise<void> {
     this.state = state
     this.render()
-    return Promise.resolve(); // Cumples el contrato
+    return Promise.resolve() // Cumples el contrato
   }
 
   onOpen(): Promise<void> {
-    this.root = createRoot(this.containerEl);
-    return Promise.resolve();
+    this.root = createRoot(this.containerEl)
+    return Promise.resolve()
   }
 
   onClose(): Promise<void> {
-    this.root?.unmount();
-    return Promise.resolve();
+    this.root?.unmount()
+    return Promise.resolve()
   }
 
   render() {

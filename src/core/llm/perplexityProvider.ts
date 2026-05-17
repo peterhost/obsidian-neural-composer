@@ -83,5 +83,10 @@ export class PerplexityProvider extends BaseLLMProvider<
   }
 
   getEmbedding(_model: string, _text: string): Promise<number[]> {
-  return Promise.reject(new Error(`Provider ${this.provider.id} does not support embeddings. Please use a different provider.`));}
+    return Promise.reject(
+      new Error(
+        `Provider ${this.provider.id} does not support embeddings. Please use a different provider.`,
+      ),
+    )
+  }
 }

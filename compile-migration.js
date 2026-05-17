@@ -8,7 +8,6 @@ async function compileMigrations() {
     './src/database/migrations.json',
     JSON.stringify(migrations),
   )
-
 }
 
 compileMigrations().catch(console.error)

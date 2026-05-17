@@ -24,9 +24,9 @@ export function EtcSection({ app }: EtcSectionProps) {
       // Fix: Wrap async function to satisfy void return type
       onConfirm: () => {
         void (async () => {
-            const defaultSettings = NeuralComposerSettingsSchema.parse({})
-            await setSettings(defaultSettings)
-            new Notice('Settings have been reset to defaults')
+          const defaultSettings = NeuralComposerSettingsSchema.parse({})
+          await setSettings(defaultSettings)
+          new Notice('Settings have been reset to defaults')
         })()
       },
     }).open()

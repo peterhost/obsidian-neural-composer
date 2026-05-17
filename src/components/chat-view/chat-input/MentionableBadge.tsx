@@ -100,7 +100,6 @@ function FolderBadge({
 }
 
 function VaultBadge({
-  
   mentionable,
   onDelete,
   onClick,

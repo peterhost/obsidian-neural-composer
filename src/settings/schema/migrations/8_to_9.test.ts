@@ -11,10 +11,10 @@ type MockChatModel = {
 
 type SettingsData = {
   version: number
-  
+
   // Fix: Replace any[] with a typed array
   chatModels?: MockChatModel[]
-  
+
   // Fix: Replace any with unknown for type safety
   [key: string]: unknown
 }

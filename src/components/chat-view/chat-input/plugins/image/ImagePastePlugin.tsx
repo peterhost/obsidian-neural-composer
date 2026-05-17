@@ -24,11 +24,11 @@ export default function ImagePastePlugin({
       if (images.length === 0) return false
 
       // FIX: Use void operator to handle the floating promise chain
-      void Promise.all(images.map((image) => fileToMentionableImage(image))).then(
-        (mentionableImages) => {
-          onCreateImageMentionables?.(mentionableImages)
-        },
-      )
+      void Promise.all(
+        images.map((image) => fileToMentionableImage(image)),
+      ).then((mentionableImages) => {
+        onCreateImageMentionables?.(mentionableImages)
+      })
       return true
     }
 

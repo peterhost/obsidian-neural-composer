@@ -123,7 +123,11 @@ const MODEL_SETTINGS_REGISTRY: ModelSettingsRegistry[] = [
 
           <ObsidianSetting>
             {/* Fix: Handle floating promise with void wrapper */}
-            <ObsidianButton text="Save" onClick={() => void handleSubmit()} cta />
+            <ObsidianButton
+              text="Save"
+              onClick={() => void handleSubmit()}
+              cta
+            />
             <ObsidianButton text="Cancel" onClick={onClose} />
           </ObsidianSetting>
         </>
@@ -219,7 +223,11 @@ const MODEL_SETTINGS_REGISTRY: ModelSettingsRegistry[] = [
 
           <ObsidianSetting>
             {/* Fix: Handle floating promise with void wrapper */}
-            <ObsidianButton text="Save" onClick={() => void handleSubmit()} cta />
+            <ObsidianButton
+              text="Save"
+              onClick={() => void handleSubmit()}
+              cta
+            />
             <ObsidianButton text="Cancel" onClick={onClose} />
           </ObsidianSetting>
         </>
@@ -289,7 +297,11 @@ const MODEL_SETTINGS_REGISTRY: ModelSettingsRegistry[] = [
 
           <ObsidianSetting>
             {/* Fix: Handle floating promise with void wrapper */}
-            <ObsidianButton text="Save" onClick={() => void handleSubmit()} cta />
+            <ObsidianButton
+              text="Save"
+              onClick={() => void handleSubmit()}
+              cta
+            />
             <ObsidianButton text="Cancel" onClick={onClose} />
           </ObsidianSetting>
         </>

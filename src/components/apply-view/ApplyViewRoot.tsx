@@ -170,7 +170,7 @@ export default function ApplyViewRoot({
 
     const scrollerRect = scroller.getBoundingClientRect()
     const scrollerTop = scrollerRect.top
-    const visibleThreshold = 10 
+    const visibleThreshold = 10
 
     for (let i = 0; i < modifiedBlockIndices.length; i++) {
       const element = diffBlockRefs.current[modifiedBlockIndices[i]]
@@ -202,7 +202,6 @@ export default function ApplyViewRoot({
     if (modifiedBlockIndices.length > 0) {
       scrollToDiffBlock(0)
     }
-    
   }, [])
 
   return (

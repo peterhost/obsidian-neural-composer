@@ -369,7 +369,7 @@ export class GeminiProvider extends BaseLLMProvider<
     }
   }
 
-private static removeAdditionalProperties(schema: unknown): unknown {
+  private static removeAdditionalProperties(schema: unknown): unknown {
     // TODO: Remove this function when Gemini supports additionalProperties field in JSON schema
     if (typeof schema !== 'object' || schema === null) {
       return schema
@@ -386,10 +386,7 @@ private static removeAdditionalProperties(schema: unknown): unknown {
     return Object.fromEntries(
       Object.entries(record)
         .filter(([key]) => key !== 'additionalProperties') // Exclude here
-        .map(([key, value]) => [
-          key,
-          this.removeAdditionalProperties(value),
-        ]),
+        .map(([key, value]) => [key, this.removeAdditionalProperties(value)]),
     )
   }
 

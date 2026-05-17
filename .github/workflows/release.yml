@@ -51,7 +51,9 @@ jobs:
         run: |
           gh release create "$TAG" \
             --title="$TAG" \
-            main.js manifest.json styles.css
+            main.js manifest.json styles.css 2>/dev/null || \
+          gh release upload "$TAG" \
+            main.js manifest.json styles.css --clobber
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6

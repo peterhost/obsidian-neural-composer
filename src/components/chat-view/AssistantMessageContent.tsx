@@ -47,7 +47,10 @@ export default function AssistantMessageContent({
   // --- MODO EDICIÓN ACTIVADO POR EL PADRE ---
   if (isEditingMode && onContentUpdate) {
     return (
-      <div className="nrlcmp-edit-container" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div
+        className="nrlcmp-edit-container"
+        style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
+      >
         <textarea
           value={editedContent}
           onChange={(e) => setEditedContent(e.target.value)}
@@ -61,16 +64,26 @@ export default function AssistantMessageContent({
             color: 'var(--text-normal)',
             fontFamily: 'var(--font-monospace)',
             resize: 'vertical',
-            fontSize: '0.9em'
+            fontSize: '0.9em',
           }}
           autoFocus
         />
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-          <button onClick={() => { setEditedContent(content); if(onCancelEdit) onCancelEdit(); }}>
-             Cancel
+        <div
+          style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}
+        >
+          <button
+            onClick={() => {
+              setEditedContent(content)
+              if (onCancelEdit) onCancelEdit()
+            }}
+          >
+            Cancel
           </button>
-          <button className="mod-cta" onClick={() => onContentUpdate(editedContent)}>
-             <Check size={14} style={{marginRight: '4px'}}/> Save
+          <button
+            className="mod-cta"
+            onClick={() => onContentUpdate(editedContent)}
+          >
+            <Check size={14} style={{ marginRight: '4px' }} /> Save
           </button>
         </div>
       </div>

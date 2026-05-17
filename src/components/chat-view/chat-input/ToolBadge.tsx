@@ -59,7 +59,7 @@ export default function ToolBadge() {
         }
         void updateTools()
       })
-      
+
       return () => {
         unsubscribe()
       }

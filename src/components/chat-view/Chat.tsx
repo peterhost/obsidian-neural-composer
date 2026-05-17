@@ -95,7 +95,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
     updateConversationTitle,
     chatList,
   } = useChatHistory()
-  
+
   const promptGenerator = useMemo(() => {
     return new PromptGenerator(getRAGEngine, app, settings)
   }, [getRAGEngine, app, settings])
@@ -113,7 +113,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
     }
     return newMessage
   })
-  
+
   const [addedBlockKey, setAddedBlockKey] = useState<string | null>(
     props.selectedBlock
       ? getMentionableKey(
@@ -124,10 +124,11 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
         )
       : null,
   )
-  
+
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [focusedMessageId, setFocusedMessageId] = useState<string | null>(null)
-  const [currentConversationId, setCurrentConversationId] = useState<string>(uuidv4())
+  const [currentConversationId, setCurrentConversationId] =
+    useState<string>(uuidv4())
   const [queryProgress, setQueryProgress] = useState<QueryProgressState>({
     type: 'idle',
   })
@@ -344,7 +345,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
   )
 
   const handleToolMessageUpdate = useCallback(
-   (toolMessage: ChatToolMessage) => {
+    (toolMessage: ChatToolMessage) => {
       const toolMessageIndex = chatMessages.findIndex(
         (message) => message.id === toolMessage.id,
       )
@@ -354,11 +355,13 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
         // Abort the tool calls and keep the current chat history.
         void (async () => {
           try {
-              const mcpManager = await getMcpManager()
-              toolMessage.toolCalls.forEach((toolCall) => {
-                mcpManager.abortToolCall(toolCall.request.id)
-              })
-          } catch(e) { console.error("Error aborting tool call", e); }
+            const mcpManager = await getMcpManager()
+            toolMessage.toolCalls.forEach((toolCall) => {
+              mcpManager.abortToolCall(toolCall.request.id)
+            })
+          } catch (e) {
+            console.error('Error aborting tool call', e)
+          }
         })()
         return
       }
@@ -402,17 +405,17 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 
   const handleAssistantMessageUpdate = useCallback(
     (messageId: string, newContent: string) => {
-      setChatMessages((prevMessages) => 
+      setChatMessages((prevMessages) =>
         prevMessages.map((msg) => {
           if (msg.id === messageId && msg.role === 'assistant') {
-            return { ...msg, content: newContent };
+            return { ...msg, content: newContent }
           }
-          return msg;
-        })
-      );
+          return msg
+        }),
+      )
     },
-    [setChatMessages]
-  );
+    [setChatMessages],
+  )
 
   const showContinueResponseButton = useMemo(() => {
     /**
@@ -459,10 +462,9 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
         console.error('Failed to save chat history', error)
       }
     }
-    
+
     // Explicitly ignoring promise return to satisfy lint
     void updateConversationAsync()
-    
   }, [currentConversationId, chatMessages, createOrUpdateConversation])
 
   // Updates the currentFile of the focused message (input or chat history)
