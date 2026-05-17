@@ -1,6 +1,31 @@
-import debounce from 'lodash.debounce'
-import isEqual from 'lodash.isequal'
 import { App } from 'obsidian'
+
+import { deepEqual } from '../utils/deep-equal'
+
+function debounce<TArgs extends unknown[]>(
+  fn: (...args: TArgs) => void,
+  wait: number,
+  options?: { maxWait?: number },
+): (...args: TArgs) => void {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  let maxTimer: ReturnType<typeof setTimeout> | null = null
+  let lastArgs: TArgs | null = null
+
+  const flush = () => {
+    if (timer !== null) { clearTimeout(timer); timer = null }
+    if (maxTimer !== null) { clearTimeout(maxTimer); maxTimer = null }
+    if (lastArgs !== null) { fn(...lastArgs); lastArgs = null }
+  }
+
+  return (...args: TArgs) => {
+    lastArgs = args
+    if (timer !== null) clearTimeout(timer)
+    timer = setTimeout(flush, wait)
+    if (options?.maxWait !== undefined && maxTimer === null) {
+      maxTimer = setTimeout(flush, options.maxWait)
+    }
+  }
+}
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { editorStateToPlainText } from '../components/chat-view/chat-input/utils/editor-state-to-plain-text'
@@ -49,7 +74,7 @@ export function useChatHistory(): UseChatHistory {
           const existingConversation = await chatManager.findById(id)
 
           if (existingConversation) {
-            if (isEqual(existingConversation.messages, serializedMessages)) {
+            if (deepEqual(existingConversation.messages, serializedMessages)) {
               return
             }
             await chatManager.updateChat(existingConversation.id, {

@@ -1,5 +1,6 @@
-import isEqual from 'lodash.isequal'
 import { Platform } from 'obsidian'
+
+import { deepEqual } from '../../utils/deep-equal'
 
 import { NeuralComposerSettings } from '../../settings/schema/setting.types'
 import {
@@ -106,7 +107,7 @@ constructor({
         )
         if (
           existingServer &&
-          isEqual(existingServer.config.parameters, serverConfig.parameters) &&
+          deepEqual(existingServer.config.parameters, serverConfig.parameters) &&
           existingServer.config.enabled === serverConfig.enabled
         ) {
           // Server is already up to date
