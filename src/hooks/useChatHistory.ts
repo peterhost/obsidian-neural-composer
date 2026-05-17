@@ -2,28 +2,30 @@ import { App } from 'obsidian'
 
 import { deepEqual } from '../utils/deep-equal'
 
-function debounce<TArgs extends unknown[]>(
-  fn: (...args: TArgs) => void,
+function debounce<TArgs extends unknown[], R>(
+  fn: (...args: TArgs) => R,
   wait: number,
   options?: { maxWait?: number },
-): (...args: TArgs) => void {
+): (...args: TArgs) => R | undefined {
   let timer: ReturnType<typeof setTimeout> | null = null
   let maxTimer: ReturnType<typeof setTimeout> | null = null
   let lastArgs: TArgs | null = null
 
-  const flush = () => {
+  const flush = (): R | undefined => {
     if (timer !== null) { clearTimeout(timer); timer = null }
     if (maxTimer !== null) { clearTimeout(maxTimer); maxTimer = null }
-    if (lastArgs !== null) { fn(...lastArgs); lastArgs = null }
+    if (lastArgs !== null) { const args = lastArgs; lastArgs = null; return fn(...args) }
+    return undefined
   }
 
-  return (...args: TArgs) => {
+  return (...args: TArgs): R | undefined => {
     lastArgs = args
     if (timer !== null) clearTimeout(timer)
     timer = setTimeout(flush, wait)
     if (options?.maxWait !== undefined && maxTimer === null) {
       maxTimer = setTimeout(flush, options.maxWait)
     }
+    return undefined
   }
 }
 import { useCallback, useEffect, useMemo, useState } from 'react'

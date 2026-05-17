@@ -33,7 +33,7 @@
     "esbuild": "^0.27.2",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-i": "^2.30.0",
+    "eslint-plugin-i": "^2.29.1",
     "eslint-plugin-obsidianmd": "^0.1.9",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.0.0",
