@@ -14,7 +14,7 @@ import { ObsidianSetting } from '../../common/ObsidianSetting'
 import { ObsidianTextInput } from '../../common/ObsidianTextInput'
 import { ReactModal } from '../../common/ReactModal'
 
-export const PROTOCOL_NAME = "MCP";
+export const PROTOCOL_NAME = 'MCP'
 
 type McpServerFormComponentProps = {
   plugin: NeuralComposerPlugin
@@ -217,7 +217,13 @@ function McpServerFormComponent({
 
       <ObsidianSetting>
         {/* FIX: Usamos un bloque explícito { void ... } para evitar errores de linter */}
-        <ObsidianButton text="Save" onClick={() => { void handleSubmit(); }} cta />
+        <ObsidianButton
+          text="Save"
+          onClick={() => {
+            void handleSubmit()
+          }}
+          cta
+        />
         <ObsidianButton text="Cancel" onClick={onClose} />
       </ObsidianSetting>
     </>

@@ -56,7 +56,6 @@ export class DatabaseManager {
 
     DatabaseManager.managers.set(dbManager, managers)
 
-
     return dbManager
   }
 
@@ -112,7 +111,6 @@ export class DatabaseManager {
       const db = drizzle(this.pgClient)
       return db
     } catch (error) {
-
       if (
         error instanceof Error &&
         error.message.includes(
@@ -148,7 +146,6 @@ export class DatabaseManager {
       })
       return drizzle(this.pgClient)
     } catch (error) {
-
       if (
         error instanceof Error &&
         error.message.includes(
@@ -167,7 +164,7 @@ export class DatabaseManager {
       // Workaround for running Drizzle migrations in a browser environment
       // This method uses an undocumented API to perform migrations
       // See: https://github.com/drizzle-team/drizzle-orm/discussions/2532#discussioncomment-10780523
-      
+
       // @ts-expect-error
       await this.db.dialect.migrate(migrations, this.db.session, {
         migrationsTable: 'drizzle_migrations',

@@ -27,7 +27,6 @@ export function DarkModeProvider({ children }: { children: ReactNode }) {
     handleDarkMode()
     app.workspace.on('css-change', handleDarkMode)
     return () => app.workspace.off('css-change', handleDarkMode)
-    
   }, [])
 
   return (

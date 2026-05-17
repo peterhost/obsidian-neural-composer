@@ -10,7 +10,7 @@ import { ModelsSection } from './sections/ModelsSection'
 import { ProvidersSection } from './sections/ProvidersSection'
 // import { RAGSection } from './sections/RAGSection' // <--- COMENTADO: Ya no usamos el RAG viejo
 import { TemplateSection } from './sections/TemplateSection'
-import { NeuralSection } from './sections/NeuralSection' 
+import { NeuralSection } from './sections/NeuralSection'
 
 type SettingsTabRootProps = {
   app: App
@@ -21,9 +21,15 @@ export function SettingsTabRoot({ app, plugin }: SettingsTabRootProps) {
   return (
     <>
       {/* 1. HEADER & IDENTITY */}
-      <div style={{ textAlign: 'center', marginBottom: '30px', marginTop: '10px' }}>
-        <h1 style={{ marginBottom: '5px', fontSize: '1.8em' }}>Neural Composer</h1>
-        <p style={{ opacity: 0.7, marginTop: '0' }}>Graph-Powered Memory for Obsidian</p>
+      <div
+        style={{ textAlign: 'center', marginBottom: '30px', marginTop: '10px' }}
+      >
+        <h1 style={{ marginBottom: '5px', fontSize: '1.8em' }}>
+          Neural Composer
+        </h1>
+        <p style={{ opacity: 0.7, marginTop: '0' }}>
+          Graph-Powered Memory for Obsidian
+        </p>
       </div>
 
       <ObsidianSetting
@@ -33,7 +39,12 @@ export function SettingsTabRoot({ app, plugin }: SettingsTabRootProps) {
       >
         <ObsidianButton
           text="Original Project (Smart Composer)"
-          onClick={() => window.open('https://github.com/glowingjade/obsidian-smart-composer', '_blank')}
+          onClick={() =>
+            window.open(
+              'https://github.com/glowingjade/obsidian-smart-composer',
+              '_blank',
+            )
+          }
         />
       </ObsidianSetting>
 
@@ -48,11 +59,11 @@ export function SettingsTabRoot({ app, plugin }: SettingsTabRootProps) {
 
       {/* 4. COMPORTAMIENTO (Chat) */}
       <ChatSection />
-      
+
       {/* 5. HERRAMIENTAS AVANZADAS */}
       <TemplateSection app={app} />
       <McpSection app={app} plugin={plugin} />
-      
+
       {/* 6. ZONA DE PELIGRO / EXTRA */}
       <EtcSection app={app} plugin={plugin} />
 

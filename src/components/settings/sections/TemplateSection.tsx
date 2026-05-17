@@ -65,15 +65,15 @@ export function TemplateSection({ app }: TemplateSectionProps) {
         message: message,
         ctaText: 'Delete',
         onConfirm: () => {
-            void (async () => {
-                try {
-                    await templateManager.deleteTemplate(template.id)
-                    await fetchTemplateList()
-                } catch (error) {
-                    console.error('Failed to delete template:', error)
-                    new Notice('Failed to delete template. Please try again.')
-                }
-            })()
+          void (async () => {
+            try {
+              await templateManager.deleteTemplate(template.id)
+              await fetchTemplateList()
+            } catch (error) {
+              console.error('Failed to delete template:', error)
+              new Notice('Failed to delete template. Please try again.')
+            }
+          })()
         },
       }).open()
     },

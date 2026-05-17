@@ -1,6 +1,18 @@
 import { App } from 'obsidian'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { editorStateToPlainText } from '../components/chat-view/chat-input/utils/editor-state-to-plain-text'
+import { useApp } from '../contexts/app-context'
+import { ChatConversationMetadata } from '../database/json/chat/types'
+import { ChatMessage, SerializedChatMessage } from '../types/chat'
+import { Mentionable } from '../types/mentionable'
+import {
+  deserializeMentionable,
+  serializeMentionable,
+} from '../utils/chat/mentionable'
 import { deepEqual } from '../utils/deep-equal'
+
+import { useChatManager } from './useJsonManagers'
 
 function debounce<TArgs extends unknown[], R>(
   fn: (...args: TArgs) => R,
@@ -12,9 +24,19 @@ function debounce<TArgs extends unknown[], R>(
   let lastArgs: TArgs | null = null
 
   const flush = (): R | undefined => {
-    if (timer !== null) { clearTimeout(timer); timer = null }
-    if (maxTimer !== null) { clearTimeout(maxTimer); maxTimer = null }
-    if (lastArgs !== null) { const args = lastArgs; lastArgs = null; return fn(...args) }
+    if (timer !== null) {
+      clearTimeout(timer)
+      timer = null
+    }
+    if (maxTimer !== null) {
+      clearTimeout(maxTimer)
+      maxTimer = null
+    }
+    if (lastArgs !== null) {
+      const args = lastArgs
+      lastArgs = null
+      return fn(...args)
+    }
     return undefined
   }
 
@@ -28,19 +50,6 @@ function debounce<TArgs extends unknown[], R>(
     return undefined
   }
 }
-import { useCallback, useEffect, useMemo, useState } from 'react'
-
-import { editorStateToPlainText } from '../components/chat-view/chat-input/utils/editor-state-to-plain-text'
-import { useApp } from '../contexts/app-context'
-import { ChatConversationMetadata } from '../database/json/chat/types'
-import { ChatMessage, SerializedChatMessage } from '../types/chat'
-import { Mentionable } from '../types/mentionable'
-import {
-  deserializeMentionable,
-  serializeMentionable,
-} from '../utils/chat/mentionable'
-
-import { useChatManager } from './useJsonManagers'
 
 type UseChatHistory = {
   createOrUpdateConversation: (
@@ -65,7 +74,6 @@ export function useChatHistory(): UseChatHistory {
 
   useEffect(() => {
     void fetchChatList()
-    
   }, [])
 
   const createOrUpdateConversation = useMemo(

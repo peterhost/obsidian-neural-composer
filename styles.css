@@ -1852,729 +1852,730 @@ button.nrlcmp-chat-input-model-select {
 /* --- NEURAL COMPOSER GRAPH STYLES --- */
 
 .nrlcmp-graph-container {
-    display: flex;
-    height: 100%;
-    width: 100%;
-    background-color: var(--background-primary);
-    overflow: hidden;
+  display: flex;
+  height: 100%;
+  width: 100%;
+  background-color: var(--background-primary);
+  overflow: hidden;
 }
 
 .nrlcmp-graph-canvas {
-    width: 100%;
-    height: 100%;
-    display: block;
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 /* Toolbar Flotante */
 .nrlcmp-graph-toolbar {
-    position: absolute;
-    top: 15px;
-    left: 15px;
-    z-index: 10;
-    display: flex;
-    gap: 8px;
-    align-items: center;
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .nrlcmp-toolbar-input {
-    background: rgba(0, 0, 0, 0.6) !important;
-    border: 1px solid var(--text-accent) !important;
-    color: #ffffff !important;
-    padding: 6px 10px !important;
-    border-radius: 6px;
-    outline: none;
-    width: 200px;
-    backdrop-filter: blur(4px);
-    font-family: var(--font-monospace);
-    transition: width 0.2s ease;
+  background: rgba(0, 0, 0, 0.6) !important;
+  border: 1px solid var(--text-accent) !important;
+  color: #ffffff !important;
+  padding: 6px 10px !important;
+  border-radius: 6px;
+  outline: none;
+  width: 200px;
+  backdrop-filter: blur(4px);
+  font-family: var(--font-monospace);
+  transition: width 0.2s ease;
 }
 
 .nrlcmp-toolbar-input:focus {
-    width: 250px;
-    background: rgba(0,0,0,0.8);
+  width: 250px;
+  background: rgba(0, 0, 0, 0.8);
 }
 
 .nrlcmp-toolbar-btn {
-    background: rgba(0,0,0,0.6) !important;
-    border: 1px solid #444444 !important;
-    color: #cccccc !important;
-    padding: 6px !important;
-    border-radius: 6px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 30px;
-    width: 30px;
+  background: rgba(0, 0, 0, 0.6) !important;
+  border: 1px solid #444444 !important;
+  color: #cccccc !important;
+  padding: 6px !important;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  width: 30px;
 }
 
 /* Panel Lateral (Sidebar) */
 
 .nrlcmp-filter-bar {
-    margin-top: 10px;
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.8em;
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8em;
 }
 
 .nrlcmp-list-row {
-    display: flex;
-    align-items: center;
-    padding: 6px;
-    border-bottom: 1px solid var(--background-modifier-border);
-    font-size: 0.85em;
-
+  display: flex;
+  align-items: center;
+  padding: 6px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  font-size: 0.85em;
 }
 /* --- NEURAL MANAGER (Native Graph View) --- */
 
 .nrlcmp-graph-view {
-    display: flex !important;
-    flex-direction: row !important; /* Fuerza horizontal */
-    height: 100% !important;        /* Fuerza altura total */
-    width: 100% !important;
-    overflow: hidden;
-    position: relative;
-    background-color: var(--background-primary);
+  display: flex !important;
+  flex-direction: row !important; /* Fuerza horizontal */
+  height: 100% !important; /* Fuerza altura total */
+  width: 100% !important;
+  overflow: hidden;
+  position: relative;
+  background-color: var(--background-primary);
 }
 
-
 .nrlcmp-mode-3d {
-    background-color: #000005; /* Deep space black for 3D */
+  background-color: #000005; /* Deep space black for 3D */
 }
 
 .nrlcmp-mode-2d {
-    background-color: #111111; /* Dark grey for 2D */
+  background-color: #111111; /* Dark grey for 2D */
 }
 
 .nrlcmp-graph-zone {
-    flex-grow: 1;          /* Ocupa todo el espacio sobrante */
-    flex-basis: 0;         /* Evita problemas de tamaño mínimo */
-    height: 100% !important;
-    position: relative;    /* Para que la toolbar flote aquí dentro */
-    overflow: hidden;
-    display: flex;         /* Para centrar el canvas si es necesario */
-    flex-direction: column;
+  flex-grow: 1; /* Ocupa todo el espacio sobrante */
+  flex-basis: 0; /* Evita problemas de tamaño mínimo */
+  height: 100% !important;
+  position: relative; /* Para que la toolbar flote aquí dentro */
+  overflow: hidden;
+  display: flex; /* Para centrar el canvas si es necesario */
+  flex-direction: column;
 }
 
 .nrlcmp-sigma-container {
-    width: 100% !important;
-    height: 100% !important;
-    flex: 1;
-    display: block;
-    outline: none; /* Quitar borde azul al seleccionar */
+  width: 100% !important;
+  height: 100% !important;
+  flex: 1;
+  display: block;
+  outline: none; /* Quitar borde azul al seleccionar */
 }
-
 
 /* Toolbar */
 .nrlcmp-toolbar {
-    position: absolute;
-    top: 15px;
-    left: 15px;
-    z-index: 20; /* Encima del canvas */
-    display: flex;
-    gap: 8px;
-    align-items: center;
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  z-index: 20; /* Encima del canvas */
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .nrlcmp-toolbar-btn:hover {
-    background: rgba(255,255,255,0.1) !important;
-    color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
 }
 
 /* Sidebar */
 .nrlcmp-sidebar {
-    width: 320px !important;
-    min-width: 320px;      /* Que no se aplaste */
-    max-width: 320px;
-    height: 100% !important;
-    display: flex;
-    flex-direction: column;
-    background-color: var(--background-secondary);
-    border-left: 1px solid var(--background-modifier-border);
-    z-index: 5;            /* Encima del grafo si se solapan */
+  width: 320px !important;
+  min-width: 320px; /* Que no se aplaste */
+  max-width: 320px;
+  height: 100% !important;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background-secondary);
+  border-left: 1px solid var(--background-modifier-border);
+  z-index: 5; /* Encima del grafo si se solapan */
 }
 
 .nrlcmp-sidebar-header {
-    padding: 10px;
-    border-bottom: 1px solid var(--background-modifier-border);
-    flex-shrink: 0; /* No encoger */
+  padding: 10px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0; /* No encoger */
 }
 
-
 .nrlcmp-sidebar-title {
-    margin: 0 0 10px 0;
-    color: var(--text-normal);
-    font-size: 1.1em;
-    font-weight: bold;
+  margin: 0 0 10px 0;
+  color: var(--text-normal);
+  font-size: 1.1em;
+  font-weight: bold;
 }
 
 .nrlcmp-sidebar-actions {
-    display: flex;
-    gap: 5px;
-    margin-top: 10px;
+  display: flex;
+  gap: 5px;
+  margin-top: 10px;
 }
 
 .nrlcmp-sidebar-filters {
-    margin-top: 10px;
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.8em;
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8em;
 }
 
 .nrlcmp-filter-btn {
-    cursor: pointer;
-    color: var(--text-muted);
-    text-decoration: underline;
+  cursor: pointer;
+  color: var(--text-muted);
+  text-decoration: underline;
 }
 
 .nrlcmp-filter-btn:hover {
-    color: var(--text-accent);
+  color: var(--text-accent);
 }
 
 .nrlcmp-sidebar-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 5px 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 5px 0;
 }
 
 .nrlcmp-list-item {
-    display: flex;
-    align-items: center;
-    padding: 4px 10px;
-    border-bottom: 1px solid var(--background-modifier-border);
-    font-size: 0.85em;
+  display: flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  font-size: 0.85em;
 }
 
 .nrlcmp-list-item:hover {
-    background-color: var(--background-modifier-hover);
+  background-color: var(--background-modifier-hover);
 }
 
 /* Panel de Detalles Flotante */
 .nrlcmp-details-panel {
-    position: absolute;
-    top: 60px;
-    right: 20px;
-    width: 320px;
-    max-height: 80%;
-    background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 8px;
-    padding: 0;
-    z-index: 50;
-    color: #eeeeee;
-    overflow-y: auto;
-    display: none;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-    backdrop-filter: blur(10px);
-    font-family: var(--font-monospace);
-    font-size: 13px;
-    pointer-events: none;
+  position: absolute;
+  top: 60px;
+  right: 20px;
+  width: 320px;
+  max-height: 80%;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 0;
+  z-index: 50;
+  color: #eeeeee;
+  overflow-y: auto;
+  display: none;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  font-family: var(--font-monospace);
+  font-size: 13px;
+  pointer-events: none;
 }
 
 .nrlcmp-details-panel.nrlcmp-visible {
-    opacity: 1;
-    pointer-events: auto;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* NUEVA CLASE PARA MOSTRARLO */
 .nrlcmp-details-panel.is-visible {
-    display: block !important;
-    animation: fadeIn 0.2s ease-out;
+  display: block !important;
+  animation: fadeIn 0.2s ease-out;
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .nrlcmp-details-header {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--background-modifier-border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-radius: 8px 8px 0 0;
-    background-color: var(--interactive-accent);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 8px 8px 0 0;
+  background-color: var(--interactive-accent);
 }
 
-
 .nrlcmp-details-type {
-    font-weight: 700;
-    /*color: var(--text-on-accent);*/ /* Texto legible sobre el color de acento */
-    color: var(--text-muted);
-    font-size: 0.85em;
-    letter-spacing: 0.05em;
+  font-weight: 700;
+  /*color: var(--text-on-accent);*/ /* Texto legible sobre el color de acento */
+  color: var(--text-muted);
+  font-size: 0.85em;
+  letter-spacing: 0.05em;
 }
 
 .nrlcmp-btn-group {
-    display: flex;
-    gap: 8px;
+  display: flex;
+  gap: 8px;
 }
 
 .nrlcmp-details-btn-edit {
-    background-color: rgba(0, 0, 0, 0.15); /* Sutil */
-    border: none;
-    color: var(--text-on-accent);
-    cursor: pointer;
-    padding: 4px 10px;
-    border-radius: 4px;
-    font-size: 0.85em;
-    transition: background-color 0.2s;
+  background-color: rgba(0, 0, 0, 0.15); /* Sutil */
+  border: none;
+  color: var(--text-on-accent);
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  transition: background-color 0.2s;
 }
 
 .nrlcmp-details-btn-edit:hover {
-    background-color: rgba(0, 0, 0, 0.3);
+  background-color: rgba(0, 0, 0, 0.3);
 }
 
 .nrlcmp-details-btn {
-    background: rgba(0,0,0,0.2);
-    border: none;
-    color: white;
-    cursor: pointer;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 0.8em;
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.8em;
 }
 
 .nrlcmp-details-close {
-    background: none;
-    border: none;
-    color: var(--text-on-accent);
-    cursor: pointer;
-    font-weight: bold;
-    font-size: 1.1em;
-    opacity: 0.8;
+  background: none;
+  border: none;
+  color: var(--text-on-accent);
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1.1em;
+  opacity: 0.8;
 }
 
 .nrlcmp-details-close:hover {
-    opacity: 1;
+  opacity: 1;
 }
 
 .nrlcmp-details-content {
-    padding: 15px;
-    max-height: 80vh;
-    overflow-y: auto;
+  padding: 15px;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 .nrlcmp-details-title {
-    margin: 0 0 16px 0;
-    color: var(--text-normal);
-    word-break: break-word;
-    line-height: 1.3;
-    font-size: 1.4em;
+  margin: 0 0 16px 0;
+  color: var(--text-normal);
+  word-break: break-word;
+  line-height: 1.3;
+  font-size: 1.4em;
 }
 
 .nrlcmp-details-desc-box {
-    font-size: 0.95em;
-    line-height: 1.6;
-    color: var(--text-muted);
-    background-color: var(--background-primary);
-    padding: 12px;
-    border-radius: 6px;
-    margin-bottom: 20px;
-    max-height: 200px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    border: 1px solid var(--background-modifier-border);
+  font-size: 0.95em;
+  line-height: 1.6;
+  color: var(--text-muted);
+  background-color: var(--background-primary);
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  border: 1px solid var(--background-modifier-border);
 }
 
 .nrlcmp-sources-section {
-    border-top: 1px solid var(--background-modifier-border);
-    padding-top: 16px;
+  border-top: 1px solid var(--background-modifier-border);
+  padding-top: 16px;
 }
 
 .nrlcmp-sources-title {
-    margin: 0 0 12px 0;
-    color: var(--text-faint);
-    font-size: 0.75em;
-    letter-spacing: 1px;
-    text-transform: uppercase;
+  margin: 0 0 12px 0;
+  color: var(--text-faint);
+  font-size: 0.75em;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
 .nrlcmp-sources-list {
-    list-style: none;
-    padding-left: 0;
-    margin: 0;
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
 }
 
 .nrlcmp-source-item {
-    margin-bottom: 6px;
-    color: var(--text-accent);
-    display: flex;
-    gap: 8px;
-    font-size: 0.9em;
+  margin-bottom: 6px;
+  color: var(--text-accent);
+  display: flex;
+  gap: 8px;
+  font-size: 0.9em;
 }
 
 .nrlcmp-source-icon {
-    opacity: 0.7;
+  opacity: 0.7;
 }
 
 .nrlcmp-no-source {
-    color: var(--text-faint);
-    font-style: italic;
+  color: var(--text-faint);
+  font-style: italic;
 }
 
 .nrlcmp-details-desc {
-    font-size: 0.9em;
-    line-height: 1.6;
-    color: var(--text-muted);
-    background: var(--background-primary);
-    padding: 10px;
-    border-radius: 6px;
-    margin-bottom: 15px;
-    max-height: 150px;
-    overflow-y: auto;
-    white-space: pre-wrap;
+  font-size: 0.9em;
+  line-height: 1.6;
+  color: var(--text-muted);
+  background: var(--background-primary);
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  max-height: 150px;
+  overflow-y: auto;
+  white-space: pre-wrap;
 }
 
 /* Estilos de Edición */
 .nrlcmp-edit-label {
-    color: var(--text-muted);
-    font-size: 0.85em;
-    display: block;
-    margin-bottom: 6px;
-    font-weight: 600;
+  color: var(--text-muted);
+  font-size: 0.85em;
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
 }
 
 .nrlcmp-edit-input {
-    width: 100%;
-    margin-bottom: 16px;
-    background-color: var(--background-modifier-form-field);
-    color: var(--text-normal);
-    border: 1px solid var(--background-modifier-border);
-    padding: 8px;
-    border-radius: 4px;
-    font-size: 0.95em;
-    font-family: inherit;
+  width: 100%;
+  margin-bottom: 16px;
+  background-color: var(--background-modifier-form-field);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 0.95em;
+  font-family: inherit;
 }
 
 .nrlcmp-edit-input:focus {
-    border-color: var(--interactive-accent);
-    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
 }
 
 .nrlcmp-edit-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    border-top: 1px solid var(--background-modifier-border);
-    padding-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  border-top: 1px solid var(--background-modifier-border);
+  padding-top: 16px;
 }
 
 /* Sidebar Elements */
 
 .nrlcmp-sidebar-header h4 {
-    margin: 0 0 10px 0;
+  margin: 0 0 10px 0;
 }
 
 .nrlcmp-sort-btn {
-    cursor: pointer;
-    color: var(--text-accent);
+  cursor: pointer;
+  color: var(--text-accent);
 }
 
 .nrlcmp-orphans-btn {
-    cursor: pointer;
-    color: var(--text-muted);
-    text-decoration: underline;
+  cursor: pointer;
+  color: var(--text-muted);
+  text-decoration: underline;
 }
 
 .nrlcmp-sidebar-row {
-    display: flex;
-    align-items: center;
-    padding: 6px;
-    border-bottom: 1px solid var(--background-modifier-border);
-    font-size: 0.85em;
+  display: flex;
+  align-items: center;
+  padding: 6px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  font-size: 0.85em;
 }
 
 .nrlcmp-row-info {
-    flex: 1;
-    margin-left: 8px;
-    cursor: pointer;
+  flex: 1;
+  margin-left: 8px;
+  cursor: pointer;
 }
 
 .nrlcmp-row-title {
-    font-weight: bold;
-    color: var(--text-normal);
+  font-weight: bold;
+  color: var(--text-normal);
 }
 
 .nrlcmp-row-meta {
-    color: var(--text-muted);
-    font-size: 0.9em;
+  color: var(--text-muted);
+  font-size: 0.9em;
 }
 
 .nrlcmp-list-more {
-    padding: 10px;
-    text-align: center;
-    color: var(--text-muted);
+  padding: 10px;
+  text-align: center;
+  color: var(--text-muted);
 }
 
 /* Modal Helper */
 .nrlcmp-confirm-msg {
-    margin-bottom: 20px;
+  margin-bottom: 20px;
 }
 .nrlcmp-modal-btns {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .nrlcmp-details-body {
-    padding: 16px;
-    background-color: var(--background-secondary);
-    border-radius: 0 0 8px 8px;
+  padding: 16px;
+  background-color: var(--background-secondary);
+  border-radius: 0 0 8px 8px;
 }
 
 .nrlcmp-details-meta {
-    margin-bottom: 12px;
-    font-size: 0.85em;
-    color: var(--text-muted);
+  margin-bottom: 12px;
+  font-size: 0.85em;
+  color: var(--text-muted);
 }
 
 .nrlcmp-details-input {
-    width: 100%;
-    margin-bottom: 10px;
-    background: #333333;
-    color: white;
-    border: 1px solid #555555;
-    padding: 4px;
-    font-family: inherit;
+  width: 100%;
+  margin-bottom: 10px;
+  background: #333333;
+  color: white;
+  border: 1px solid #555555;
+  padding: 4px;
+  font-family: inherit;
 }
 
 /* --- UTILIDADES DE VISIBILIDAD Y LAYOUT --- */
 .nrlcmp-visible {
-    display: block !important;
+  display: block !important;
 }
 /* Reemplazo para style.display = 'none' */
 
 .nrlcmp-hidden {
-    display: none !important;
+  display: none !important;
 }
 
 /* Reemplazo para style.display = 'block' */
 .nrlcmp-visible-block {
-    display: block !important;
+  display: block !important;
 }
 
 /* Reemplazo para style.display = 'flex' */
 .nrlcmp-flex-row {
-    display: flex;
-    flex-direction: row;
+  display: flex;
+  flex-direction: row;
 }
 
 .nrlcmp-flex-col {
-    display: flex;
-    flex-direction: column;
+  display: flex;
+  flex-direction: column;
 }
 
 .nrlcmp-flex-center {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .nrlcmp-full-size {
-    width: 100%;
-    height: 100%;
+  width: 100%;
+  height: 100%;
 }
 
 /* Text Highlights */
 .nrlcmp-text-highlight {
-    color: var(--text-normal);
+  color: var(--text-normal);
 }
 
 /* --- MERGE SELECTION MODAL --- */
 
 .nrlcmp-merge-instruction {
-    color: var(--text-muted);
-    font-size: 0.9em;
-    margin-bottom: 10px;
+  color: var(--text-muted);
+  font-size: 0.9em;
+  margin-bottom: 10px;
 }
 
 .nrlcmp-merge-warning {
-    background-color: var(--background-modifier-error-hover); 
-    border: 1px solid var(--background-modifier-error);
-    color: var(--text-normal);
-    border-radius: 5px;
-    padding: 8px 12px;
-    margin-bottom: 20px;
-    font-size: 0.85em;
+  background-color: var(--background-modifier-error-hover);
+  border: 1px solid var(--background-modifier-error);
+  color: var(--text-normal);
+  border-radius: 5px;
+  padding: 8px 12px;
+  margin-bottom: 20px;
+  font-size: 0.85em;
 }
 
 .nrlcmp-merge-list {
-    max-height: 300px;
-    overflow-y: auto;
-    margin-bottom: 20px;
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 6px;
-    padding: 10px;
-    background-color: var(--background-primary);
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 10px;
+  background-color: var(--background-primary);
 }
 
 .nrlcmp-merge-item {
-    display: flex;
-    align-items: center;
-    padding: 8px;
-    gap: 10px;
-    border-bottom: 1px solid var(--background-modifier-border);
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  gap: 10px;
+  border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .nrlcmp-merge-radio {
-    margin-right: 10px;
-    cursor: pointer;
+  margin-right: 10px;
+  cursor: pointer;
 }
 
 .nrlcmp-merge-item:last-child {
-    border-bottom: none;
+  border-bottom: none;
 }
 
 .nrlcmp-merge-item:hover {
-    background-color: var(--background-modifier-hover);
+  background-color: var(--background-modifier-hover);
 }
 
 .nrlcmp-merge-label {
-    cursor: pointer;
-    width: 100%;
-    color: var(--text-normal);
-    font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  color: var(--text-normal);
+  font-weight: 500;
 }
 
 .nrlcmp-merge-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    padding-top: 10px;
-    border-top: 1px solid var(--background-modifier-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--background-modifier-border);
 }
 
 /* --- ENV EDITOR MODAL --- */
 
 .nrlcmp-modal-desc {
-    margin-bottom: 15px;
-    color: var(--text-muted);
-    font-size: 0.9em;
+  margin-bottom: 15px;
+  color: var(--text-muted);
+  font-size: 0.9em;
 }
 
 .nrlcmp-env-container {
-    width: 100%;
-    height: 300px;
-    margin-bottom: 20px;
+  width: 100%;
+  height: 300px;
+  margin-bottom: 20px;
 }
 
 .nrlcmp-env-textarea-full {
-    width: 100%;
-    height: 100%;
-    font-family: var(--font-monospace);
-    font-size: 12px;
-    resize: none;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  resize: none;
 }
 
 .nrlcmp-modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 15px;
-    gap: 10px;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 15px;
+  gap: 10px;
 }
 
 /* --- LEXICAL MENU (Typeahead) --- */
 .nrlcmp-typeahead-menu {
-    display: block;
-    position: absolute;
-    z-index: 9999; /* Asegurar que flote sobre todo */
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-    border-radius: 8px;
+  display: block;
+  position: absolute;
+  z-index: 9999; /* Asegurar que flote sobre todo */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
 }
 
 /* Settings: Neural Backend Section */
 
 .nrlcmp-setting-warning {
-    background-color: var(--background-modifier-error);
-    border: 1px solid var(--text-error);
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 20px;
-    color: var(--text-on-accent);
-    border-left: 4px solid var(--text-error);
-    font-size: 0.9em;
+  background-color: var(--background-modifier-error);
+  border: 1px solid var(--text-error);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 20px;
+  color: var(--text-on-accent);
+  border-left: 4px solid var(--text-error);
+  font-size: 0.9em;
 }
 
 .nrlcmp-textarea-container {
-    width: 100%;
-    margin-bottom: 20px;
+  width: 100%;
+  margin-bottom: 20px;
 }
 
 .nrlcmp-setting-textarea {
-    width: 100%;
-    min-height: 120px;
-    font-family: var(--font-monospace);
-    font-size: 0.9em;
-    resize: vertical;
+  width: 100%;
+  min-height: 120px;
+  font-family: var(--font-monospace);
+  font-size: 0.9em;
+  resize: vertical;
 }
 
 .nrlcmp-advanced-container {
-    padding: 10px;
-    background: var(--background-secondary);
-    border-radius: 6px;
-    margin-top: 8px;
-    border: 1px solid var(--background-modifier-border);
+  padding: 10px;
+  background: var(--background-secondary);
+  border-radius: 6px;
+  margin-top: 8px;
+  border: 1px solid var(--background-modifier-border);
 }
 
 .nrlcmp-env-setting {
-    display: block !important; /* Force block to allow textarea full width */
+  display: block !important; /* Force block to allow textarea full width */
 }
 
 .nrlcmp-env-textarea {
-    width: 100%;
-    height: 150px;
-    font-family: var(--font-monospace);
-    font-size: 11px;
-    background-color: var(--background-primary);
+  width: 100%;
+  height: 150px;
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  background-color: var(--background-primary);
 }
 
 /* Restart Button Emphasis */
 .nrlcmp-restart-setting {
-    border-top: 2px solid var(--text-accent);
-    margin-top: 24px;
-    padding-top: 24px;
-    background-color: var(--background-secondary-alt);
-    border-radius: 6px;
-    padding: 16px;
+  border-top: 2px solid var(--text-accent);
+  margin-top: 24px;
+  padding-top: 24px;
+  background-color: var(--background-secondary-alt);
+  border-radius: 6px;
+  padding: 16px;
 }
 
 .nrlcmp-cursor-pointer {
-    cursor: pointer;
+  cursor: pointer;
 }
 
 .nrlcmp-restart-setting .setting-item-name {
-    color: var(--text-normal);
-    font-weight: bold;
+  color: var(--text-normal);
+  font-weight: bold;
 }
 
 /* Dark mode adjustments (optional if vars don't cover it) */
 .theme-dark .nrlcmp-restart-setting {
-    background-color: rgba(255, 165, 0, 0.1);
+  background-color: rgba(255, 165, 0, 0.1);
 }
 .nrlcmp-text-error {
-    color: var(--text-error);
+  color: var(--text-error);
 }
 
 .nrlcmp-text-success {
-    color: var(--text-success);
+  color: var(--text-success);
 }
 
 /* Table Column Widths */
 .nrlcmp-col-actions {
-    width: 60px;
+  width: 60px;
 }
 
 /* Table Columns */
 .nrlcmp-col-enable {
-    width: 60px;
+  width: 60px;
 }
 
 /* Embedding DB Manage Modal */
 .nrlcmp-embedding-db-modal {
-    width: 720px;
-    max-width: 90vw; /* Responsive safety */
+  width: 720px;
+  max-width: 90vw; /* Responsive safety */
 }
 
 /* --- Chat Input Controls --- */
@@ -2593,7 +2594,7 @@ button.nrlcmp-chat-input-model-select {
   border: 1px solid var(--background-modifier-border);
   /* He cambiado 0px por var(--input-radius) o 4px para que se vea más nativo de Obsidian, 
      pero puedes volver a poner 0px si prefieres bordes rectos */
-  border-radius: 4px; 
+  border-radius: 4px;
   font-size: 0.8em;
   padding: 2px 4px;
   cursor: pointer;
@@ -2609,65 +2610,64 @@ button.nrlcmp-chat-input-model-select {
 
 /* --- STATUS BAR INDICATORS --- */
 .nrlcmp-status-bar-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
 }
 
 .nrlcmp-status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background-color: var(--text-muted); /* Por defecto gris */
-    display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--text-muted); /* Por defecto gris */
+  display: inline-block;
 }
 
 .nrlcmp-status-dot.is-online {
-    background-color: #2ecc71; /* Verde */
-    box-shadow: 0 0 5px #2ecc71;
+  background-color: #2ecc71; /* Verde */
+  box-shadow: 0 0 5px #2ecc71;
 }
 
 .nrlcmp-status-dot.is-offline {
-    background-color: #e74c3c; /* Rojo */
+  background-color: #e74c3c; /* Rojo */
 }
 
 .nrlcmp-status-dot.is-busy {
-    background-color: #f1c40f; /* Amarillo */
+  background-color: #f1c40f; /* Amarillo */
 }
 
-
 .nrlcmp-modal-label {
-    display: block;
-    margin-top: 15px;
-    margin-bottom: 5px;
-    font-weight: bold;
-    font-size: 0.9em;
-    color: var(--text-muted);
+  display: block;
+  margin-top: 15px;
+  margin-bottom: 5px;
+  font-weight: bold;
+  font-size: 0.9em;
+  color: var(--text-muted);
 }
 
 .nrlcmp-modal-input-container {
-    background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 4px;
-    padding: 10px;
-    margin-bottom: 15px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 10px;
+  margin-bottom: 15px;
 }
 
 .nrlcmp-ai-suggestion-box {
-    background-color: rgba(var(--interactive-accent-rgb), 0.1);
-    border: 1px dashed var(--interactive-accent);
-    border-radius: 6px;
-    padding: 10px;
-    margin-top: 10px;
-    font-size: 0.9em;
-    color: var(--text-normal);
+  background-color: rgba(var(--interactive-accent-rgb), 0.1);
+  border: 1px dashed var(--interactive-accent);
+  border-radius: 6px;
+  padding: 10px;
+  margin-top: 10px;
+  font-size: 0.9em;
+  color: var(--text-normal);
 }
 
 .nrlcmp-merge-warning p {
-    margin: 0;
-    margin-bottom: 8px; /* Espacio entre líneas */
+  margin: 0;
+  margin-bottom: 8px; /* Espacio entre líneas */
 }
 .nrlcmp-merge-warning p:last-child {
-    margin-bottom: 0;
+  margin-bottom: 0;
 }

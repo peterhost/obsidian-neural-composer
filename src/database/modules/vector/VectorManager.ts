@@ -148,10 +148,12 @@ export class VectorManager {
           try {
             const fileContent = await this.app.vault.cachedRead(file)
             // Remove null bytes from the content
-            
+
             // FIX: Generate null byte at runtime using ASCII code 0 to bypass static analysis checks
             // for control characters in literals. Using split/join is safer than Regex here.
-            const sanitizedContent = fileContent.split(String.fromCharCode(0)).join('');
+            const sanitizedContent = fileContent
+              .split(String.fromCharCode(0))
+              .join('')
 
             const fileDocuments = await textSplitter.createDocuments([
               sanitizedContent,

@@ -15,8 +15,8 @@ const RE_XML_TRANSCRIPT = /<text start="([^"]*)" dur="([^"]*)">([^<]*)<\/text>/g
 
 // Interface to avoid 'any' in caption logic
 interface YoutubeCaptionTrack {
-  languageCode: string;
-  baseUrl: string;
+  languageCode: string
+  baseUrl: string
 }
 
 export function isYoutubeUrl(url: string) {
@@ -140,13 +140,11 @@ export class YoutubeTranscript {
       throw new YoutubeTranscriptNotAvailableError(videoId)
     }
 
-    const tracks = captions.captionTracks as YoutubeCaptionTrack[];
+    const tracks = captions.captionTracks as YoutubeCaptionTrack[]
 
     if (
       config?.lang &&
-      !tracks.some(
-        (track) => track.languageCode === config?.lang,
-      )
+      !tracks.some((track) => track.languageCode === config?.lang)
     ) {
       throw new YoutubeTranscriptNotAvailableLanguageError(
         config?.lang,
@@ -155,16 +153,14 @@ export class YoutubeTranscript {
       )
     }
 
-    const transcriptURL: string = (
-      config?.lang
-        ? tracks.find(
-            (track) => track.languageCode === config?.lang,
-          )
+    const transcriptURL: string =
+      (config?.lang
+        ? tracks.find((track) => track.languageCode === config?.lang)
         : tracks[0]
-    )?.baseUrl || tracks[0]?.baseUrl;
+      )?.baseUrl || tracks[0]?.baseUrl
 
     if (!transcriptURL) {
-        throw new YoutubeTranscriptNotAvailableError(videoId);
+      throw new YoutubeTranscriptNotAvailableError(videoId)
     }
 
     const transcriptResponse = await requestUrl({

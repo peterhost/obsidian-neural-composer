@@ -27,8 +27,12 @@ describe('calculateFileDistance', () => {
   })
 
   it('should calculate the correct distance between files in different subfolders', () => {
-    const file1 = mockCast<TFile>(new MockFileStruct('folder1/folder2/file1.md'))
-    const file2 = mockCast<TFile>(new MockFileStruct('folder1/folder3/file2.md'))
+    const file1 = mockCast<TFile>(
+      new MockFileStruct('folder1/folder2/file1.md'),
+    )
+    const file2 = mockCast<TFile>(
+      new MockFileStruct('folder1/folder3/file2.md'),
+    )
 
     const result = calculateFileDistance(file1, file2)
     expect(result).toBe(4)
@@ -43,8 +47,12 @@ describe('calculateFileDistance', () => {
   })
 
   it('should handle files at different depths', () => {
-    const file1 = mockCast<TFile>(new MockFileStruct('folder1/folder2/subfolder/file1.md'))
-    const file2 = mockCast<TFile>(new MockFileStruct('folder1/folder3/file2.md'))
+    const file1 = mockCast<TFile>(
+      new MockFileStruct('folder1/folder2/subfolder/file1.md'),
+    )
+    const file2 = mockCast<TFile>(
+      new MockFileStruct('folder1/folder3/file2.md'),
+    )
 
     const result = calculateFileDistance(file1, file2)
     expect(result).toBe(5)

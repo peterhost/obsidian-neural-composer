@@ -132,7 +132,9 @@ function ProviderFormComponent({
             />
           </ObsidianSetting>
 
-          <ObsidianSetting name="Provider type" required> {/* Sentence case */}
+          <ObsidianSetting name="Provider type" required>
+            {' '}
+            {/* Sentence case */}
             <ObsidianDropdown
               value={formData.type}
               options={Object.fromEntries(

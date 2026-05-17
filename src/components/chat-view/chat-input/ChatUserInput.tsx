@@ -69,7 +69,7 @@ const ChatUserInput = forwardRef<ChatUserInputRef, ChatUserInputProps>(
     ref,
   ) => {
     const app = useApp()
-    const { settings, setSettings } = useSettings();
+    const { settings, setSettings } = useSettings()
     const editorRef = useRef<LexicalEditor | null>(null)
     const contentEditableRef = useRef<HTMLDivElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
@@ -277,32 +277,35 @@ const ChatUserInput = forwardRef<ChatUserInputRef, ChatUserInputProps>(
         />
 
         <div className="nrlcmp-chat-user-input-controls">
-            {/* FIX: Inline styles removed (partially), replaced with class. Wrapper style kept simple or moved to CSS recommended */}
-            <div className="nrlcmp-chat-user-input-controls__model-select-container">
+          {/* FIX: Inline styles removed (partially), replaced with class. Wrapper style kept simple or moved to CSS recommended */}
+          <div className="nrlcmp-chat-user-input-controls__model-select-container">
             <ModelSelect />
-            
+
             {/* --- CORA MOD: Selector de Modo LightRAG --- */}
-            <select 
-                value={settings.lightRagQueryMode}
-                onChange={(e) => {
-                    // FIX: Void operator for floating promise + Safe casting instead of 'any'
-                    void setSettings({ 
-                        ...settings, 
-                        lightRagQueryMode: e.target.value as NeuralComposerSettings['lightRagQueryMode'] 
-                    });
-                }}
-                className="nrlcmp-query-mode-select"
-                title="LightRAG Enfoque"
+            <select
+              value={settings.lightRagQueryMode}
+              onChange={(e) => {
+                // FIX: Void operator for floating promise + Safe casting instead of 'any'
+                void setSettings({
+                  ...settings,
+                  lightRagQueryMode: e.target
+                    .value as NeuralComposerSettings['lightRagQueryMode'],
+                })
+              }}
+              className="nrlcmp-query-mode-select"
+              title="LightRAG Enfoque"
             >
-                <option value="mix">Mix</option>
-                <option value="hybrid">Hybrid</option>
-                <option value="local">🔍 Local</option>
-                <option value="global">🌐 Global</option>
-                <option value="naive">📝 Naive</option>
+              <option value="mix">Mix</option>
+              <option value="hybrid">Hybrid</option>
+              <option value="local">🔍 Local</option>
+              <option value="global">🌐 Global</option>
+              <option value="naive">📝 Naive</option>
             </select>
-            </div>
+          </div>
           <div className="nrlcmp-chat-user-input-controls__buttons">
-            <ImageUploadButton onUpload={(files) => void handleUploadImages(files)} />
+            <ImageUploadButton
+              onUpload={(files) => void handleUploadImages(files)}
+            />
             <SubmitButton onClick={() => handleSubmit()} />
             <VaultChatButton
               onClick={() => {
@@ -342,7 +345,7 @@ function MentionableContentPreview({
     queryKey: [
       'file',
       displayedMentionableKey,
-      mentionables.map((m) => getMentionableKey(serializeMentionable(m))), 
+      mentionables.map((m) => getMentionableKey(serializeMentionable(m))),
     ],
     queryFn: async () => {
       if (!displayedMentionable) return null

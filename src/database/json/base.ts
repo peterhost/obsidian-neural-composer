@@ -5,7 +5,7 @@ export abstract class AbstractJsonRepository<T, M> {
   protected dataDir: string
   protected app: App
 
-constructor(app: App, dataDir: string) {
+  constructor(app: App, dataDir: string) {
     this.app = app
     this.dataDir = normalizePath(dataDir)
     // FIX: Use void operator to handle async call in constructor

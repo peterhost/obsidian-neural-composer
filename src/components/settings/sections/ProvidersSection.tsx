@@ -45,42 +45,42 @@ export function ProvidersSection({ app, plugin }: ProvidersSectionProps) {
       onConfirm: () => {
         // Wrap async logic to satisfy void return type of onConfirm
         void (async () => {
-            try {
-                const dbManager = await plugin.getDbManager()
-                const vectorManager = dbManager.getVectorManager()
-                const embeddingStats = await vectorManager.getEmbeddingStats()
+          try {
+            const dbManager = await plugin.getDbManager()
+            const vectorManager = dbManager.getVectorManager()
+            const embeddingStats = await vectorManager.getEmbeddingStats()
 
-                // Clear embeddings for each associated embedding model
-                for (const embeddingModel of associatedEmbeddingModels) {
-                  const embeddingStat = embeddingStats.find(
-                    (v) => v.model === embeddingModel.id,
-                  )
+            // Clear embeddings for each associated embedding model
+            for (const embeddingModel of associatedEmbeddingModels) {
+              const embeddingStat = embeddingStats.find(
+                (v) => v.model === embeddingModel.id,
+              )
 
-                  if (embeddingStat?.rowCount && embeddingStat.rowCount > 0) {
-                    // only clear when there's data
-                    const embeddingModelClient = getEmbeddingModelClient({
-                      settings,
-                      embeddingModelId: embeddingModel.id,
-                    })
-                    await vectorManager.clearAllVectors(embeddingModelClient)
-                  }
-                }
-
-                await setSettings({
-                  ...settings,
-                  providers: [...settings.providers].filter(
-                    (v) => v.id !== provider.id,
-                  ),
-                  chatModels: [...settings.chatModels].filter(
-                    (v) => v.providerId !== provider.id,
-                  ),
-                  embeddingModels: [...settings.embeddingModels].filter(
-                    (v) => v.providerId !== provider.id,
-                  ),
+              if (embeddingStat?.rowCount && embeddingStat.rowCount > 0) {
+                // only clear when there's data
+                const embeddingModelClient = getEmbeddingModelClient({
+                  settings,
+                  embeddingModelId: embeddingModel.id,
                 })
-            } catch (e) {
-                console.error("Error deleting provider:", e);
+                await vectorManager.clearAllVectors(embeddingModelClient)
+              }
             }
+
+            await setSettings({
+              ...settings,
+              providers: [...settings.providers].filter(
+                (v) => v.id !== provider.id,
+              ),
+              chatModels: [...settings.chatModels].filter(
+                (v) => v.providerId !== provider.id,
+              ),
+              embeddingModels: [...settings.embeddingModels].filter(
+                (v) => v.providerId !== provider.id,
+              ),
+            })
+          } catch (e) {
+            console.error('Error deleting provider:', e)
+          }
         })()
       },
     }).open()

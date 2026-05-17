@@ -27,17 +27,17 @@ describe('ChatManager', () => {
     chatManager = new ChatManager(mockApp)
   })
 
-describe('filename generation and parsing roundtrip', () => {
+  describe('filename generation and parsing roundtrip', () => {
     // Definimos una interfaz temporal para exponer los métodos privados que queremos testear
     // Esto evita el uso de 'any' y mantiene al linter feliz.
     interface TestableChatManager {
-        generateFileName(chat: ChatConversation): string;
-        parseFileName(fileName: string): { 
-            id: string; 
-            title: string; 
-            updatedAt: number; 
-            schemaVersion: number 
-        } | null;
+      generateFileName(chat: ChatConversation): string
+      parseFileName(fileName: string): {
+        id: string
+        title: string
+        updatedAt: number
+        schemaVersion: number
+      } | null
     }
 
     const testTitles = [
@@ -76,10 +76,10 @@ describe('filename generation and parsing roundtrip', () => {
       }
 
       // CORRECCIÓN: Usamos casting seguro a la interfaz TestableChatManager en lugar de 'as any'
-      const manager = chatManager as unknown as TestableChatManager;
-      
-      const fileName = manager.generateFileName(chat);
-      const metadata = manager.parseFileName(fileName);
+      const manager = chatManager as unknown as TestableChatManager
+
+      const fileName = manager.generateFileName(chat)
+      const metadata = manager.parseFileName(fileName)
 
       expect(metadata).not.toBeNull()
       if (metadata) {

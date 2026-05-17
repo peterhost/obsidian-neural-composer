@@ -26,7 +26,7 @@ import {
   TextNode,
   createCommand,
 } from 'lexical'
-import * as React from 'react'; // Importante para React.JSX
+import * as React from 'react' // Importante para React.JSX
 import {
   MutableRefObject,
   ReactPortal,
@@ -173,7 +173,6 @@ export function getScrollParent(
   for (
     let parent: HTMLElement | null = element;
     (parent = parent.parentElement);
-
   ) {
     style = getComputedStyle(parent)
     if (excludeStaticParent && style.position === 'static') {
@@ -282,7 +281,8 @@ export function LexicalMenu<TOption extends MenuOption>({
     matchingString: string,
   ) => void
   commandPriority?: CommandListenerPriority
-}): React.JSX.Element | null { // CORRECCIÓN: React.JSX.Element
+}): React.JSX.Element | null {
+  // CORRECCIÓN: React.JSX.Element
   const [selectedIndex, setHighlightedIndex] = useState<null | number>(null)
 
   const matchingString = resolution.match?.matchingString
@@ -489,12 +489,12 @@ export function useMenuAnchorRef(
 ): MutableRefObject<HTMLElement> {
   const [editor] = useLexicalComposerContext()
   const anchorElementRef = useRef<HTMLElement>(document.createElement('div'))
-  
+
   const positionMenu = useCallback(() => {
     // Limpieza de estilo inicial
-    anchorElementRef.current.style.removeProperty('top');
-    anchorElementRef.current.style.removeProperty('bottom');
-    
+    anchorElementRef.current.style.removeProperty('top')
+    anchorElementRef.current.style.removeProperty('bottom')
+
     const rootElement = editor.getRootElement()
     const containerDiv = anchorElementRef.current
     const menuEle = containerDiv.firstChild as HTMLElement
@@ -502,15 +502,18 @@ export function useMenuAnchorRef(
     if (rootElement !== null && resolution !== null) {
       const { left, top, width, height } = resolution.getRect()
       const anchorHeight = anchorElementRef.current.offsetHeight
-      
+
       // COORDENADAS DINÁMICAS (Esto es inevitable en JS, pero el layout base es CSS)
-      containerDiv.style.setProperty('top', `${top + anchorHeight + 3 + (shouldIncludePageYOffset__EXPERIMENTAL ? window.pageYOffset : 0)}px`);
-      containerDiv.style.setProperty('left', `${left + window.pageXOffset}px`);
-      containerDiv.style.setProperty('height', `${height}px`);
-      containerDiv.style.setProperty('width', `${width}px`);
+      containerDiv.style.setProperty(
+        'top',
+        `${top + anchorHeight + 3 + (shouldIncludePageYOffset__EXPERIMENTAL ? window.pageYOffset : 0)}px`,
+      )
+      containerDiv.style.setProperty('left', `${left + window.pageXOffset}px`)
+      containerDiv.style.setProperty('height', `${height}px`)
+      containerDiv.style.setProperty('width', `${width}px`)
 
       if (menuEle !== null) {
-        menuEle.style.setProperty('top', `${top}px`);
+        menuEle.style.setProperty('top', `${top}px`)
         const menuRect = menuEle.getBoundingClientRect()
         const menuHeight = menuRect.height
         const menuWidth = menuRect.width
@@ -518,11 +521,17 @@ export function useMenuAnchorRef(
         const rootElementRect = rootElement.getBoundingClientRect()
 
         if (left + menuWidth > rootElementRect.right) {
-            containerDiv.style.setProperty('left', `${rootElementRect.right - menuWidth + window.pageXOffset}px`);
+          containerDiv.style.setProperty(
+            'left',
+            `${rootElementRect.right - menuWidth + window.pageXOffset}px`,
+          )
         }
-        
+
         if (top + menuHeight > window.innerHeight) {
-          containerDiv.style.setProperty('top', `${top - menuHeight - height + (shouldIncludePageYOffset__EXPERIMENTAL ? window.pageYOffset : 0)}px`);
+          containerDiv.style.setProperty(
+            'top',
+            `${top - menuHeight - height + (shouldIncludePageYOffset__EXPERIMENTAL ? window.pageYOffset : 0)}px`,
+          )
         }
       }
 
@@ -530,14 +539,14 @@ export function useMenuAnchorRef(
         if (className != null) {
           containerDiv.className = className
         }
-        
+
         // CORRECCIÓN: Usar clases CSS en lugar de estilos inline
-        containerDiv.addClass('nrlcmp-typeahead-menu'); // Clase definida en styles.css
-        
+        containerDiv.addClass('nrlcmp-typeahead-menu') // Clase definida en styles.css
+
         containerDiv.setAttribute('aria-label', 'Typeahead menu')
         containerDiv.setAttribute('id', 'typeahead-menu')
         containerDiv.setAttribute('role', 'listbox')
-        
+
         parent.append(containerDiv)
       }
       anchorElementRef.current = containerDiv

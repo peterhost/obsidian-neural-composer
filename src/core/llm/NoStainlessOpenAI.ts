@@ -10,7 +10,6 @@ export class NoStainlessOpenAI extends OpenAI {
     const headers = req.req.headers as Record<string, string>
     Object.keys(headers).forEach((k) => {
       if (k.startsWith('x-stainless')) {
-        
         delete headers[k]
       }
     })

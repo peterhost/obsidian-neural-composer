@@ -138,13 +138,13 @@ function McpServerComponent({
       // Fix: Wrap async confirm handler
       onConfirm: () => {
         void (async () => {
-            await setSettings({
+          await setSettings({
             ...settings,
             mcp: {
-                ...settings.mcp,
-                servers: settings.mcp.servers.filter((s) => s.id !== server.name),
+              ...settings.mcp,
+              servers: settings.mcp.servers.filter((s) => s.id !== server.name),
             },
-            })
+          })
         })()
       },
     }).open()

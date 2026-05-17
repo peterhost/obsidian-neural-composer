@@ -30,7 +30,6 @@ export default function AssistantToolMessageGroupItem({
   onToolMessageUpdate,
   onAssistantMessageUpdate,
 }: AssistantToolMessageGroupItemProps) {
-  
   // --- CORA MOD: ESTADO DE EDICIÓN LOCAL ---
   const [isEditing, setIsEditing] = useState(false)
 
@@ -61,7 +60,9 @@ export default function AssistantToolMessageGroupItem({
                 handleApply={onApply}
                 isApplying={isApplying}
                 // --- CORA MOD: Conectamos ---
-                onContentUpdate={(newContent) => handleContentUpdate(message.id, newContent)}
+                onContentUpdate={(newContent) =>
+                  handleContentUpdate(message.id, newContent)
+                }
                 isEditingMode={isEditing} // Le decimos al hijo si debe mostrar el textarea
                 onCancelEdit={() => setIsEditing(false)} // Para el botón cancelar
               />
@@ -78,11 +79,11 @@ export default function AssistantToolMessageGroupItem({
         ),
       )}
       {messages.length > 0 && (
-        <AssistantToolMessageGroupActions 
-            messages={messages} 
-            // --- CORA MOD: Conectar el botón ---
-            onToggleEdit={() => setIsEditing(!isEditing)}
-            isEditing={isEditing}
+        <AssistantToolMessageGroupActions
+          messages={messages}
+          // --- CORA MOD: Conectar el botón ---
+          onToggleEdit={() => setIsEditing(!isEditing)}
+          isEditing={isEditing}
         />
       )}
     </div>

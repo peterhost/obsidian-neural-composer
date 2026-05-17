@@ -39,25 +39,25 @@ export function EmbeddingModelsSubSection({
       // Fix: Wrap async confirm handler to prevent floating promise return
       onConfirm: () => {
         void (async () => {
-            const vectorManager = (await plugin.getDbManager()).getVectorManager()
-            const embeddingStats = await vectorManager.getEmbeddingStats()
-            const embeddingStat = embeddingStats.find((v) => v.model === modelId)
+          const vectorManager = (await plugin.getDbManager()).getVectorManager()
+          const embeddingStats = await vectorManager.getEmbeddingStats()
+          const embeddingStat = embeddingStats.find((v) => v.model === modelId)
 
-            if (embeddingStat?.rowCount && embeddingStat.rowCount > 0) {
-              // only clear when there's data
-              const embeddingModelClient = getEmbeddingModelClient({
-                settings,
-                embeddingModelId: modelId,
-              })
-              await vectorManager.clearAllVectors(embeddingModelClient)
-            }
-
-            await setSettings({
-              ...settings,
-              embeddingModels: [...settings.embeddingModels].filter(
-                (v) => v.id !== modelId,
-              ),
+          if (embeddingStat?.rowCount && embeddingStat.rowCount > 0) {
+            // only clear when there's data
+            const embeddingModelClient = getEmbeddingModelClient({
+              settings,
+              embeddingModelId: modelId,
             })
+            await vectorManager.clearAllVectors(embeddingModelClient)
+          }
+
+          await setSettings({
+            ...settings,
+            embeddingModels: [...settings.embeddingModels].filter(
+              (v) => v.id !== modelId,
+            ),
+          })
         })()
       },
     }).open()

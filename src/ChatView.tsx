@@ -17,7 +17,7 @@ import { SettingsProvider } from './contexts/settings-context'
 import NeuralComposerPlugin from './main'
 import { MentionableBlockData } from './types/mentionable'
 
-export const PLUGIN_NAME = "Neural Composer";
+export const PLUGIN_NAME = 'Neural Composer'
 
 export class ChatView extends ItemView {
   private root: Root | null = null
@@ -50,7 +50,7 @@ export class ChatView extends ItemView {
 
     // Consume chatProps
     this.initialChatProps = undefined
-    
+
     // Satisfy linter "Async method has no await" and best practices
     await super.onOpen()
   }
@@ -85,8 +85,8 @@ export class ChatView extends ItemView {
             <SettingsProvider
               settings={this.plugin.settings}
               setSettings={(newSettings) => {
-                 // Prevent floating promise in prop
-                 void this.plugin.setSettings(newSettings)
+                // Prevent floating promise in prop
+                void this.plugin.setSettings(newSettings)
               }}
               addSettingsChangeListener={(listener) =>
                 this.plugin.addSettingsChangeListener(listener)

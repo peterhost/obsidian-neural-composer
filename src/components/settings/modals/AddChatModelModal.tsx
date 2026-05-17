@@ -112,7 +112,9 @@ function AddChatModelModalComponent({
         />
       </ObsidianSetting>
 
-      <ObsidianSetting name="Model name" required> {/* Sentence case */}
+      <ObsidianSetting name="Model name" required>
+        {' '}
+        {/* Sentence case */}
         <ObsidianTextInput
           value={formData.model}
           placeholder="Enter the model name"

@@ -44,10 +44,12 @@ export function ChatModelsSubSection({
       onConfirm: () => {
         // Wrap async logic
         void (async () => {
-            await setSettings({
-              ...settings,
-              chatModels: [...settings.chatModels].filter((v) => v.id !== modelId),
-            })
+          await setSettings({
+            ...settings,
+            chatModels: [...settings.chatModels].filter(
+              (v) => v.id !== modelId,
+            ),
+          })
         })()
       },
     }).open()

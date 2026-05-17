@@ -28,7 +28,7 @@ export default function MarkdownCodeComponent({
 
   // Fix: Safe extraction of string content to avoid "[object Object]"
   // and satisfy the linter rule about default stringification.
-  const codeContent = typeof children === 'string' ? children : '';
+  const codeContent = typeof children === 'string' ? children : ''
 
   const wrapLines = useMemo(() => {
     return !language || ['markdown'].includes(language)

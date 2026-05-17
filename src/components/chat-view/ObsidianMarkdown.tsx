@@ -75,8 +75,12 @@ function setupMarkdownLinks(
       if (linktext) {
         // FIX: Wrap async call in a void IIFE to prevent floating promise in event listener
         void (async () => {
-            await app.workspace.openLinkText(linktext, sourcePath, Keymap.isModEvent(evt))
-        })();
+          await app.workspace.openLinkText(
+            linktext,
+            sourcePath,
+            Keymap.isModEvent(evt),
+          )
+        })()
       }
     })
 

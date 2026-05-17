@@ -38,7 +38,7 @@ export class McpManager {
 
   private availableToolsCache: McpTool[] | null = null
 
-constructor({
+  constructor({
     settings,
     registerSettingsListener,
   }: {
@@ -107,7 +107,10 @@ constructor({
         )
         if (
           existingServer &&
-          deepEqual(existingServer.config.parameters, serverConfig.parameters) &&
+          deepEqual(
+            existingServer.config.parameters,
+            serverConfig.parameters,
+          ) &&
           existingServer.config.enabled === serverConfig.enabled
         ) {
           // Server is already up to date
@@ -207,9 +210,8 @@ constructor({
     }
 
     const { Client } = await import('@modelcontextprotocol/sdk/client/index.js')
-    const { StdioClientTransport } = await import(
-      '@modelcontextprotocol/sdk/client/stdio.js'
-    )
+    const { StdioClientTransport } =
+      await import('@modelcontextprotocol/sdk/client/stdio.js')
     const client = new Client({ name, version: '1.0.0' })
 
     try {

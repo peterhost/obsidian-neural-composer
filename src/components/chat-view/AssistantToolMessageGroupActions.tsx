@@ -62,7 +62,13 @@ function CopyButton({ messages }: { messages: AssistantToolMessageGroup }) {
 }
 
 // --- CORA MOD: BOTÓN DE EDICIÓN ---
-function EditButton({ isEditing, onToggleEdit }: { isEditing: boolean, onToggleEdit: () => void }) {
+function EditButton({
+  isEditing,
+  onToggleEdit,
+}: {
+  isEditing: boolean
+  onToggleEdit: () => void
+}) {
   return (
     <Tooltip.Provider delayDuration={0}>
       <Tooltip.Root>
@@ -71,7 +77,9 @@ function EditButton({ isEditing, onToggleEdit }: { isEditing: boolean, onToggleE
             onClick={onToggleEdit}
             className={`clickable-icon ${isEditing ? 'is-active' : ''}`}
             aria-label="Edit"
-            style={{ color: isEditing ? 'var(--interactive-accent)' : undefined }}
+            style={{
+              color: isEditing ? 'var(--interactive-accent)' : undefined,
+            }}
           >
             <Pencil size={12} />
           </button>
