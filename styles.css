@@ -79,7 +79,6 @@
   }
 
   code {
-    font-size: var(--font-ui-small);
     border-radius: var(--code-radius);
     padding: 0.1em 0.25em;
     color: var(--code-normal);
@@ -165,8 +164,6 @@
   background: var(--background-modifier-form-field);
   color: var(--text-normal);
   font-family: inherit;
-  padding: 0;
-  font-size: var(--font-ui-small);
   outline: none;
   min-height: 80px;
   max-height: 200px;
@@ -365,10 +362,6 @@
 .nrlcmp-lexical-content-editable-root .mention {
   background-color: var(--tag-background);
   color: var(--tag-color);
-  padding: var(--size-2-1) calc(var(--size-2-1));
-  border-radius: var(--radius-s);
-  background-color: var(--tag-background);
-  color: var(--tag-color);
   padding: 0 calc(var(--size-2-1));
   border-radius: var(--radius-s);
   word-break: break-all;
@@ -389,15 +382,11 @@
 }
 
 .nrlcmp-popover ul {
-  padding: 0;
+  padding: var(--size-4-1) 0;
   list-style: none;
   margin: 0;
   max-height: 200px;
   overflow-y: scroll;
-}
-
-.nrlcmp-popover ul {
-  padding: var(--size-4-1) 0;
 }
 
 .nrlcmp-popover ul li {
@@ -417,8 +406,6 @@
   z-index: 1000;
   max-height: 300px;
   overflow-y: auto;
-  background-color: var(--background-primary);
-  border: 1px solid var(--background-modifier-border);
   margin: 0 8px 0 8px;
   padding: var(--size-2-3) var(--size-4-2);
   color: var(--text-normal);
@@ -433,7 +420,6 @@
   border-radius: 8px;
   border: 0;
   min-height: 20px;
-  align-items: center;
   gap: var(--size-4-1);
   align-items: start;
 }
@@ -447,6 +433,7 @@
 
 .nrlcmp-popover li:hover {
   background-color: var(--background-modifier-hover);
+  cursor: pointer;
 }
 
 .nrlcmp-popover-item-icon {
@@ -463,10 +450,6 @@
   min-width: fit-content;
 }
 
-.nrlcmp-popover li:hover {
-  background-color: var(--background-modifier-hover);
-  cursor: pointer;
-}
 .nrlcmp-popover li .nrlcmp-chat-list-dropdown-item-icon {
   visibility: hidden;
 }
@@ -1067,8 +1050,7 @@ button.nrlcmp-chat-input-model-select {
 .nrlcmp-llm-info-tokens-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  column-gap: var(--size-4-5);
-  row-gap: var(--size-4-2);
+  gap: var(--size-4-2) var(--size-4-5);
   font-size: var(--font-ui-small);
 }
 
@@ -1897,7 +1879,7 @@ button.nrlcmp-chat-input-model-select {
 .nrlcmp-toolbar-input {
     background: rgba(0, 0, 0, 0.6) !important;
     border: 1px solid var(--text-accent) !important;
-    color: #fff !important;
+    color: #ffffff !important;
     padding: 6px 10px !important;
     border-radius: 6px;
     outline: none;
@@ -1914,8 +1896,8 @@ button.nrlcmp-chat-input-model-select {
 
 .nrlcmp-toolbar-btn {
     background: rgba(0,0,0,0.6) !important;
-    border: 1px solid #444 !important;
-    color: #ccc !important;
+    border: 1px solid #444444 !important;
+    color: #cccccc !important;
     padding: 6px !important;
     border-radius: 6px;
     cursor: pointer;
@@ -1994,15 +1976,9 @@ button.nrlcmp-chat-input-model-select {
     align-items: center;
 }
 
-
-.nrlcmp-toolbar-input:focus {
-    width: 250px;
-    background: rgba(0,0,0,0.8);
-}
-
 .nrlcmp-toolbar-btn:hover {
     background: rgba(255,255,255,0.1) !important;
-    color: #fff !important;
+    color: #ffffff !important;
 }
 
 /* Sidebar */
@@ -2085,7 +2061,7 @@ button.nrlcmp-chat-input-model-select {
     border-radius: 8px;
     padding: 0;
     z-index: 50;
-    color: #eee;
+    color: #eeeeee;
     overflow-y: auto;
     display: none;
     box-shadow: 0 10px 40px rgba(0,0,0,0.8);
@@ -2286,26 +2262,9 @@ button.nrlcmp-chat-input-model-select {
 }
 
 /* Sidebar Elements */
-.nrlcmp-sidebar-header {
-    padding: 10px;
-    border-bottom: 1px solid var(--background-modifier-border);
-}
 
 .nrlcmp-sidebar-header h4 {
     margin: 0 0 10px 0;
-}
-
-.nrlcmp-sidebar-actions {
-    display: flex;
-    gap: 5px;
-    margin-top: 10px;
-}
-
-.nrlcmp-sidebar-filters {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.8em;
-    margin-top: 10px;
 }
 
 .nrlcmp-sort-btn {
@@ -2317,11 +2276,6 @@ button.nrlcmp-chat-input-model-select {
     cursor: pointer;
     color: var(--text-muted);
     text-decoration: underline;
-}
-
-.nrlcmp-sidebar-list {
-    flex: 1;
-    overflow-y: auto;
 }
 
 .nrlcmp-sidebar-row {
@@ -2379,9 +2333,9 @@ button.nrlcmp-chat-input-model-select {
 .nrlcmp-details-input {
     width: 100%;
     margin-bottom: 10px;
-    background: #333;
+    background: #333333;
     color: white;
-    border: 1px solid #555;
+    border: 1px solid #555555;
     padding: 4px;
     font-family: inherit;
 }
@@ -2514,13 +2468,6 @@ button.nrlcmp-chat-input-model-select {
     resize: none;
 }
 
-.nrlcmp-env-textarea {
-    width: 100%;
-    height: 300px;
-    font-family: var(--font-monospace);
-    font-size: 0.9em;
-}
-
 .nrlcmp-modal-actions {
     display: flex;
     justify-content: flex-end;
@@ -2621,9 +2568,6 @@ button.nrlcmp-chat-input-model-select {
 
 /* Table Columns */
 .nrlcmp-col-enable {
-    width: 60px;
-}
-.nrlcmp-col-actions {
     width: 60px;
 }
 
