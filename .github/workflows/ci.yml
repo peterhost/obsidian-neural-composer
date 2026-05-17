@@ -18,7 +18,7 @@ jobs:
       - name: Type check
         run: npm run type:check
       - name: Prettier check
-        run: npx prettier --check --cache-strategy content .
+        run: npx prettier --check .
       - name: ESLint
         run: npx eslint .
         continue-on-error: true
