@@ -1,7 +1,34 @@
-import { Setting, Notice } from 'obsidian'
+import { AbstractInputSuggest, App, Setting, Notice, TFolder } from 'obsidian'
 import { EnvEditorModal } from '../../modals/EnvEditorModal'
 import { useEffect, useRef, useState } from 'react'
 import NeuralComposerPlugin from '../../../main'
+
+class FolderSuggest extends AbstractInputSuggest<TFolder> {
+  private readonly input: HTMLInputElement
+
+  constructor(app: App, inputEl: HTMLInputElement) {
+    super(app, inputEl)
+    this.input = inputEl
+  }
+
+  getSuggestions(query: string): TFolder[] {
+    const lower = query.toLowerCase()
+    return this.app.vault
+      .getAllFolders(false)
+      .filter((f) => f.path.toLowerCase().includes(lower))
+      .slice(0, 50)
+  }
+
+  renderSuggestion(folder: TFolder, el: HTMLElement): void {
+    el.setText(folder.path)
+  }
+
+  selectSuggestion(folder: TFolder): void {
+    this.setValue(folder.path)
+    this.input.dispatchEvent(new Event('input'))
+    this.close()
+  }
+}
 
 export const BACKEND_NAME = 'LightRAG'
 export const TERM_API = 'API'
@@ -19,6 +46,8 @@ export const YOUR_SERVER = 'http://your-server:9621'
 export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
   const settingsRef = useRef<HTMLDivElement>(null)
 
+  const [settings, setLocalSettings] = useState(plugin.settings)
+
   // Local state for immediate UI reactivity
   const [currentRerankBinding, setCurrentRerankBinding] = useState(
     plugin.settings.lightRagRerankBinding,
@@ -27,6 +56,10 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
     plugin.settings.useCustomEntityTypes,
   )
   const [useRemote, setUseRemote] = useState(plugin.settings.lightRagUseRemote)
+
+  useEffect(() => {
+    return plugin.addSettingsChangeListener(setLocalSettings)
+  }, [plugin])
 
   useEffect(() => {
     if (!settingsRef.current) return
@@ -141,11 +174,11 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
         `Select the model ${BACKEND_NAME} will use for indexing/reasoning.`,
       )
       .addDropdown((dropdown) => {
-        plugin.settings.chatModels.forEach((model) => {
+        settings.chatModels.forEach((model) => {
           dropdown.addOption(model.id, `${model.providerId} - ${model.model}`)
         })
         dropdown.addOption('', 'Same as chat model (default)')
-        dropdown.setValue(plugin.settings.lightRagModelId || '')
+        dropdown.setValue(settings.lightRagModelId || '')
         dropdown.onChange((value) => {
           void (async () => {
             await plugin.setSettings({
@@ -164,7 +197,7 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
         'Select the model used for vectorizing your notes, (must match the dimensions used during ingestion).',
       )
       .addDropdown((dropdown) => {
-        plugin.settings.embeddingModels.forEach((model) => {
+        settings.embeddingModels.forEach((model) => {
           dropdown.addOption(
             model.id,
             `${model.providerId} - ${model.model} (${model.dimension || '?'} dim)`,
@@ -172,7 +205,7 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
         })
 
         dropdown.addOption('', 'Same as chat model (default)')
-        dropdown.setValue(plugin.settings.lightRagEmbeddingModelId || '')
+        dropdown.setValue(settings.lightRagEmbeddingModelId || '')
 
         dropdown.onChange((value) => {
           void (async () => {
@@ -263,8 +296,10 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
 
       new Setting(container)
         .setName('Ontology source folder')
-        .setDesc('Folder with representative notes to analyze.')
-        .addText((text) =>
+        .setDesc(
+          'Vault-relative folder with representative notes to analyze (e.g. Main/Memories).',
+        )
+        .addText((text) => {
           text
             .setPlaceholder(`${FOLDER_DIR}`)
             .setValue(plugin.settings.lightRagOntologyFolder)
@@ -273,8 +308,9 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
                 ...plugin.settings,
                 lightRagOntologyFolder: value,
               })
-            }),
-        )
+            })
+          new FolderSuggest(plugin.app, text.inputEl)
+        })
 
       let typesTextArea: HTMLTextAreaElement
 
@@ -578,7 +614,7 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
           })
         })
       })
-  }, [plugin.settings, currentRerankBinding, useCustomOntology, useRemote])
+  }, [settings, currentRerankBinding, useCustomOntology, useRemote])
 
   return <div ref={settingsRef} />
 }
