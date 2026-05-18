@@ -518,16 +518,24 @@ export default class NeuralComposerPlugin extends Plugin {
     this.updateStatusUI('offline')
   }
 
-  public restartLightRagServer() {
+  public restartLightRagServer(skipEnvUpdate = false) {
     new Notice('Restarting system backend...')
     this.stopLightRagServer()
     // Use timeout to allow process to fully die
     this.timeoutIds.push(
       setTimeout(() => {
-        this.updateEnvFile()
+        if (!skipEnvUpdate) this.updateEnvFile()
         void this.startLightRagServer()
       }, 2000),
     )
+  }
+
+  // Normalizes a provider base URL so it ends with /v1, regardless of how the user entered it.
+  // LightRAG's Python OpenAI client uses base_url directly and expects the /v1 path to be included.
+  private normalizeBindingHost(url: string): string {
+    const trimmed = url.replace(/\/+$/, '') // strip trailing slashes
+    if (trimmed.endsWith('/v1')) return trimmed
+    return `${trimmed}/v1`
   }
 
   // GENERATOR
@@ -592,7 +600,7 @@ export default class NeuralComposerPlugin extends Plugin {
           if (llmProvider.id === 'ollama' && llmProvider.baseUrl) {
             envContent += `OLLAMA_HOST=${llmProvider.baseUrl}\n`
           } else if (llmProvider.baseUrl) {
-            envContent += `LLM_BINDING_HOST=${llmProvider.baseUrl}\n`
+            envContent += `LLM_BINDING_HOST=${this.normalizeBindingHost(llmProvider.baseUrl)}\n`
           }
           if (llmProvider.apiKey) {
             envContent += `LLM_BINDING_API_KEY=${llmProvider.apiKey}\n`
@@ -602,7 +610,7 @@ export default class NeuralComposerPlugin extends Plugin {
           envContent += `LLM_BINDING=openai\n`
 
           if (llmProvider.baseUrl) {
-            envContent += `LLM_BINDING_HOST=${llmProvider.baseUrl}\n`
+            envContent += `LLM_BINDING_HOST=${this.normalizeBindingHost(llmProvider.baseUrl)}\n`
           }
           if (llmProvider.apiKey) {
             envContent += `LLM_BINDING_API_KEY=${llmProvider.apiKey}\n`
@@ -629,7 +637,7 @@ export default class NeuralComposerPlugin extends Plugin {
           envContent += `EMBEDDING_BINDING=${embedProvider.id}\n`
 
           if (embedProvider.baseUrl) {
-            envContent += `EMBEDDING_BINDING_HOST=${embedProvider.baseUrl}\n`
+            envContent += `EMBEDDING_BINDING_HOST=${this.normalizeBindingHost(embedProvider.baseUrl)}\n`
           }
           if (embedProvider.apiKey) {
             envContent += `EMBEDDING_BINDING_API_KEY=${embedProvider.apiKey}\n`
@@ -639,7 +647,7 @@ export default class NeuralComposerPlugin extends Plugin {
           envContent += `EMBEDDING_BINDING=openai\n`
 
           if (embedProvider.baseUrl) {
-            envContent += `EMBEDDING_BINDING_HOST=${embedProvider.baseUrl}\n`
+            envContent += `EMBEDDING_BINDING_HOST=${this.normalizeBindingHost(embedProvider.baseUrl)}\n`
           }
           if (embedProvider.apiKey) {
             envContent += `EMBEDDING_BINDING_API_KEY=${embedProvider.apiKey}\n`
@@ -729,7 +737,8 @@ export default class NeuralComposerPlugin extends Plugin {
     try {
       const envPath = path.join(workDir, '.env')
       fs.writeFileSync(envPath, content)
-      this.restartLightRagServer()
+      // skipEnvUpdate=true so the manually-edited content is not overwritten
+      this.restartLightRagServer(true)
     } catch (e) {
       new Notice('Error saving .env file')
       console.error(e)
