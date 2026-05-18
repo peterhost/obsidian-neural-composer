@@ -17,7 +17,8 @@ import Graph from 'graphology'
 import Sigma from 'sigma'
 import forceAtlas2 from 'graphology-layout-forceatlas2'
 import FA2Layout from 'graphology-layout-forceatlas2/worker'
-import ForceGraph3D from '3d-force-graph'
+// ForceGraph3D (~4MB with three.js) is lazy-loaded on first 3D render
+type ForceGraph3DConstructor = () => ForceGraph3DInstance
 import { MergeSelectionModal } from '../components/modals/MergeSelectionModal'
 // Use type import to avoid circular dependency values but get the type
 import type NeuralComposerPlugin from '../main'
@@ -583,7 +584,7 @@ export class NativeGraphView extends ItemView {
   }
 
   // --- ENGINE 3D ---
-  render3D(
+  async render3D(
     container: HTMLElement,
     nodes: GraphNode[],
     edges: GraphMLRawEdge[],
@@ -596,8 +597,8 @@ export class NativeGraphView extends ItemView {
       })),
     }
 
-    // Fix: Cast to unknown then to specific function signature
-    this.graph3D = (ForceGraph3D as unknown as () => ForceGraph3DInstance)()(
+    const { default: ForceGraph3D } = await import('3d-force-graph')
+    this.graph3D = (ForceGraph3D as unknown as ForceGraph3DConstructor)()(
       container,
     )
       .graphData(gData)

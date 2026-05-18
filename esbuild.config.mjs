@@ -38,6 +38,17 @@ if you want to view the source, please visit the github repository of this plugi
 
 const prod = process.argv[2] === 'production'
 
+// Redirect bare 'lucide-react' imports to our curated icon barrel (exact match only,
+// so 'lucide-react/dist/esm/icons/...' sub-paths in the barrel itself are unaffected)
+const lucideIconsPlugin = {
+  name: 'lucide-icons-barrel',
+  setup(build) {
+    build.onResolve({ filter: /^lucide-react$/ }, () => ({
+      path: path.resolve('./src/utils/icons.ts'),
+    }))
+  },
+}
+
 const context = await esbuild.context({
   banner: {
     js: banner,
@@ -71,10 +82,11 @@ const context = await esbuild.context({
   logLevel: 'info', // 'debug' for more detailed output
   sourcemap: prod ? false : 'inline',
   treeShaking: true,
+  plugins: [pgliteShimPlugin, lucideIconsPlugin],
   outfile: 'main.js',
   minify: prod,
   metafile: true,
-  plugins: [pgliteShimPlugin],
+  plugins: [pgliteShimPlugin, lucideIconsPlugin],
 })
 
 if (prod) {

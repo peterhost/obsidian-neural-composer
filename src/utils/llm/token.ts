@@ -1,12 +1,5 @@
-import { getEncoding } from 'js-tiktoken'
-
-// TODO: Replace js-tiktoken with tiktoken library for better performance
-// Note: tiktoken uses WebAssembly, requiring esbuild configuration
-
-// Caution: tokenCount is computationally expensive for large inputs.
-// Frequent use, especially on large files, may significantly impact performance.
+// Approximation: ~4 chars per token (cl100k_base average for English/code)
+// Accurate enough for context-window threshold checks; avoids bundling js-tiktoken (5MB+)
 export function tokenCount(text: string): Promise<number> {
-  const encoder = getEncoding('cl100k_base')
-  // Return Promise explicitly to satisfy interface without using 'async' keyword
-  return Promise.resolve(encoder.encode(text).length)
+  return Promise.resolve(Math.ceil(text.length / 4))
 }
