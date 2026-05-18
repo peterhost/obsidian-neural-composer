@@ -87,7 +87,42 @@ For those who like to tinker, we added some power features:
 
 ---
 
-## 🤝 Acknowledgements
+## 🔒 Privacy & Security
+
+Neural Composer is designed with privacy as a core principle. Here is an exact account of every network call the plugin makes and why.
+
+### What leaves your machine
+
+| Destination | When | Why |
+| :--- | :--- | :--- |
+| **Your AI provider** (OpenAI, Anthropic, Gemini, Groq, etc.) | Every chat message or ingestion | To generate responses and embeddings. Only the notes you explicitly ingest or attach are sent. |
+| **Your local LightRAG server** (`localhost`) | Every query and ingestion | The plugin talks to the LightRAG Python process running on your own machine. No data leaves. |
+| **Your custom / remote LightRAG server** | Only if you configure a remote URL | If you opt in to a remote server, queries go to that URL. This is off by default. |
+
+**If you use local models (Ollama) and a local LightRAG server, no data ever leaves your machine.**
+
+### What never happens
+
+- The plugin **does not send telemetry, analytics, or crash reports** to any server.
+- The plugin **does not contact `github.com` or any other domain at runtime.** GitHub URLs visible in the settings UI are navigation links only — they are never fetched programmatically.
+- The plugin **does not store your API keys anywhere other than Obsidian's own `data.json`** in your local vault.
+
+### System-level access (Obsidian scorecard disclosures)
+
+The Obsidian automated scanner flags several capabilities. Here is the plain-English explanation for each:
+
+| Disclosure | Why it exists |
+| :--- | :--- |
+| **Direct filesystem access (`fs`)** | Required to write the LightRAG `.env` configuration file to your chosen work directory, which may be outside the vault. |
+| **Shell execution (`child_process`)** | Required to start and stop the local LightRAG Python server. The command is the exact path you configure in settings — no user input is ever interpolated into shell arguments. |
+| **Vault enumeration** | Required to list your notes for ingestion and for the RAG search index. Only metadata (file paths) is read; content is read only when you explicitly ingest a file. |
+| **Clipboard access** | Inherited from the Lexical rich-text editor used in the chat input. Allows standard paste operations. |
+| **Base64 calls (`atob`/`btoa`)** | Used by bundled dependencies: `@modelcontextprotocol/sdk` decodes JWT tokens for MCP OAuth, and `sigma`/`three-forcegraph` encode WebGL shader data. No API keys or sensitive data are encoded this way. |
+| **Dynamic code execution (`new Function`)** | Used by two bundled libraries: `ngraph.forcelayout` generates optimized N-dimensional physics code for the 3D graph, and `ajv` (via the MCP SDK) compiles JSON schema validators. Neither is used to execute user-provided code. |
+
+---
+
+
 
 This project is a labor of love, built upon the shoulders of giants:
 *   Forked from the excellent **[Smart Composer](https://github.com/glowingjade/obsidian-smart-composer)** by glowingjade.
