@@ -118,6 +118,9 @@ export const NeuralComposerSettingsSchema = z.object({
   lightRagMaxParallelInsert: z.number().catch(1),
   lightRagChunkSize: z.number().catch(1200),
   lightRagChunkOverlap: z.number().catch(100),
+
+  // --- INCREMENTAL SYNC ---
+  lightRagAutoSync: z.boolean().catch(false),
   // ----------------------------------
 })
 
@@ -198,6 +201,7 @@ export const DEFAULT_SETTINGS: NeuralComposerSettings = {
 
   // DEFAULT NUEVO
   lightRagCustomEnv: '',
+  lightRagAutoSync: false,
 }
 
 export type SettingMigration = {

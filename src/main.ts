@@ -133,6 +133,8 @@ export default class NeuralComposerPlugin extends Plugin {
   private ragEngineInitPromise: Promise<RAGEngine> | null = null
 
   private timeoutIds: ReturnType<typeof setTimeout>[] = []
+  private modifyDebounceMap: Map<string, ReturnType<typeof setTimeout>> =
+    new Map()
   private serverProcess: ChildProcess | null = null
   private lastErrorTime: number = 0
 
@@ -317,7 +319,7 @@ export default class NeuralComposerPlugin extends Plugin {
               const content = await this.app.vault.read(file)
               const finalContent =
                 ext === 'md' ? `Title: ${title}\n\n${content}` : content
-              success = await ragEngine.insertDocument(finalContent, file.name)
+              success = await ragEngine.insertDocument(finalContent, file.path)
             } else {
               success = await ragEngine.uploadDocument(file)
             }
@@ -337,6 +339,50 @@ export default class NeuralComposerPlugin extends Plugin {
         })()
       },
     })
+
+    // --- INCREMENTAL SYNC: vault event listeners ---
+    this.registerEvent(
+      this.app.vault.on('delete', (file) => {
+        if (!this.settings.lightRagAutoSync) return
+        if (!(file instanceof TFile)) return
+        void (async () => {
+          const ragEngine = await this.getRAGEngine()
+          const removed = await ragEngine.deleteDocumentByFilePath(file.path)
+          if (removed) new Notice(`Graph: removed "${file.name}" from index.`)
+        })()
+      }),
+    )
+
+    this.registerEvent(
+      this.app.vault.on('rename', (file, oldPath) => {
+        if (!this.settings.lightRagAutoSync) return
+        if (!(file instanceof TFile)) return
+        void (async () => {
+          const ragEngine = await this.getRAGEngine()
+          await ragEngine.deleteDocumentByFilePath(oldPath)
+        })()
+      }),
+    )
+
+    this.registerEvent(
+      this.app.vault.on('modify', (file) => {
+        if (!this.settings.lightRagAutoSync) return
+        if (!(file instanceof TFile)) return
+        if (!SUPPORTED_EXTENSIONS.includes(file.extension.toLowerCase())) return
+
+        // Debounce: wait 5 s of inactivity before re-indexing
+        const existing = this.modifyDebounceMap.get(file.path)
+        if (existing) clearTimeout(existing)
+        const id = setTimeout(() => {
+          this.modifyDebounceMap.delete(file.path)
+          void (async () => {
+            const ragEngine = await this.getRAGEngine()
+            await ragEngine.reindexFile(file)
+          })()
+        }, 5000)
+        this.modifyDebounceMap.set(file.path, id)
+      }),
+    )
 
     this.addSettingTab(new NeuralComposerSettingTab(this.app, this))
 
@@ -450,7 +496,7 @@ export default class NeuralComposerPlugin extends Plugin {
             const content = await this.app.vault.read(file)
             const finalContent =
               ext === 'md' ? `Title: ${file.basename}\n\n${content}` : content
-            result = await ragEngine.insertDocument(finalContent, file.name)
+            result = await ragEngine.insertDocument(finalContent, file.path)
           } else {
             result = await ragEngine.uploadDocument(file)
           }
@@ -479,6 +525,8 @@ export default class NeuralComposerPlugin extends Plugin {
     window.clearInterval(this.heartbeatInterval)
     this.timeoutIds.forEach((id) => clearTimeout(id))
     this.timeoutIds = []
+    this.modifyDebounceMap.forEach((id) => clearTimeout(id))
+    this.modifyDebounceMap.clear()
 
     if (this.ragEngine) {
       this.ragEngine.cleanup()
