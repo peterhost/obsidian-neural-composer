@@ -1924,7 +1924,7 @@ button.nrlcmp-chat-input-model-select {
 }
 /* --- NEURAL MANAGER (Native Graph View) --- */
 
-.view-content .nrlcmp-graph-view {
+.view-content.nrlcmp-graph-view {
   display: flex;
   flex-direction: row;
   height: 100%;

@@ -120,7 +120,7 @@ export const NeuralComposerSettingsSchema = z.object({
   lightRagChunkOverlap: z.number().catch(100),
 
   // --- INCREMENTAL SYNC ---
-  lightRagAutoSync: z.boolean().catch(false),
+  lightRagSyncFolder: z.string().catch(''),
   // ----------------------------------
 })
 
@@ -201,7 +201,7 @@ export const DEFAULT_SETTINGS: NeuralComposerSettings = {
 
   // DEFAULT NUEVO
   lightRagCustomEnv: '',
-  lightRagAutoSync: false,
+  lightRagSyncFolder: '',
 }
 
 export type SettingMigration = {

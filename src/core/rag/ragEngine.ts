@@ -171,8 +171,13 @@ export class RAGEngine {
 
   // --- 2b. INCREMENTAL SYNC HELPERS ---
 
-  // Finds a LightRAG doc_id by the vault-relative file path stored in file_sources on insert.
-  async findDocIdByFilePath(filePath: string): Promise<string | null> {
+  // Finds a LightRAG doc_id matching the given file.
+  // Tries the full vault-relative path first (v1.2+ ingest), then falls back to
+  // bare filename (pre-v1.2 ingest used file.name instead of file.path).
+  async findDocIdByFilePath(
+    filePath: string,
+    fileName: string,
+  ): Promise<string | null> {
     try {
       const response = await requestUrl({
         url: `${this.settings.lightRagServerUrl}/documents/paginated`,
@@ -190,14 +195,23 @@ export class RAGEngine {
       const data = response.json as {
         statuses?: { id: string; file_path: string }[]
       }
-      return data.statuses?.find((d) => d.file_path === filePath)?.id ?? null
+      const docs = data.statuses ?? []
+      // Prefer exact full-path match, fall back to bare filename for older entries
+      return (
+        docs.find((d) => d.file_path === filePath)?.id ??
+        docs.find((d) => d.file_path === fileName)?.id ??
+        null
+      )
     } catch {
       return null
     }
   }
 
-  async deleteDocumentByFilePath(filePath: string): Promise<boolean> {
-    const docId = await this.findDocIdByFilePath(filePath)
+  async deleteDocumentByFilePath(
+    filePath: string,
+    fileName: string,
+  ): Promise<boolean> {
+    const docId = await this.findDocIdByFilePath(filePath, fileName)
     if (!docId) return false
     try {
       const response = await requestUrl({
@@ -219,7 +233,7 @@ export class RAGEngine {
 
   // Removes old entry and re-inserts the current file content.
   async reindexFile(file: TFile): Promise<boolean> {
-    await this.deleteDocumentByFilePath(file.path)
+    await this.deleteDocumentByFilePath(file.path, file.name)
     const ext = file.extension.toLowerCase()
     const textExts = ['md', 'txt', 'csv', 'json', 'html', 'htm', 'xml']
     if (textExts.includes(ext)) {

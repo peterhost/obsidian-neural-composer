@@ -258,20 +258,25 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
     container.createEl('h4', { text: 'Vault sync' })
 
     new Setting(container)
-      .setName('Auto-sync graph on file changes')
+      .setName('Watched folder')
       .setDesc(
-        'When enabled, deleting or renaming a note removes it from the graph index automatically. ' +
-          'Saving a note re-indexes it after 5 seconds of inactivity. ' +
-          'Only affects files you have previously ingested.',
+        'Vault-relative folder to watch for changes. ' +
+          'When set, deleting or renaming a note removes it from the graph automatically, ' +
+          'and saving a note re-indexes it after 5 s of inactivity. ' +
+          'Leave empty to disable. Only files you have previously ingested are affected.',
       )
-      .addToggle((toggle) =>
-        toggle.setValue(plugin.settings.lightRagAutoSync).onChange((value) => {
-          void plugin.setSettings({
-            ...plugin.settings,
-            lightRagAutoSync: value,
+      .addText((text) => {
+        text
+          .setPlaceholder('e.g. Main/Knowledge')
+          .setValue(plugin.settings.lightRagSyncFolder)
+          .onChange((value) => {
+            void plugin.setSettings({
+              ...plugin.settings,
+              lightRagSyncFolder: value,
+            })
           })
-        }),
-      )
+        new FolderSuggest(plugin.app, text.inputEl)
+      })
 
     // --- ONTOLOGY SECTION ---
     container.createEl('h4', { text: 'Ontology (categories)' })
