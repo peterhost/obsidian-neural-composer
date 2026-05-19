@@ -57,7 +57,7 @@ function ErrorModalComponent({
             onClick={() => {
               onClose()
               window.open(
-                'https://github.com/glowingjade/obsidian-smart-composer/issues',
+                'https://github.com/oscampo/obsidian-neural-composer/issues',
                 '_blank',
               )
             }}

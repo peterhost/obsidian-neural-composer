@@ -94,7 +94,7 @@ export function ProvidersSection({ app, plugin }: ProvidersSectionProps) {
         <span>Enter your API keys for the providers you want to use</span>
         <br />
         <a
-          href="https://github.com/glowingjade/obsidian-smart-composer/wiki/1.2-Initial-Setup#getting-your-api-key"
+          href="https://github.com/oscampo/obsidian-neural-composer/wiki/1.2-Initial-Setup#getting-your-api-key"
           target="_blank"
           rel="noopener noreferrer"
         >
