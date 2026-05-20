@@ -223,13 +223,13 @@ export class NativeGraphView extends ItemView {
       return
     }
 
-    // Load Node.js modules — desktop only, used by loadReferenceMaps for source file resolution
-    const [fsModule, pathModule] = await Promise.all([
-      import('fs'),
-      import('path'),
-    ])
-    this._nodeFs = fsModule
-    this._nodePath = pathModule
+    // Load Node.js modules — desktop only, used by loadReferenceMaps for source file resolution.
+    // Use require() (not import()) because the bundle is CJS and dynamic ESM
+    // import() is not resolved correctly in Obsidian's plugin loader.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    this._nodeFs = require('fs') as typeof import('fs')
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    this._nodePath = require('path') as typeof import('path')
     this.workDir = this.plugin.settings.lightRagWorkDir
 
     container.addClass('nrlcmp-graph-view')

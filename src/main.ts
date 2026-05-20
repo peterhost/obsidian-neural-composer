@@ -173,18 +173,19 @@ export default class NeuralComposerPlugin extends Plugin {
   async onload() {
     await this.loadSettings()
 
-    // Load Node.js built-ins once at startup — desktop only, never on mobile
+    // Load Node.js built-ins once at startup — desktop only, never on mobile.
+    // Use require() (not import()) because the bundle is CJS and dynamic ESM
+    // import() is not resolved correctly in Obsidian's plugin loader.
     if (Platform.isDesktop) {
-      const [fsModule, pathModule, cpModule, netModule] = await Promise.all([
-        import('fs'),
-        import('path'),
-        import('child_process'),
-        import('net'),
-      ])
-      this._nodeFs = fsModule
-      this._nodePath = pathModule
-      this._nodeChildProcess = cpModule
-      this._nodeNet = netModule
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      this._nodeFs = require('fs') as typeof import('fs')
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      this._nodePath = require('path') as typeof import('path')
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      this._nodeChildProcess =
+        require('child_process') as typeof import('child_process')
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      this._nodeNet = require('net') as typeof import('net')
     }
 
     // --- ZERO-CONFIG & PORTABILITY ---
