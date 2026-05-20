@@ -102,6 +102,11 @@ export default function SimilaritySearchResults({
 }) {
   const [isOpen, setIsOpen] = useState(false)
 
+  // Exclude the master "Graph's memory" entry — it's always 100% and redundant
+  const displayedResults = similaritySearchResults.filter(
+    (c) => c.path !== "Graph's memory",
+  )
+
   return (
     <div className="nrlcmp-similarity-search-results">
       <div
@@ -109,12 +114,12 @@ export default function SimilaritySearchResults({
         className="nrlcmp-similarity-search-results__trigger"
       >
         {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        <div>Context used ({similaritySearchResults.length})</div>
+        <div>Context used ({displayedResults.length})</div>
       </div>
 
       {isOpen && (
         <div className="nrlcmp-similarity-search-results__list">
-          {similaritySearchResults.map((chunk) => (
+          {displayedResults.map((chunk) => (
             <SimiliartySearchItem key={chunk.id} chunk={chunk} />
           ))}
         </div>

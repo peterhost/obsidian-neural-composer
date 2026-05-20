@@ -1017,6 +1017,8 @@ button.nrlcmp-chat-input-model-select {
       font-size: var(--font-smallest);
       color: var(--text-muted);
       min-width: 3.2em;
+      text-align: right;
+      padding-right: var(--size-4-2);
     }
 
     .nrlcmp-similarity-search-item__path {
