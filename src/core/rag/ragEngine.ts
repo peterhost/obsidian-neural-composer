@@ -33,10 +33,22 @@ interface RagResult extends Partial<SelectEmbedding> {
 interface LightRagAPIResponse {
   response?: string
   references?: {
+    reference_id?: string
     file_path?: string
     content?: string
   }[]
   [key: string]: unknown // Allow other props safely
+}
+
+/**
+ * Count how many times reference [N] is explicitly cited in the response text.
+ * LightRAG embeds markers like "[1]", "[2]" in the generated answer when
+ * include_references=true, so this gives us a real signal of how much each
+ * source contributed to the response.
+ */
+function countCitations(responseText: string, refNumber: number): number {
+  const matches = responseText.match(new RegExp(`\\[${refNumber}\\]`, 'g'))
+  return matches ? matches.length : 0
 }
 
 export class RAGEngine {
@@ -302,9 +314,11 @@ export class RAGEngine {
         headers: this.getLightRagHeaders(),
         body: JSON.stringify({
           query: query,
-          mode: 'hybrid',
+          mode: this.settings.lightRagQueryMode || 'mix',
           stream: false,
           only_need_context: false,
+          // Ask LightRAG to embed [N] citation markers so we can score references
+          include_references: true,
         }),
         throw: false,
       })
@@ -348,51 +362,49 @@ export class RAGEngine {
       }
 
       const results: RagResult[] = []
-      // Data is now typed, so we can access properties safely
       const graphAnswer = data.response || ''
+      const refs = data.references ?? []
 
-      let masterContent = graphAnswer
-      if (data.references && Array.isArray(data.references)) {
-        masterContent += '\n\n--- ORIGINAL REFERENCES (DATA LAYER) ---\n'
-        // CORRECCIÓN: Quitamos ': any' y dejamos que TS infiera el tipo desde la interfaz LightRagAPIResponse
-        data.references.forEach((ref, index) => {
-          const docName = ref.file_path || `Source ${index + 1}`
-          masterContent += `[${index + 1}] ${docName}\n`
-        })
-      }
+      // --- Compute real relevance scores from citation frequency ---
+      // LightRAG embeds [1], [2], ... markers in the response when references
+      // are included. Count how often each source is cited → normalize to 0–1.
+      const citationCounts = refs.map((_, i) =>
+        countCitations(graphAnswer, i + 1),
+      )
+      const maxCitations = Math.max(...citationCounts, 1)
 
-      if (masterContent) {
+      // Score formula:
+      //   cited ≥1 time  → 0.40 + (citedCount / maxCited) * 0.55   [0.40 – 0.95]
+      //   cited 0 times  → 0.20  (listed as reference but not explicitly cited)
+      const refScore = (citations: number): number =>
+        citations > 0 ? 0.4 + (citations / maxCitations) * 0.55 : 0.2
+
+      // Build master "Graph's memory" entry (the raw LightRAG answer)
+      if (graphAnswer) {
         results.push({
           id: -1,
           model: 'lightrag-master',
           path: "Graph's memory",
-          content: masterContent,
+          content: graphAnswer,
           similarity: 1.0,
           mtime: Date.now(),
-          metadata: {
-            startLine: 0,
-            endLine: 0,
-            fileName: 'Graph answer',
-            content: masterContent,
-          },
+          metadata: { startLine: 0, endLine: 0, fileName: 'Graph answer' },
         })
       }
 
-      if (data.references && Array.isArray(data.references)) {
-        for (let i = 0; i < data.references.length; i++) {
-          const ref = data.references[i]
-          const filePath = ref.file_path || `Source #${i + 1}`
-          const docName = `[${i + 1}] ${filePath}`
-          results.push({
-            id: -(i + 2),
-            model: 'lightrag-ref',
-            path: `${docName}`,
-            content: `[Full content of ${docName}]:\n${ref.content || '...'}`,
-            similarity: 0.5,
-            mtime: Date.now(),
-            metadata: { startLine: 0, endLine: 0, fileName: filePath },
-          })
-        }
+      // Build one entry per cited document with a real relevance score
+      for (let i = 0; i < refs.length; i++) {
+        const ref = refs[i]
+        const filePath = ref.file_path || `Source #${i + 1}`
+        results.push({
+          id: -(i + 2),
+          model: 'lightrag-ref',
+          path: filePath, // clean path — no [N] prefix
+          content: ref.content || '',
+          similarity: refScore(citationCounts[i]),
+          mtime: Date.now(),
+          metadata: { startLine: 0, endLine: 0, fileName: filePath },
+        })
       }
 
       onQueryProgressChange?.({ type: 'querying-done', queryResult: [] })

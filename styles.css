@@ -987,27 +987,42 @@ button.nrlcmp-chat-input-model-select {
     }
   }
 
+  .nrlcmp-similarity-search-results__list {
+    display: flex;
+    flex-direction: column;
+  }
+
   .nrlcmp-similarity-search-item {
     display: flex;
-    align-items: center;
-    justify-content: start;
-    gap: var(--size-4-2);
-    padding: var(--size-4-1);
+    flex-direction: column;
     border-radius: var(--radius-s);
-    cursor: pointer;
 
-    &:hover {
-      background-color: var(--background-modifier-hover);
+    /* Main row */
+    .nrlcmp-similarity-search-item__row {
+      display: flex;
+      align-items: center;
+      gap: var(--size-4-2);
+      padding: var(--size-4-1);
+
+      &.nrlcmp-similarity-search-item__row--clickable {
+        cursor: pointer;
+        &:hover {
+          background-color: var(--background-modifier-hover);
+        }
+      }
     }
 
     .nrlcmp-similarity-search-item__similarity {
       flex-shrink: 0;
       font-size: var(--font-smallest);
       color: var(--text-muted);
+      min-width: 3.2em;
+      text-align: right;
+      padding-right: var(--size-4-2);
     }
 
     .nrlcmp-similarity-search-item__path {
-      flex-shrink: 1;
+      flex: 1;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1016,8 +1031,37 @@ button.nrlcmp-chat-input-model-select {
 
     .nrlcmp-similarity-search-item__line-numbers {
       flex-shrink: 0;
-      margin-left: auto;
       font-size: var(--font-smallest);
+      color: var(--text-faint);
+    }
+
+    .nrlcmp-similarity-search-item__snippet-toggle {
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      padding: 0 2px;
+      cursor: pointer;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      box-shadow: none;
+      &:hover {
+        color: var(--text-normal);
+      }
+    }
+
+    /* Expandable snippet */
+    .nrlcmp-similarity-search-item__snippet {
+      margin: 0 var(--size-4-1) var(--size-4-1) var(--size-4-1);
+      padding: var(--size-4-2);
+      font-size: var(--font-smallest);
+      color: var(--text-muted);
+      background-color: var(--background-secondary);
+      border-radius: var(--radius-s);
+      border-left: 2px solid var(--color-accent);
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.4;
     }
   }
 }
@@ -1981,6 +2025,59 @@ button.nrlcmp-chat-input-model-select {
   color: #ffffff;
 }
 
+.nrlcmp-toolbar-sep {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0 2px;
+}
+
+.nrlcmp-toolbar-stats {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+  margin-left: 4px;
+}
+
+.theme-light .nrlcmp-toolbar-stats {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.nrlcmp-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.nrlcmp-mobile-notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.nrlcmp-explore-btn {
+  margin-top: 12px;
+  width: 100%;
+  padding: 6px 0;
+  font-size: 12px;
+  cursor: pointer;
+  background: var(--interactive-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  color: var(--text-normal);
+}
+
+.nrlcmp-explore-btn:hover {
+  background: var(--interactive-hover);
+}
+
 /* Sidebar */
 .nrlcmp-graph-view .nrlcmp-sidebar {
   width: 320px;
@@ -2311,6 +2408,24 @@ button.nrlcmp-chat-input-model-select {
   padding: 10px;
   text-align: center;
   color: var(--text-muted);
+}
+
+/* Sidebar row variants */
+.nrlcmp-row-external .nrlcmp-row-title {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.nrlcmp-row-external .nrlcmp-row-meta {
+  color: var(--text-faint);
+}
+
+.nrlcmp-row-orphan .nrlcmp-row-title {
+  color: var(--text-accent);
+  font-style: italic;
+}
+.nrlcmp-row-orphan .nrlcmp-row-meta {
+  color: var(--text-accent);
+  opacity: 0.7;
 }
 
 /* Modal Helper */

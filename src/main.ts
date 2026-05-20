@@ -8,11 +8,9 @@ import {
   TFolder,
   WorkspaceLeaf,
   setTooltip,
+  Platform,
 } from 'obsidian'
-import { spawn, execSync, ChildProcess } from 'child_process'
-import * as fs from 'fs'
-import * as path from 'path'
-import * as net from 'net'
+import type { ChildProcess } from 'child_process'
 import {
   NativeGraphView,
   NATIVE_GRAPH_VIEW_TYPE,
@@ -138,6 +136,12 @@ export default class NeuralComposerPlugin extends Plugin {
   private serverProcess: ChildProcess | null = null
   private lastErrorTime: number = 0
 
+  // Node.js modules — loaded lazily on desktop only, always null on mobile
+  private _nodeFs: typeof import('fs') | null = null
+  private _nodePath: typeof import('path') | null = null
+  private _nodeChildProcess: typeof import('child_process') | null = null
+  private _nodeNet: typeof import('net') | null = null
+
   // --- STATUS BAR PROPERTIES ---
   private statusBarEl: HTMLElement
   private statusDotEl: HTMLElement
@@ -169,13 +173,26 @@ export default class NeuralComposerPlugin extends Plugin {
   async onload() {
     await this.loadSettings()
 
+    // Load Node.js built-ins once at startup — desktop only, never on mobile.
+    // Use require() (not import()) because the bundle is CJS and dynamic ESM
+    // import() is not resolved correctly in Obsidian's plugin loader.
+    if (Platform.isDesktop) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      this._nodeFs = require('fs') as typeof import('fs')
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      this._nodePath = require('path') as typeof import('path')
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      this._nodeChildProcess =
+        require('child_process') as typeof import('child_process')
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      this._nodeNet = require('net') as typeof import('net')
+    }
+
     // --- ZERO-CONFIG & PORTABILITY ---
-    if (!this.settings.lightRagWorkDir) {
+    if (Platform.isDesktop && !this.settings.lightRagWorkDir) {
       // Safe casting to check for desktop adapter capabilities
       const adapter = this.app.vault.adapter
 
-      // FIX: Cast to unknown then to the specific interface to avoid 'any'
-      // This satisfies the linter while checking for the desktop-only method
       if (
         typeof (adapter as unknown as FileSystemAdapterWithBasePath)
           .getBasePath === 'function'
@@ -183,11 +200,11 @@ export default class NeuralComposerPlugin extends Plugin {
         const vaultRoot = (
           adapter as unknown as FileSystemAdapterWithBasePath
         ).getBasePath()
-        const defaultPath = path.join(vaultRoot, '.neural_memory')
+        const defaultPath = this._nodePath!.join(vaultRoot, '.neural_memory')
 
-        if (!fs.existsSync(defaultPath)) {
+        if (!this._nodeFs!.existsSync(defaultPath)) {
           try {
-            fs.mkdirSync(defaultPath, { recursive: true })
+            this._nodeFs!.mkdirSync(defaultPath, { recursive: true })
           } catch (e) {
             console.error('Failed to create default folder:', e)
             new Notice('Failed to create default .neural_memory folder.')
@@ -268,6 +285,12 @@ export default class NeuralComposerPlugin extends Plugin {
       id: 'restart-neural-backend',
       name: `Restart neural backend (${BACKEND_NAME})`,
       callback: () => {
+        if (!Platform.isDesktop) {
+          new Notice(
+            'Local server management is only available on desktop. Use remote server mode on mobile.',
+          )
+          return
+        }
         this.restartLightRagServer()
       },
     })
@@ -494,7 +517,11 @@ export default class NeuralComposerPlugin extends Plugin {
 
     // --- AGGRESSIVE AUTO-START ---
     this.app.workspace.onLayoutReady(() => {
-      if (this.settings.enableAutoStartServer && !this.isRemoteServer()) {
+      if (
+        Platform.isDesktop &&
+        this.settings.enableAutoStartServer &&
+        !this.isRemoteServer()
+      ) {
         void this.startLightRagServer()
       }
       // --- LATIDO LEGAL Y SEGURO ---
@@ -657,14 +684,24 @@ export default class NeuralComposerPlugin extends Plugin {
   }
 
   public stopLightRagServer() {
+    if (!Platform.isDesktop) {
+      this.updateStatusUI('offline')
+      return
+    }
     if (this.serverProcess) {
       this.serverProcess.kill()
       this.serverProcess = null
     }
     try {
-      if (process.platform === 'win32') {
-        // Force kill tree
-        execSync('taskkill /F /IM lightrag-server.exe /T', { stdio: 'ignore' })
+      if (
+        this._nodeChildProcess &&
+        typeof process !== 'undefined' &&
+        process.platform === 'win32'
+      ) {
+        this._nodeChildProcess.execSync(
+          'taskkill /F /IM lightrag-server.exe /T',
+          { stdio: 'ignore' },
+        )
       }
     } catch {
       // Ignore kill errors if process not found
@@ -673,6 +710,12 @@ export default class NeuralComposerPlugin extends Plugin {
   }
 
   public restartLightRagServer(skipEnvUpdate = false) {
+    if (!Platform.isDesktop) {
+      new Notice(
+        'Local server management is only available on desktop. Use remote server mode on mobile.',
+      )
+      return
+    }
     new Notice('Restarting system backend...')
     this.stopLightRagServer()
     // Use timeout to allow process to fully die
@@ -883,14 +926,14 @@ export default class NeuralComposerPlugin extends Plugin {
     }
   }
 
-  // Removed async keyword as it performs sync IO and calls void method
   public saveEnvAndRestart(content: string) {
+    if (!Platform.isDesktop || !this._nodeFs || !this._nodePath) return
     const workDir = this.settings.lightRagWorkDir
     if (!workDir) return
 
     try {
-      const envPath = path.join(workDir, '.env')
-      fs.writeFileSync(envPath, content)
+      const envPath = this._nodePath.join(workDir, '.env')
+      this._nodeFs.writeFileSync(envPath, content)
       // skipEnvUpdate=true so the manually-edited content is not overwritten
       this.restartLightRagServer(true)
     } catch (e) {
@@ -900,17 +943,19 @@ export default class NeuralComposerPlugin extends Plugin {
   }
 
   public updateEnvFile() {
+    if (!Platform.isDesktop || !this._nodeFs || !this._nodePath) return
     const content = this.generateEnvConfig()
     const workDir = this.settings.lightRagWorkDir
     if (workDir && content) {
-      const envPath = path.join(workDir, '.env')
-      fs.writeFileSync(envPath, content)
+      const envPath = this._nodePath.join(workDir, '.env')
+      this._nodeFs.writeFileSync(envPath, content)
     }
   }
 
   private isPortInUse(port: number): Promise<boolean> {
+    if (!Platform.isDesktop || !this._nodeNet) return Promise.resolve(false)
     return new Promise((resolve) => {
-      const socket = new net.Socket()
+      const socket = new this._nodeNet!.Socket()
 
       const onError = () => {
         socket.destroy()
@@ -929,6 +974,12 @@ export default class NeuralComposerPlugin extends Plugin {
   }
 
   async startLightRagServer() {
+    if (!Platform.isDesktop) {
+      new Notice(
+        'Local server is not supported on mobile. Configure a remote server in settings.',
+      )
+      return
+    }
     if (this.isRemoteServer()) {
       void this.checkAndUpdateStatus()
       return
@@ -954,7 +1005,7 @@ export default class NeuralComposerPlugin extends Plugin {
     this.updateStatusUI('busy') // Amarillo mientras arranca
 
     try {
-      const envVars = { ...process.env }
+      const envVars = typeof process !== 'undefined' ? { ...process.env } : {}
 
       // --- FIX: SANITIZE PATHS (ESPACIOS EN WINDOWS) ---
       // Si la ruta tiene espacios y no tiene comillas, las agregamos.
@@ -970,7 +1021,7 @@ export default class NeuralComposerPlugin extends Plugin {
       // ------------------------------------------------
 
       // Usamos las variables sanitizadas en el comando y argumentos
-      this.serverProcess = spawn(
+      this.serverProcess = this._nodeChildProcess!.spawn(
         safeCommand,
         [
           '--port',
@@ -1391,6 +1442,12 @@ export default class NeuralComposerPlugin extends Plugin {
     if (this.isRemoteServer()) {
       new Notice(`Checking remote ${BACKEND_NAME} server...`)
       void this.checkAndUpdateStatus()
+      return
+    }
+    if (!Platform.isDesktop) {
+      new Notice(
+        'Configure a remote LightRAG server in settings to use Neural Composer on mobile.',
+      )
       return
     }
     const isAlive = await this.isPortInUse(this.getServerPort())

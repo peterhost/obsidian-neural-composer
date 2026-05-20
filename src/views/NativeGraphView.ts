@@ -9,9 +9,8 @@ import {
   requestUrl,
   Modal,
   App,
+  Platform,
 } from 'obsidian'
-import * as fs from 'fs'
-import * as path from 'path'
 import { XMLParser } from 'fast-xml-parser'
 import Graph from 'graphology'
 import Sigma from 'sigma'
@@ -24,6 +23,27 @@ import { MergeSelectionModal } from '../components/modals/MergeSelectionModal'
 import type NeuralComposerPlugin from '../main'
 
 import { CreateRelationModal } from '../components/modals/CreateRelationModal'
+
+// LightRAG /graphs API response types
+interface ApiKgNode {
+  id: string
+  labels: string[]
+  properties: Record<string, unknown>
+}
+
+interface ApiKgEdge {
+  id: string
+  type?: string
+  source: string
+  target: string
+  properties: Record<string, unknown>
+}
+
+interface ApiKnowledgeGraph {
+  nodes: ApiKgNode[]
+  edges: ApiKgEdge[]
+  is_truncated: boolean
+}
 
 export const NATIVE_GRAPH_VIEW_TYPE = 'neural-native-graph'
 
@@ -46,12 +66,15 @@ interface GraphNode {
 
 interface ChunkDocMap {
   full_doc_id?: string
+  doc_id?: string
   [key: string]: unknown
 }
 
 interface DocNameMap {
   file_name?: string
+  file_path?: string
   id?: string
+  metadata?: Record<string, unknown>
   [key: string]: unknown
 }
 
@@ -141,8 +164,20 @@ interface ForceGraph3DGetter {
 
 export class NativeGraphView extends ItemView {
   private plugin: NeuralComposerPlugin
-  private graphDataPath: string
   private workDir: string
+
+  // Node.js modules — loaded lazily in onOpen() on desktop only (for loadReferenceMaps)
+  private _nodeFs: typeof import('fs') | null = null
+  private _nodePath: typeof import('path') | null = null
+
+  // API-based graph navigation state
+  private currentRootLabel: string = '' // '' = overview mode
+  private currentMaxDepth: number = 3 // only used in explore mode
+  private currentMaxNodes: number = 1000
+  private statsLabelEl: HTMLElement | null = null
+  private graphContainer: HTMLElement | null = null
+  /** Node id to focus+detail after the next render (used when auto-entering explore mode). */
+  private pendingDetailNode: string | null = null
 
   private sigmaInstance: Sigma | null = null
   private fa2Layout: FA2LayoutInstance | null = null
@@ -166,10 +201,6 @@ export class NativeGraphView extends ItemView {
     super(leaf)
     this.plugin = plugin
     this.workDir = plugin.settings.lightRagWorkDir
-    this.graphDataPath = path.join(
-      this.workDir,
-      'graph_chunk_entity_relation.graphml',
-    )
   }
 
   getViewType() {
@@ -188,13 +219,34 @@ export class NativeGraphView extends ItemView {
     const container = this.contentEl
     container.empty()
 
+    if (!Platform.isDesktop) {
+      container.addClass('nrlcmp-graph-view')
+      const notice = container.createDiv({ cls: 'nrlcmp-mobile-notice' })
+      notice.createEl('p', {
+        text: 'The graph view requires a local LightRAG server and is only available on desktop. On mobile, use remote server mode to access chat features.',
+      })
+      return
+    }
+
+    // Load Node.js modules — desktop only, used by loadReferenceMaps for source file resolution.
+    // Use require() (not import()) because the bundle is CJS and dynamic ESM
+    // import() is not resolved correctly in Obsidian's plugin loader.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    this._nodeFs = require('fs') as typeof import('fs')
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    this._nodePath = require('path') as typeof import('path')
+    this.workDir = this.plugin.settings.lightRagWorkDir
+
     container.addClass('nrlcmp-graph-view')
 
     const is3D = this.plugin.settings.graphViewMode === '3d'
     container.addClass(is3D ? 'nrlcmp-mode-3d' : 'nrlcmp-mode-2d')
 
-    // SYNC CALL
-    this.loadReferenceMaps()
+    // Load chunk→doc maps from local files (desktop only, best-effort for source citations)
+    await this.loadReferenceMaps()
+
+    // Reset navigation state on open
+    this.currentRootLabel = ''
 
     // LEFT ZONE (Graph)
     const graphZone = container.createDiv({ cls: 'nrlcmp-graph-zone' })
@@ -203,6 +255,7 @@ export class NativeGraphView extends ItemView {
       cls: 'nrlcmp-sigma-container',
     })
     graphContainer.id = 'sigma-container'
+    this.graphContainer = graphContainer
 
     this.createGraphToolbar(graphZone, graphContainer)
     this.createDetailsPanel(graphZone)
@@ -211,15 +264,8 @@ export class NativeGraphView extends ItemView {
     const sidebar = container.createDiv({ cls: 'nrlcmp-sidebar' })
     this.buildSidebar(sidebar)
 
-    // Initial render - SYNC call inside timeout
-    window.setTimeout(() => {
-      try {
-        // Fix: Void for potential floating promise
-        void this.render(graphContainer)
-      } catch (err) {
-        console.error('Render failed:', err)
-      }
-    }, 100)
+    // Initial render via API
+    void this.render(graphContainer)
   }
 
   // Fix: Removed async (no await). Returns Promise to match interface.
@@ -229,22 +275,138 @@ export class NativeGraphView extends ItemView {
   }
 
   // --- DATA LOGIC ---
-  loadReferenceMaps() {
+  async loadReferenceMaps() {
+    if (!this._nodeFs || !this._nodePath) return
     try {
-      const chunksPath = path.join(this.workDir, 'kv_store_text_chunks.json')
-      const docsPath = path.join(this.workDir, 'kv_store_doc_status.json')
+      const chunksPath = this._nodePath.join(
+        this.workDir,
+        'kv_store_text_chunks.json',
+      )
+      const docsPath = this._nodePath.join(
+        this.workDir,
+        'kv_store_doc_status.json',
+      )
 
-      if (fs.existsSync(chunksPath)) {
-        const content = fs.readFileSync(chunksPath, 'utf-8')
-        this.chunkToDocMap = JSON.parse(content)
+      if (this._nodeFs.existsSync(chunksPath)) {
+        const content = this._nodeFs.readFileSync(chunksPath, 'utf-8')
+        this.chunkToDocMap = JSON.parse(content) as Record<string, ChunkDocMap>
       }
-      if (fs.existsSync(docsPath)) {
-        const content = fs.readFileSync(docsPath, 'utf-8')
-        this.docToNameMap = JSON.parse(content)
+
+      if (this._nodeFs.existsSync(docsPath)) {
+        const raw = JSON.parse(
+          this._nodeFs.readFileSync(docsPath, 'utf-8'),
+        ) as Record<string, Record<string, unknown>>
+
+        // kv_store_doc_status.json can use either the file path OR the doc ID as
+        // the key depending on the LightRAG version. Build a map that is indexed
+        // by BOTH so lookups via full_doc_id always succeed.
+        this.docToNameMap = {}
+        for (const [key, val] of Object.entries(raw)) {
+          const entry: DocNameMap = { ...val, _rawKey: key }
+          // Index by the raw key (may be a file path or doc ID)
+          this.docToNameMap[key] = entry
+          // Also index by the embedded id field if it differs from the key
+          const embeddedId = val.id as string | undefined
+          if (embeddedId && embeddedId !== key) {
+            this.docToNameMap[embeddedId] = entry
+          }
+        }
       }
     } catch (e) {
       console.error('Error loading maps', e)
-      new Notice('Failed to load graph reference maps.')
+    }
+  }
+
+  // --- API GRAPH METHODS ---
+
+  private getLightRagHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {}
+    if (this.plugin.settings.lightRagApiKey) {
+      headers['Authorization'] = `Bearer ${this.plugin.settings.lightRagApiKey}`
+    }
+    return headers
+  }
+
+  private get serverUrl(): string {
+    return this.plugin.settings.lightRagServerUrl
+  }
+
+  /** Returns every label that exists in the graph (nodes with ≥1 edge). */
+  private async fetchAllLabels(): Promise<string[] | null> {
+    try {
+      const resp = await requestUrl({
+        url: `${this.serverUrl}/graph/label/list`,
+        method: 'GET',
+        headers: this.getLightRagHeaders(),
+        throw: false,
+      })
+      if (resp.status !== 200) return null
+      return Array.isArray(resp.json) ? (resp.json as string[]) : null
+    } catch {
+      return null
+    }
+  }
+
+  private async fetchPopularLabel(): Promise<string | null> {
+    try {
+      const response = await requestUrl({
+        url: `${this.serverUrl}/graph/label/popular?limit=1`,
+        method: 'GET',
+        headers: this.getLightRagHeaders(),
+        throw: false,
+      })
+      if (response.status !== 200) return null
+      const labels: string[] = response.json
+      return labels.length > 0 ? labels[0] : null
+    } catch (e) {
+      console.error('Failed to fetch popular labels:', e)
+      return null
+    }
+  }
+
+  async fetchGraphData(
+    label: string,
+    maxDepth = 3,
+    maxNodes = 500,
+  ): Promise<{ nodes: GraphNode[]; edges: GraphMLRawEdge[] } | null> {
+    try {
+      const url = `${this.serverUrl}/graphs?label=${encodeURIComponent(label)}&max_depth=${maxDepth}&max_nodes=${maxNodes}`
+      const response = await requestUrl({
+        url,
+        method: 'GET',
+        headers: this.getLightRagHeaders(),
+        throw: false,
+      })
+      if (response.status !== 200) return null
+
+      const data: ApiKnowledgeGraph = response.json
+
+      const nodeDegrees = new Map<string, number>()
+      data.edges.forEach((e) => {
+        nodeDegrees.set(e.source, (nodeDegrees.get(e.source) || 0) + 1)
+        nodeDegrees.set(e.target, (nodeDegrees.get(e.target) || 0) + 1)
+      })
+
+      const nodes: GraphNode[] = data.nodes.map((n) => ({
+        id: n.id,
+        type: (n.labels[0] as string) || 'Concept',
+        desc: String(n.properties.description ?? ''),
+        source_id: String(n.properties.source_id ?? ''),
+        val: (nodeDegrees.get(n.id) || 0) + 1,
+        file_paths: this.getFilenames(String(n.properties.source_id ?? '')),
+      }))
+
+      const edges: GraphMLRawEdge[] = data.edges.map((e) => ({
+        source: e.source,
+        target: e.target,
+        normalizedSource: e.source,
+        normalizedTarget: e.target,
+      }))
+
+      return { nodes, edges }
+    } catch (e) {
+      console.error('Failed to fetch graph data:', e)
+      return null
     }
   }
 
@@ -257,148 +419,168 @@ export class NativeGraphView extends ItemView {
     const fileNames = new Set<string>()
     chunks.forEach((chunkId) => {
       const chunkData = this.chunkToDocMap[chunkId]
-      if (chunkData && chunkData.full_doc_id) {
-        const docID = String(chunkData.full_doc_id)
-        const docData = this.docToNameMap[docID]
-        if (docData) fileNames.add(docData.file_name || docData.id || 'Unknown')
+      if (!chunkData) return
+      const docID = String(chunkData.full_doc_id ?? chunkData.doc_id ?? '')
+      if (!docID) return
+      const docData = this.docToNameMap[docID]
+      if (!docData) return
+
+      // Try every plausible field/path where LightRAG stores the filename
+      const meta = docData.metadata as Record<string, unknown> | undefined
+      const rawName =
+        docData.file_name || // direct field (older versions)
+        docData.file_path || // alternative direct field
+        meta?.file_name || // nested in metadata
+        meta?.file_path || // nested alternative
+        (docData._rawKey as string) || // the raw JSON key (often is the file path)
+        docData.id // doc ID as last-resort display name
+      if (rawName) {
+        // Show only the basename so long paths stay readable
+        const name =
+          String(rawName).replace(/\\/g, '/').split('/').pop() ||
+          String(rawName)
+        fileNames.add(name)
       }
     })
     return Array.from(fileNames)
   }
 
   // --- MAIN RENDER ---
-  render(container: HTMLElement, label?: HTMLElement) {
+  async render(container: HTMLElement) {
     this.cleanup()
     container.empty()
 
-    if (!fs.existsSync(this.graphDataPath)) {
-      if (label) label.setText('No data')
+    const isOverview = !this.currentRootLabel
+
+    // Loading indicator
+    const loadingEl = container.createDiv({ cls: 'nrlcmp-loading' })
+    loadingEl.setText(
+      isOverview ? 'Loading full graph overview...' : 'Loading subgraph...',
+    )
+
+    // In overview mode resolve the most popular node as root for traversal;
+    // in explore mode the root is already set by the user.
+    let rootLabel = this.currentRootLabel
+    if (isOverview) {
+      const popular = await this.fetchPopularLabel()
+      if (!popular) {
+        loadingEl.setText(
+          'No graph data found. Ingest documents into the knowledge graph first.',
+        )
+        return
+      }
+      rootLabel = popular
+    }
+
+    // Overview: traverse with unlimited depth to reach every connected node.
+    // Explore: use the user-controlled depth for a focused neighbourhood.
+    const depth = isOverview ? 999 : this.currentMaxDepth
+    const data = await this.fetchGraphData(
+      rootLabel,
+      depth,
+      this.currentMaxNodes,
+    )
+
+    loadingEl.remove()
+
+    if (!data || data.nodes.length === 0) {
+      container
+        .createDiv({ cls: 'nrlcmp-loading' })
+        .setText('No nodes found for this entity. Try a different search.')
+      this.updateStatsLabel(0, 0, isOverview)
       return
     }
 
-    try {
-      const xmlData = fs.readFileSync(this.graphDataPath, 'utf-8')
-
-      const parser = new XMLParser({
-        ignoreAttributes: false,
-        attributeNamePrefix: '',
-        textNodeName: 'value',
-      })
-      const jsonObj: GraphMLParsed = parser.parse(xmlData)
-
-      if (!jsonObj.graphml) throw new Error('Invalid GraphML format')
-
-      const keysRaw = jsonObj.graphml.key || []
-      const keys = Array.isArray(keysRaw) ? keysRaw : [keysRaw]
-
-      const keyMap: Record<string, string> = {}
-      keys.forEach((k) => {
-        if (k['attr.name']) keyMap[k['id']] = k['attr.name']
-      })
-
-      const graphEl = jsonObj.graphml.graph || {}
-      const rawNodes = Array.isArray(graphEl.node)
-        ? graphEl.node
-        : graphEl.node
-          ? [graphEl.node]
-          : []
-      const rawEdges = Array.isArray(graphEl.edge)
-        ? graphEl.edge
-        : graphEl.edge
-          ? [graphEl.edge]
-          : []
-
-      const nodeDegrees = new Map<string, number>()
-      rawEdges.forEach((e) => {
-        const src = e.source || e['@_source'] || ''
-        const tgt = e.target || e['@_target'] || ''
-        if (src && tgt) {
-          nodeDegrees.set(src, (nodeDegrees.get(src) || 0) + 1)
-          nodeDegrees.set(tgt, (nodeDegrees.get(tgt) || 0) + 1)
-        }
-      })
-
-      this.allNodes = rawNodes
-        .filter((n) => {
-          if (n.id.startsWith('chunk-') || n.id.startsWith('doc-')) return false
-          if (n.id.length > 50 && !n.id.includes(' ')) return false
-          return true
-        })
-        .map((n) => {
-          let type = 'Concept'
-          let desc = ''
-          let files: string[] = []
-          const dataArr = Array.isArray(n.data)
-            ? n.data
-            : n.data
-              ? [n.data]
-              : []
-
-          dataArr.forEach((d) => {
-            const mappedKey = keyMap[d.key] || d.key
-            if (mappedKey === 'entity_type' || d.key === 'd0')
-              type = String(d.value)
-            if (mappedKey === 'description' || d.key === 'd1')
-              desc = String(d.value)
-
-            if (mappedKey === 'file_path' || mappedKey === 'source_id') {
-              const val = String(d.value)
-              if (
-                val.includes('.md') ||
-                val.includes('.pdf') ||
-                val.includes('.txt')
-              ) {
-                files = val.split('<SEP>').filter((s) => s.trim().length > 0)
-              }
-            }
-          })
-
-          return {
-            id: n.id,
-            type: type,
-            desc: desc,
+    // In overview mode: also fetch ALL labels so we can add nodes from
+    // disconnected components that the BFS traversal could not reach.
+    if (isOverview) {
+      const allLabels = await this.fetchAllLabels()
+      if (allLabels) {
+        const existingIds = new Set(data.nodes.map((n) => n.id))
+        const isolated: GraphNode[] = allLabels
+          .filter((lbl) => !existingIds.has(lbl))
+          .map((lbl) => ({
+            id: lbl,
+            type: 'Unknown',
+            desc: '',
             source_id: '',
-            file_paths: files,
-            val: (nodeDegrees.get(n.id) || 0) + 1,
-          }
-        })
-
-      const validNodeIds = new Set(this.allNodes.map((n) => n.id))
-      const validEdges = rawEdges.filter((e) => {
-        const src = e.source || e['@_source']
-        const tgt = e.target || e['@_target']
-        if (src && tgt && validNodeIds.has(src) && validNodeIds.has(tgt)) {
-          e.normalizedSource = src
-          e.normalizedTarget = tgt
-          return true
-        }
-        return false
-      })
-
-      this.allNodes.sort((a, b) => b.val - a.val)
-      this.filteredNodes = this.allNodes
-      this.updateSidebarList()
-
-      const mode = this.plugin.settings.graphViewMode
-      if (label)
-        label.setText(
-          `${this.allNodes.length} nodes | ${validEdges.length} links | ${mode.toUpperCase()}`,
-        )
-
-      if (mode === '3d') {
-        this.render3D(container, this.allNodes, validEdges)
-      } else {
-        this.render2D(container, this.allNodes, validEdges)
+            val: 1, // degree 0 — renders as the smallest node size
+            file_paths: [],
+          }))
+        data.nodes.push(...isolated)
       }
-    } catch (e) {
-      console.error('Graph render error:', e)
-      new Notice('Failed to render graph. Check console.')
+    }
+
+    this.allNodes = data.nodes.sort((a, b) => b.val - a.val)
+    this.filteredNodes = this.allNodes
+    this.updateSidebarList()
+    this.updateStatsLabel(data.nodes.length, data.edges.length, isOverview)
+
+    const mode = this.plugin.settings.graphViewMode
+    if (mode === '3d') {
+      this.render3D(container, data.nodes, data.edges)
+    } else {
+      this.render2D(container, data.nodes, data.edges)
+    }
+
+    // If we auto-entered explore mode from a placeholder node click,
+    // open the detail panel automatically once the graph is ready.
+    if (this.pendingDetailNode) {
+      const targetId = this.pendingDetailNode
+      this.pendingDetailNode = null
+      // Small delay so sigma/forcegraph finishes initial setup
+      setTimeout(() => {
+        const enriched = this.allNodes.find((n) => n.id === targetId)
+        if (!enriched) return
+        if (mode === '2d') {
+          // focusOnNode2D zooms + highlights + opens the details panel
+          this.focusOnNode2D(targetId)
+        } else {
+          this.showNodeDetails(enriched)
+        }
+      }, 250)
     }
   }
 
+  private updateStatsLabel(nodes: number, edges: number, isOverview = false) {
+    if (!this.statsLabelEl) return
+    if (nodes === 0) {
+      this.statsLabelEl.setText('')
+      return
+    }
+    const renderMode = this.plugin.settings.graphViewMode.toUpperCase()
+    const viewInfo = isOverview ? 'overview' : `depth ${this.currentMaxDepth}`
+    const truncated = nodes >= this.currentMaxNodes ? ' · truncated' : ''
+    this.statsLabelEl.setText(
+      `${nodes} nodes · ${edges} edges · ${viewInfo} · ${renderMode}${truncated}`,
+    )
+  }
+
   // --- HELPER 2D ---
+  /** Returns true for synthetic isolated nodes added in overview mode (no real data yet). */
+  private isPlaceholderNode(nodeId: string): boolean {
+    const n = this.allNodes.find((x) => x.id === nodeId)
+    return !!n && n.type === 'Unknown' && n.desc === ''
+  }
+
+  /**
+   * If a placeholder (isolated) node is clicked, switch to explore mode so its
+   * real description and connections are fetched, then auto-open the detail panel.
+   * Returns true if the switch was triggered (caller should bail out of the normal flow).
+   */
+  private autoExploreIfPlaceholder(nodeId: string): boolean {
+    if (!this.isPlaceholderNode(nodeId)) return false
+    this.pendingDetailNode = nodeId
+    this.currentRootLabel = nodeId
+    if (this.graphContainer) void this.render(this.graphContainer)
+    return true
+  }
+
   focusOnNode2D(nodeId: string) {
     if (!this.graph || !this.sigmaInstance) return
+
+    // Auto-enter explore mode for isolated nodes (they have no real data yet)
+    if (this.autoExploreIfPlaceholder(nodeId)) return
 
     if (this.fa2Layout && this.fa2Layout.isRunning()) {
       this.fa2Layout.stop()
@@ -693,6 +875,8 @@ export class NativeGraphView extends ItemView {
       .cooldownTicks(100)
       // Fix [16]: Typed callback argument
       .onNodeClick((node: GraphNode) => {
+        // Isolated placeholder nodes have no data — auto-enter explore mode
+        if (this.autoExploreIfPlaceholder(node.id ?? '')) return
         this.showNodeDetails(node)
         // Safe check for coordinates before using them
         if (
@@ -808,6 +992,17 @@ export class NativeGraphView extends ItemView {
       ul.createEl('li', { text: 'No explicit source', cls: 'nrlcmp-no-source' })
     }
 
+    // Explore from this node
+    const exploreBtn = viewMode.createEl('button', {
+      text: 'Explore from here',
+      cls: 'nrlcmp-explore-btn',
+    })
+    setTooltip(exploreBtn, 'Reload graph centered on this entity')
+    exploreBtn.onclick = () => {
+      this.currentRootLabel = nodeId
+      if (this.graphContainer) void this.render(this.graphContainer)
+    }
+
     // Edit Mode
     const editMode = content.createDiv()
     editMode.id = 'edit-mode'
@@ -910,18 +1105,77 @@ export class NativeGraphView extends ItemView {
 
   createGraphToolbar(container: HTMLElement, graphContainer: HTMLElement) {
     const tb = container.createDiv({ cls: 'nrlcmp-toolbar' })
-    const searchInput = tb.createEl('input', { cls: 'nrlcmp-toolbar-input' })
-    searchInput.type = 'text'
-    searchInput.placeholder = 'Search...'
 
-    searchInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') this.searchNode(searchInput.value)
+    // Entity explore input — loads subgraph centered on a specific entity
+    const exploreInput = tb.createEl('input', { cls: 'nrlcmp-toolbar-input' })
+    exploreInput.type = 'text'
+    exploreInput.placeholder = 'Explore entity...'
+    setTooltip(
+      exploreInput,
+      'Type an entity name and press Enter to center the graph on it',
+    )
+
+    const loadEntity = () => {
+      const val = exploreInput.value.trim()
+      if (!val) return
+      this.currentRootLabel = val
+      exploreInput.value = ''
+      void this.render(graphContainer)
+    }
+    exploreInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') loadEntity()
     })
+
+    const btnExplore = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
+    setIcon(btnExplore, 'search')
+    setTooltip(btnExplore, 'Load subgraph for this entity')
+    btnExplore.onclick = loadEntity
+
+    // Separator
+    tb.createEl('span', { cls: 'nrlcmp-toolbar-sep' })
+
+    // Depth controls — only meaningful in explore mode (currentRootLabel set)
+    const isExplore = !!this.currentRootLabel
+    const btnLess = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
+    setIcon(btnLess, 'minus')
+    setTooltip(
+      btnLess,
+      isExplore
+        ? 'Decrease subgraph depth (−1)'
+        : 'Switch to explore mode first',
+    )
+    btnLess.disabled = !isExplore
+    btnLess.onclick = () => {
+      if (!this.currentRootLabel) return
+      this.currentMaxDepth = Math.max(1, this.currentMaxDepth - 1)
+      void this.render(graphContainer)
+    }
+
+    const btnMore = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
+    setIcon(btnMore, 'plus')
+    setTooltip(
+      btnMore,
+      isExplore
+        ? 'Increase subgraph depth (+1)'
+        : 'Switch to explore mode first',
+    )
+    btnMore.disabled = !isExplore
+    btnMore.onclick = () => {
+      if (!this.currentRootLabel) return
+      this.currentMaxDepth = Math.min(10, this.currentMaxDepth + 1)
+      void this.render(graphContainer)
+    }
+
+    // Separator
+    tb.createEl('span', { cls: 'nrlcmp-toolbar-sep' })
 
     const btnReload = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
     setIcon(btnReload, 'refresh-cw')
-    setTooltip(btnReload, 'Reload graph')
+    setTooltip(btnReload, 'Back to full overview (all nodes)')
     btnReload.onclick = () => {
+      this.currentRootLabel = ''
+      this.currentMaxDepth = 3
+      this.currentMaxNodes = 1000
       void this.render(graphContainer)
     }
 
@@ -935,6 +1189,9 @@ export class NativeGraphView extends ItemView {
           .getCamera()
           .animate({ x: 0.5, y: 0.5, ratio: 0.1 }, { duration: 500 })
     }
+
+    // Stats label — updated after each render
+    this.statsLabelEl = tb.createEl('span', { cls: 'nrlcmp-toolbar-stats' })
   }
 
   buildSidebar(container: HTMLElement) {
@@ -976,12 +1233,15 @@ export class NativeGraphView extends ItemView {
     })
     this.sortBtnEl.onclick = () => this.toggleSort()
 
-    const orphansBtn = filterBar.createEl('span', {
-      text: 'Show orphans',
+    const allEntitiesBtn = filterBar.createEl('span', {
+      text: 'All entities',
       cls: 'nrlcmp-orphans-btn',
     })
-    setTooltip(orphansBtn, 'Show disconnected nodes')
-    orphansBtn.onclick = () => this.filterOrphans()
+    setTooltip(
+      allEntitiesBtn,
+      'Browse all entities in the graph — including orphans and unexplored nodes',
+    )
+    allEntitiesBtn.onclick = () => void this.showAllEntities()
 
     this.sidebarListEl = container.createDiv({ cls: 'nrlcmp-sidebar-list' })
   }
@@ -997,10 +1257,69 @@ export class NativeGraphView extends ItemView {
     this.renderList()
   }
 
-  filterOrphans() {
+  async showAllEntities() {
     if (this.searchInputEl) this.searchInputEl.value = ''
-    this.filteredNodes = this.allNodes.filter((n) => n.val === 1)
-    this.renderList()
+    if (!this.sidebarListEl) return
+
+    this.sidebarListEl.empty()
+    const loadingRow = this.sidebarListEl.createDiv({ cls: 'nrlcmp-list-more' })
+    loadingRow.setText('Loading all entities...')
+
+    try {
+      // Step 1: get every label that exists in the graph (nodes in any edge)
+      const listResp = await requestUrl({
+        url: `${this.serverUrl}/graph/label/list`,
+        method: 'GET',
+        headers: this.getLightRagHeaders(),
+        throw: false,
+      })
+      if (listResp.status !== 200) {
+        loadingRow.setText(`Failed to load entities (HTTP ${listResp.status}).`)
+        return
+      }
+      const graphLabels: string[] = Array.isArray(listResp.json)
+        ? listResp.json
+        : []
+      const graphLabelSet = new Set(graphLabels)
+
+      // Step 2: get all labels sorted by degree — "popular" with a high limit.
+      // Any label NOT returned here (after requesting up to 1000) that IS in
+      // graphLabels has degree 0 in the stored graph → true orphan node.
+      const popularResp = await requestUrl({
+        url: `${this.serverUrl}/graph/label/popular?limit=1000`,
+        method: 'GET',
+        headers: this.getLightRagHeaders(),
+        throw: false,
+      })
+      const popularLabels: string[] =
+        popularResp.status === 200 && Array.isArray(popularResp.json)
+          ? popularResp.json
+          : []
+      const popularSet = new Set(popularLabels)
+
+      // True orphans: in graph (have a node) but NOT in popular list (degree 0)
+      const orphanLabels = graphLabels.filter((lbl) => !popularSet.has(lbl))
+
+      const currentIds = new Set(this.allNodes.map((n) => n.id))
+
+      // Extra nodes not in current subgraph: mark with val=-1 ("unexplored")
+      // True orphans: mark with val=-2 ("orphan")
+      const extra: GraphNode[] = graphLabels
+        .filter((lbl) => !currentIds.has(lbl))
+        .map((lbl) => ({
+          id: lbl,
+          type: 'Unknown',
+          desc: '',
+          source_id: '',
+          val: orphanLabels.includes(lbl) ? -2 : -1,
+          file_paths: [],
+        }))
+
+      this.filteredNodes = [...this.allNodes, ...extra]
+      this.renderList()
+    } catch (e) {
+      loadingRow.setText(`Error loading entities: ${String(e)}`)
+    }
   }
 
   filterList(query: string) {
@@ -1018,7 +1337,8 @@ export class NativeGraphView extends ItemView {
   renderList() {
     if (!this.sidebarListEl) return
     this.sidebarListEl.empty()
-    const visibleNodes = this.filteredNodes.slice(0, 50)
+    const VISIBLE_LIMIT = 100
+    const visibleNodes = this.filteredNodes.slice(0, VISIBLE_LIMIT)
 
     visibleNodes.forEach((node) => {
       const row = this.sidebarListEl!.createDiv({ cls: 'nrlcmp-sidebar-row' })
@@ -1030,19 +1350,43 @@ export class NativeGraphView extends ItemView {
         else this.selectedNodes.delete(node.id)
       }
 
+      // val > 0  → in current subgraph, degree = val-1
+      // val = -1 → unexplored (in graph but not in current view)
+      // val = -2 → orphan (graph node with degree 0, not reachable by traversal)
+      const isInSubgraph = node.val > 0
+      const isOrphan = node.val === -2
+      const rowCls = isOrphan
+        ? 'nrlcmp-row-orphan'
+        : isInSubgraph
+          ? ''
+          : 'nrlcmp-row-external'
+      if (rowCls) row.addClass(rowCls)
+
       const info = row.createDiv({ cls: 'nrlcmp-row-info' })
       info.createDiv({ text: node.id, cls: 'nrlcmp-row-title' })
-      const degree = node.val > 0 ? node.val - 1 : 0
-      info.createDiv({
-        text: `${node.type} (${degree})`,
-        cls: 'nrlcmp-row-meta',
-      })
-      info.onclick = () => this.searchNode(node.id)
+      let metaText: string
+      if (isOrphan) {
+        metaText = `${node.type} · orphan`
+      } else if (!isInSubgraph) {
+        metaText = `${node.type} · unexplored`
+      } else {
+        metaText = `${node.type} · ${node.val - 1}`
+      }
+      info.createDiv({ text: metaText, cls: 'nrlcmp-row-meta' })
+      info.onclick = () => {
+        if (isInSubgraph) {
+          this.searchNode(node.id)
+        } else {
+          // Unexplored or orphan — load as new root to reveal connections
+          this.currentRootLabel = node.id
+          if (this.graphContainer) void this.render(this.graphContainer)
+        }
+      }
     })
 
-    if (this.filteredNodes.length > 100) {
+    if (this.filteredNodes.length > VISIBLE_LIMIT) {
       this.sidebarListEl.createDiv({
-        text: `...and ${this.filteredNodes.length - 100} more.`,
+        text: `...and ${this.filteredNodes.length - VISIBLE_LIMIT} more. Use search to filter.`,
         cls: 'nrlcmp-list-more',
       })
     }
