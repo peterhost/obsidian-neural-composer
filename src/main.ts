@@ -353,6 +353,21 @@ export default class NeuralComposerPlugin extends Plugin {
     }
 
     this.registerEvent(
+      this.app.vault.on('create', (file) => {
+        if (!(file instanceof TFile)) return
+        if (!isInSyncFolder(file.path)) return
+        if (!SUPPORTED_EXTENSIONS.includes(file.extension.toLowerCase())) return
+        // Wait 2 s so the file content is available (especially for moves/imports)
+        setTimeout(() => {
+          void (async () => {
+            const ragEngine = await this.getRAGEngine()
+            await ragEngine.ingestFile(file)
+          })()
+        }, 2000)
+      }),
+    )
+
+    this.registerEvent(
       this.app.vault.on('delete', (file) => {
         if (!(file instanceof TFile)) return
         if (!isInSyncFolder(file.path)) return
@@ -370,11 +385,20 @@ export default class NeuralComposerPlugin extends Plugin {
     this.registerEvent(
       this.app.vault.on('rename', (file, oldPath) => {
         if (!(file instanceof TFile)) return
-        if (!isInSyncFolder(oldPath) && !isInSyncFolder(file.path)) return
+        const wasInFolder = isInSyncFolder(oldPath)
+        const nowInFolder = isInSyncFolder(file.path)
+        if (!wasInFolder && !nowInFolder) return
         void (async () => {
           const ragEngine = await this.getRAGEngine()
-          const oldName = oldPath.split('/').pop() ?? oldPath
-          await ragEngine.deleteDocumentByFilePath(oldPath, oldName)
+          // Remove old entry if it was inside the watched folder
+          if (wasInFolder) {
+            const oldName = oldPath.split('/').pop() ?? oldPath
+            await ragEngine.deleteDocumentByFilePath(oldPath, oldName)
+          }
+          // Ingest under new path: covers moves INTO folder and renames within
+          if (nowInFolder) {
+            await ragEngine.ingestFile(file)
+          }
         })()
       }),
     )

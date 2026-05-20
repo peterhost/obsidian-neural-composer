@@ -234,6 +234,11 @@ export class RAGEngine {
   // Removes old entry and re-inserts the current file content.
   async reindexFile(file: TFile): Promise<boolean> {
     await this.deleteDocumentByFilePath(file.path, file.name)
+    return this.ingestFile(file)
+  }
+
+  // Inserts a file into the index without deleting first.
+  async ingestFile(file: TFile): Promise<boolean> {
     const ext = file.extension.toLowerCase()
     const textExts = ['md', 'txt', 'csv', 'json', 'html', 'htm', 'xml']
     if (textExts.includes(ext)) {
