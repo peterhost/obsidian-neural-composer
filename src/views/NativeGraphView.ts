@@ -168,8 +168,8 @@ export class NativeGraphView extends ItemView {
   private _nodePath: typeof import('path') | null = null
 
   // API-based graph navigation state
-  private currentRootLabel: string = ''
-  private currentMaxDepth: number = 3
+  private currentRootLabel: string = ''  // '' = overview mode
+  private currentMaxDepth: number = 3    // only used in explore mode
   private currentMaxNodes: number = 1000
   private statsLabelEl: HTMLElement | null = null
   private graphContainer: HTMLElement | null = null
@@ -310,6 +310,22 @@ export class NativeGraphView extends ItemView {
     return this.plugin.settings.lightRagServerUrl
   }
 
+  /** Returns every label that exists in the graph (nodes with ≥1 edge). */
+  private async fetchAllLabels(): Promise<string[] | null> {
+    try {
+      const resp = await requestUrl({
+        url: `${this.serverUrl}/graph/label/list`,
+        method: 'GET',
+        headers: this.getLightRagHeaders(),
+        throw: false,
+      })
+      if (resp.status !== 200) return null
+      return Array.isArray(resp.json) ? (resp.json as string[]) : null
+    } catch {
+      return null
+    }
+  }
+
   private async fetchPopularLabel(): Promise<string | null> {
     try {
       const response = await requestUrl({
@@ -396,12 +412,18 @@ export class NativeGraphView extends ItemView {
     this.cleanup()
     container.empty()
 
+    const isOverview = !this.currentRootLabel
+
     // Loading indicator
     const loadingEl = container.createDiv({ cls: 'nrlcmp-loading' })
-    loadingEl.setText('Loading graph from server...')
+    loadingEl.setText(
+      isOverview ? 'Loading full graph overview...' : 'Loading subgraph...',
+    )
 
-    // Resolve starting entity on first load
-    if (!this.currentRootLabel) {
+    // In overview mode resolve the most popular node as root for traversal;
+    // in explore mode the root is already set by the user.
+    let rootLabel = this.currentRootLabel
+    if (isOverview) {
       const popular = await this.fetchPopularLabel()
       if (!popular) {
         loadingEl.setText(
@@ -409,14 +431,13 @@ export class NativeGraphView extends ItemView {
         )
         return
       }
-      this.currentRootLabel = popular
+      rootLabel = popular
     }
 
-    const data = await this.fetchGraphData(
-      this.currentRootLabel,
-      this.currentMaxDepth,
-      this.currentMaxNodes,
-    )
+    // Overview: traverse with unlimited depth to reach every connected node.
+    // Explore: use the user-controlled depth for a focused neighbourhood.
+    const depth = isOverview ? 999 : this.currentMaxDepth
+    const data = await this.fetchGraphData(rootLabel, depth, this.currentMaxNodes)
 
     loadingEl.remove()
 
@@ -424,14 +445,34 @@ export class NativeGraphView extends ItemView {
       container
         .createDiv({ cls: 'nrlcmp-loading' })
         .setText('No nodes found for this entity. Try a different search.')
-      this.updateStatsLabel(0, 0)
+      this.updateStatsLabel(0, 0, isOverview)
       return
+    }
+
+    // In overview mode: also fetch ALL labels so we can add nodes from
+    // disconnected components that the BFS traversal could not reach.
+    if (isOverview) {
+      const allLabels = await this.fetchAllLabels()
+      if (allLabels) {
+        const existingIds = new Set(data.nodes.map((n) => n.id))
+        const isolated: GraphNode[] = allLabels
+          .filter((lbl) => !existingIds.has(lbl))
+          .map((lbl) => ({
+            id: lbl,
+            type: 'Unknown',
+            desc: '',
+            source_id: '',
+            val: 1,  // degree 0 — renders as the smallest node size
+            file_paths: [],
+          }))
+        data.nodes.push(...isolated)
+      }
     }
 
     this.allNodes = data.nodes.sort((a, b) => b.val - a.val)
     this.filteredNodes = this.allNodes
     this.updateSidebarList()
-    this.updateStatsLabel(data.nodes.length, data.edges.length)
+    this.updateStatsLabel(data.nodes.length, data.edges.length, isOverview)
 
     const mode = this.plugin.settings.graphViewMode
     if (mode === '3d') {
@@ -441,17 +482,17 @@ export class NativeGraphView extends ItemView {
     }
   }
 
-  private updateStatsLabel(nodes: number, edges: number) {
+  private updateStatsLabel(nodes: number, edges: number, isOverview = false) {
     if (!this.statsLabelEl) return
     if (nodes === 0) {
       this.statsLabelEl.setText('')
       return
     }
-    const mode = this.plugin.settings.graphViewMode.toUpperCase()
-    const truncated =
-      nodes >= this.currentMaxNodes ? ` · truncated` : ''
+    const renderMode = this.plugin.settings.graphViewMode.toUpperCase()
+    const viewInfo = isOverview ? 'overview' : `depth ${this.currentMaxDepth}`
+    const truncated = nodes >= this.currentMaxNodes ? ' · truncated' : ''
     this.statsLabelEl.setText(
-      `${nodes} nodes · ${edges} edges · depth ${this.currentMaxDepth} · ${mode}${truncated}`,
+      `${nodes} nodes · ${edges} edges · ${viewInfo} · ${renderMode}${truncated}`,
     )
   }
 
@@ -1009,19 +1050,24 @@ export class NativeGraphView extends ItemView {
     // Separator
     tb.createEl('span', { cls: 'nrlcmp-toolbar-sep' })
 
-    // Depth expand/contract controls
+    // Depth controls — only meaningful in explore mode (currentRootLabel set)
+    const isExplore = !!this.currentRootLabel
     const btnLess = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
     setIcon(btnLess, 'minus')
-    setTooltip(btnLess, 'Decrease graph depth (−1)')
+    setTooltip(btnLess, isExplore ? 'Decrease subgraph depth (−1)' : 'Switch to explore mode first')
+    btnLess.disabled = !isExplore
     btnLess.onclick = () => {
+      if (!this.currentRootLabel) return
       this.currentMaxDepth = Math.max(1, this.currentMaxDepth - 1)
       void this.render(graphContainer)
     }
 
     const btnMore = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
     setIcon(btnMore, 'plus')
-    setTooltip(btnMore, 'Increase graph depth (+1)')
+    setTooltip(btnMore, isExplore ? 'Increase subgraph depth (+1)' : 'Switch to explore mode first')
+    btnMore.disabled = !isExplore
     btnMore.onclick = () => {
+      if (!this.currentRootLabel) return
       this.currentMaxDepth = Math.min(10, this.currentMaxDepth + 1)
       void this.render(graphContainer)
     }
@@ -1031,7 +1077,7 @@ export class NativeGraphView extends ItemView {
 
     const btnReload = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
     setIcon(btnReload, 'refresh-cw')
-    setTooltip(btnReload, 'Reload graph from server')
+    setTooltip(btnReload, 'Back to full overview (all nodes)')
     btnReload.onclick = () => {
       this.currentRootLabel = ''
       this.currentMaxDepth = 3
