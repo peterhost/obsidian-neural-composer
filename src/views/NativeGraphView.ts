@@ -1125,36 +1125,48 @@ export class NativeGraphView extends ItemView {
     loadingRow.setText('Loading all entities...')
 
     try {
-      const response = await requestUrl({
-        url: `${this.serverUrl}/graph/label/popular?limit=500`,
-        method: 'GET',
-        headers: this.getLightRagHeaders(),
-        throw: false,
-      })
-      if (response.status !== 200) {
-        loadingRow.setText('Failed to load entities.')
-        return
+      // /entities returns ALL entities from the DB (including orphans with degree 0),
+      // unlike /graph/label/popular which only surfaces connected nodes.
+      // Paginate with a large page_size to minimise round trips.
+      const PAGE_SIZE = 1000
+      let page = 1
+      let total = Infinity
+      const allEntities: { entity_name: string; entity_type?: string; description?: string; source_id?: string }[] = []
+
+      while (allEntities.length < total) {
+        const response = await requestUrl({
+          url: `${this.serverUrl}/entities?page=${page}&page_size=${PAGE_SIZE}`,
+          method: 'GET',
+          headers: this.getLightRagHeaders(),
+          throw: false,
+        })
+        if (response.status !== 200) {
+          loadingRow.setText('Failed to load entities.')
+          return
+        }
+        const body = response.json as { entities: typeof allEntities; total: number }
+        total = body.total ?? 0
+        allEntities.push(...(body.entities ?? []))
+        if (!body.entities?.length || allEntities.length >= total) break
+        page++
       }
-      const allLabels: string[] = response.json
+
       const currentIds = new Set(this.allNodes.map((n) => n.id))
 
-      // Build a synthetic node list: nodes in current graph keep their degree,
-      // nodes not yet loaded are shown with degree 0
-      const merged: GraphNode[] = [
-        ...this.allNodes,
-        ...allLabels
-          .filter((lbl) => !currentIds.has(lbl))
-          .map((lbl) => ({
-            id: lbl,
-            type: 'Unknown',
-            desc: '',
-            source_id: '',
-            val: 0,
-            file_paths: [],
-          })),
-      ]
+      // Nodes already in the current graph keep their computed degree (val).
+      // Entities not yet in the graph are added with val=0 so orphans appear too.
+      const extra: GraphNode[] = allEntities
+        .filter((e) => !currentIds.has(e.entity_name))
+        .map((e) => ({
+          id: e.entity_name,
+          type: e.entity_type ?? 'Unknown',
+          desc: e.description ?? '',
+          source_id: e.source_id ?? '',
+          val: 0,
+          file_paths: [],
+        }))
 
-      this.filteredNodes = merged
+      this.filteredNodes = [...this.allNodes, ...extra]
       this.renderList()
     } catch (e) {
       loadingRow.setText('Error loading entities.')
