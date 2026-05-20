@@ -173,6 +173,8 @@ export class NativeGraphView extends ItemView {
   private currentMaxNodes: number = 1000
   private statsLabelEl: HTMLElement | null = null
   private graphContainer: HTMLElement | null = null
+  /** Node id to focus+detail after the next render (used when auto-entering explore mode). */
+  private pendingDetailNode: string | null = null
 
   private sigmaInstance: Sigma | null = null
   private fa2Layout: FA2LayoutInstance | null = null
@@ -480,6 +482,24 @@ export class NativeGraphView extends ItemView {
     } else {
       this.render2D(container, data.nodes, data.edges)
     }
+
+    // If we auto-entered explore mode from a placeholder node click,
+    // open the detail panel automatically once the graph is ready.
+    if (this.pendingDetailNode) {
+      const targetId = this.pendingDetailNode
+      this.pendingDetailNode = null
+      // Small delay so sigma/forcegraph finishes initial setup
+      setTimeout(() => {
+        const enriched = this.allNodes.find((n) => n.id === targetId)
+        if (!enriched) return
+        if (mode === '2d') {
+          // focusOnNode2D zooms + highlights + opens the details panel
+          this.focusOnNode2D(targetId)
+        } else {
+          this.showNodeDetails(enriched)
+        }
+      }, 250)
+    }
   }
 
   private updateStatsLabel(nodes: number, edges: number, isOverview = false) {
@@ -497,8 +517,30 @@ export class NativeGraphView extends ItemView {
   }
 
   // --- HELPER 2D ---
+  /** Returns true for synthetic isolated nodes added in overview mode (no real data yet). */
+  private isPlaceholderNode(nodeId: string): boolean {
+    const n = this.allNodes.find((x) => x.id === nodeId)
+    return !!n && n.type === 'Unknown' && n.desc === ''
+  }
+
+  /**
+   * If a placeholder (isolated) node is clicked, switch to explore mode so its
+   * real description and connections are fetched, then auto-open the detail panel.
+   * Returns true if the switch was triggered (caller should bail out of the normal flow).
+   */
+  private autoExploreIfPlaceholder(nodeId: string): boolean {
+    if (!this.isPlaceholderNode(nodeId)) return false
+    this.pendingDetailNode = nodeId
+    this.currentRootLabel = nodeId
+    if (this.graphContainer) void this.render(this.graphContainer)
+    return true
+  }
+
   focusOnNode2D(nodeId: string) {
     if (!this.graph || !this.sigmaInstance) return
+
+    // Auto-enter explore mode for isolated nodes (they have no real data yet)
+    if (this.autoExploreIfPlaceholder(nodeId)) return
 
     if (this.fa2Layout && this.fa2Layout.isRunning()) {
       this.fa2Layout.stop()
@@ -793,6 +835,8 @@ export class NativeGraphView extends ItemView {
       .cooldownTicks(100)
       // Fix [16]: Typed callback argument
       .onNodeClick((node: GraphNode) => {
+        // Isolated placeholder nodes have no data — auto-enter explore mode
+        if (this.autoExploreIfPlaceholder(node.id ?? '')) return
         this.showNodeDetails(node)
         // Safe check for coordinates before using them
         if (
