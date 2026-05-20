@@ -1981,6 +1981,59 @@ button.nrlcmp-chat-input-model-select {
   color: #ffffff;
 }
 
+.nrlcmp-toolbar-sep {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0 2px;
+}
+
+.nrlcmp-toolbar-stats {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+  margin-left: 4px;
+}
+
+.theme-light .nrlcmp-toolbar-stats {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.nrlcmp-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.nrlcmp-mobile-notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.nrlcmp-explore-btn {
+  margin-top: 12px;
+  width: 100%;
+  padding: 6px 0;
+  font-size: 12px;
+  cursor: pointer;
+  background: var(--interactive-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  color: var(--text-normal);
+}
+
+.nrlcmp-explore-btn:hover {
+  background: var(--interactive-hover);
+}
+
 /* Sidebar */
 .nrlcmp-graph-view .nrlcmp-sidebar {
   width: 320px;
