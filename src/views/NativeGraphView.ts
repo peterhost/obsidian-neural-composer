@@ -1009,6 +1009,26 @@ export class NativeGraphView extends ItemView {
     // Separator
     tb.createEl('span', { cls: 'nrlcmp-toolbar-sep' })
 
+    // Max-nodes expand/contract controls
+    const btnLess = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
+    setIcon(btnLess, 'minus')
+    setTooltip(btnLess, 'Show fewer nodes (−200)')
+    btnLess.onclick = () => {
+      this.currentMaxNodes = Math.max(100, this.currentMaxNodes - 200)
+      void this.render(graphContainer)
+    }
+
+    const btnMore = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
+    setIcon(btnMore, 'plus')
+    setTooltip(btnMore, 'Show more nodes (+200)')
+    btnMore.onclick = () => {
+      this.currentMaxNodes = Math.min(2000, this.currentMaxNodes + 200)
+      void this.render(graphContainer)
+    }
+
+    // Separator
+    tb.createEl('span', { cls: 'nrlcmp-toolbar-sep' })
+
     const btnReload = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
     setIcon(btnReload, 'refresh-cw')
     setTooltip(btnReload, 'Reload graph from server')
@@ -1070,12 +1090,15 @@ export class NativeGraphView extends ItemView {
     })
     this.sortBtnEl.onclick = () => this.toggleSort()
 
-    const orphansBtn = filterBar.createEl('span', {
-      text: 'Show orphans',
+    const allEntitiesBtn = filterBar.createEl('span', {
+      text: 'All entities',
       cls: 'nrlcmp-orphans-btn',
     })
-    setTooltip(orphansBtn, 'Show disconnected nodes')
-    orphansBtn.onclick = () => this.filterOrphans()
+    setTooltip(
+      allEntitiesBtn,
+      'Browse all entities in the graph — including orphans and unexplored nodes',
+    )
+    allEntitiesBtn.onclick = () => void this.showAllEntities()
 
     this.sidebarListEl = container.createDiv({ cls: 'nrlcmp-sidebar-list' })
   }
@@ -1091,10 +1114,49 @@ export class NativeGraphView extends ItemView {
     this.renderList()
   }
 
-  filterOrphans() {
+  async showAllEntities() {
     if (this.searchInputEl) this.searchInputEl.value = ''
-    this.filteredNodes = this.allNodes.filter((n) => n.val === 1)
-    this.renderList()
+    if (!this.sidebarListEl) return
+
+    this.sidebarListEl.empty()
+    const loadingRow = this.sidebarListEl.createDiv({ cls: 'nrlcmp-list-more' })
+    loadingRow.setText('Loading all entities...')
+
+    try {
+      const response = await requestUrl({
+        url: `${this.serverUrl}/graph/label/popular?limit=500`,
+        method: 'GET',
+        headers: this.getLightRagHeaders(),
+        throw: false,
+      })
+      if (response.status !== 200) {
+        loadingRow.setText('Failed to load entities.')
+        return
+      }
+      const allLabels: string[] = response.json
+      const currentIds = new Set(this.allNodes.map((n) => n.id))
+
+      // Build a synthetic node list: nodes in current graph keep their degree,
+      // nodes not yet loaded are shown with degree 0
+      const merged: GraphNode[] = [
+        ...this.allNodes,
+        ...allLabels
+          .filter((lbl) => !currentIds.has(lbl))
+          .map((lbl) => ({
+            id: lbl,
+            type: 'Unknown',
+            desc: '',
+            source_id: '',
+            val: 0,
+            file_paths: [],
+          })),
+      ]
+
+      this.filteredNodes = merged
+      this.renderList()
+    } catch (e) {
+      loadingRow.setText('Error loading entities.')
+    }
   }
 
   filterList(query: string) {
@@ -1131,7 +1193,18 @@ export class NativeGraphView extends ItemView {
         text: `${node.type} (${degree})`,
         cls: 'nrlcmp-row-meta',
       })
-      info.onclick = () => this.searchNode(node.id)
+      info.onclick = () => {
+        const inCurrentGraph =
+          this.graph?.hasNode(node.id) ||
+          this.allNodes.some((n) => n.id === node.id && n.val > 0)
+        if (inCurrentGraph) {
+          this.searchNode(node.id)
+        } else {
+          // Node not in current subgraph — load it as new root
+          this.currentRootLabel = node.id
+          if (this.graphContainer) void this.render(this.graphContainer)
+        }
+      }
     })
 
     if (this.filteredNodes.length > 100) {
