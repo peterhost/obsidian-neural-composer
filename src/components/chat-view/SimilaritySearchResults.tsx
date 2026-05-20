@@ -46,12 +46,22 @@ function SimiliartySearchItem({
         className={`nrlcmp-similarity-search-item__row${isMarkdown ? ' nrlcmp-similarity-search-item__row--clickable' : ''}`}
         onClick={handleRowClick}
       >
-        <span className="nrlcmp-similarity-search-item__similarity">
-          {chunk.similarity.toFixed(3)}
+        <span
+          className="nrlcmp-similarity-search-item__similarity"
+          style={{
+            color:
+              chunk.similarity >= 0.8
+                ? 'var(--color-green)'
+                : chunk.similarity >= 0.4
+                  ? 'var(--color-yellow)'
+                  : 'var(--text-muted)',
+          }}
+        >
+          {Math.round(chunk.similarity * 100)}%
         </span>
 
         <span className="nrlcmp-similarity-search-item__path">
-          {path.basename(chunk.path)}
+          {path.basename(chunk.path).replace(/^\[\d+\]\s*/, '')}
         </span>
 
         <span className="nrlcmp-similarity-search-item__line-numbers">
