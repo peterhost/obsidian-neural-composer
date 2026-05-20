@@ -9,9 +9,8 @@ import {
   requestUrl,
   Modal,
   App,
+  Platform,
 } from 'obsidian'
-import * as fs from 'fs'
-import * as path from 'path'
 import { XMLParser } from 'fast-xml-parser'
 import Graph from 'graphology'
 import Sigma from 'sigma'
@@ -144,6 +143,10 @@ export class NativeGraphView extends ItemView {
   private graphDataPath: string
   private workDir: string
 
+  // Node.js modules — loaded lazily in onOpen() on desktop only
+  private _nodeFs: typeof import('fs') | null = null
+  private _nodePath: typeof import('path') | null = null
+
   private sigmaInstance: Sigma | null = null
   private fa2Layout: FA2LayoutInstance | null = null
   private graph3D: ForceGraph3DInstance | null = null
@@ -166,10 +169,7 @@ export class NativeGraphView extends ItemView {
     super(leaf)
     this.plugin = plugin
     this.workDir = plugin.settings.lightRagWorkDir
-    this.graphDataPath = path.join(
-      this.workDir,
-      'graph_chunk_entity_relation.graphml',
-    )
+    this.graphDataPath = '' // Set in onOpen() on desktop after path module loads
   }
 
   getViewType() {
@@ -188,13 +188,34 @@ export class NativeGraphView extends ItemView {
     const container = this.contentEl
     container.empty()
 
+    if (!Platform.isDesktop) {
+      container.addClass('nrlcmp-graph-view')
+      const notice = container.createDiv({ cls: 'nrlcmp-mobile-notice' })
+      notice.createEl('p', {
+        text: 'The graph view requires a local LightRAG server and is only available on desktop. On mobile, use remote server mode to access chat features.',
+      })
+      return
+    }
+
+    // Load Node.js modules and resolve paths — desktop only
+    const [fsModule, pathModule] = await Promise.all([
+      import('fs'),
+      import('path'),
+    ])
+    this._nodeFs = fsModule
+    this._nodePath = pathModule
+    this.workDir = this.plugin.settings.lightRagWorkDir
+    this.graphDataPath = this._nodePath.join(
+      this.workDir,
+      'graph_chunk_entity_relation.graphml',
+    )
+
     container.addClass('nrlcmp-graph-view')
 
     const is3D = this.plugin.settings.graphViewMode === '3d'
     container.addClass(is3D ? 'nrlcmp-mode-3d' : 'nrlcmp-mode-2d')
 
-    // SYNC CALL
-    this.loadReferenceMaps()
+    await this.loadReferenceMaps()
 
     // LEFT ZONE (Graph)
     const graphZone = container.createDiv({ cls: 'nrlcmp-graph-zone' })
@@ -229,17 +250,24 @@ export class NativeGraphView extends ItemView {
   }
 
   // --- DATA LOGIC ---
-  loadReferenceMaps() {
+  async loadReferenceMaps() {
+    if (!this._nodeFs || !this._nodePath) return
     try {
-      const chunksPath = path.join(this.workDir, 'kv_store_text_chunks.json')
-      const docsPath = path.join(this.workDir, 'kv_store_doc_status.json')
+      const chunksPath = this._nodePath.join(
+        this.workDir,
+        'kv_store_text_chunks.json',
+      )
+      const docsPath = this._nodePath.join(
+        this.workDir,
+        'kv_store_doc_status.json',
+      )
 
-      if (fs.existsSync(chunksPath)) {
-        const content = fs.readFileSync(chunksPath, 'utf-8')
+      if (this._nodeFs.existsSync(chunksPath)) {
+        const content = this._nodeFs.readFileSync(chunksPath, 'utf-8')
         this.chunkToDocMap = JSON.parse(content)
       }
-      if (fs.existsSync(docsPath)) {
-        const content = fs.readFileSync(docsPath, 'utf-8')
+      if (this._nodeFs.existsSync(docsPath)) {
+        const content = this._nodeFs.readFileSync(docsPath, 'utf-8')
         this.docToNameMap = JSON.parse(content)
       }
     } catch (e) {
@@ -271,13 +299,17 @@ export class NativeGraphView extends ItemView {
     this.cleanup()
     container.empty()
 
-    if (!fs.existsSync(this.graphDataPath)) {
+    if (
+      !this._nodeFs ||
+      !this.graphDataPath ||
+      !this._nodeFs.existsSync(this.graphDataPath)
+    ) {
       if (label) label.setText('No data')
       return
     }
 
     try {
-      const xmlData = fs.readFileSync(this.graphDataPath, 'utf-8')
+      const xmlData = this._nodeFs.readFileSync(this.graphDataPath, 'utf-8')
 
       const parser = new XMLParser({
         ignoreAttributes: false,
