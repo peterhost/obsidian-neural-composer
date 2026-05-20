@@ -193,9 +193,9 @@ export class RAGEngine {
       })
       if (response.status >= 400) return null
       const data = response.json as {
-        statuses?: { id: string; file_path: string }[]
+        documents?: { id: string; file_path: string }[]
       }
-      const docs = data.statuses ?? []
+      const docs = data.documents ?? []
       // Prefer exact full-path match, fall back to bare filename for older entries
       return (
         docs.find((d) => d.file_path === filePath)?.id ??
