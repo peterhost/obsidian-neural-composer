@@ -65,6 +65,7 @@ describe('parseNeuralComposerSettings', () => {
       lightRagServerUrl: 'http://localhost:9621',
       lightRagShowCitations: true,
       lightRagSummaryLanguage: 'English',
+      lightRagSyncFolder: '',
       lightRagUseRemote: false,
       lightRagWorkDir: '',
       useCustomEntityTypes: false,

@@ -39,12 +39,7 @@ export function SettingsTabRoot({ app, plugin }: SettingsTabRootProps) {
       >
         <ObsidianButton
           text="☕ Support Neural Composer"
-          onClick={() =>
-            window.open(
-              'https://ko-fi.com/oscampo',
-              '_blank',
-            )
-          }
+          onClick={() => window.open('https://ko-fi.com/oscampo', '_blank')}
         />
       </ObsidianSetting>
 

@@ -529,7 +529,13 @@ export class NativeGraphView extends ItemView {
       const hoverShadowColor = isDark ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.4)'
       const drawHover = (
         context: CanvasRenderingContext2D,
-        data: { x: number; y: number; size: number; label: string; [key: string]: unknown },
+        data: {
+          x: number
+          y: number
+          size: number
+          label: string
+          [key: string]: unknown
+        },
         settings: { labelSize: number; labelFont: string; labelWeight: string },
       ) => {
         const size = settings.labelSize
@@ -550,7 +556,9 @@ export class NativeGraphView extends ItemView {
           const boxHeight = Math.round(size + 2 * PADDING)
           const radius = Math.max(data.size, size / 2) + PADDING
           const angleRadian = Math.asin(Math.min(boxHeight / 2 / radius, 1))
-          const xDeltaCoord = Math.sqrt(Math.abs(radius ** 2 - (boxHeight / 2) ** 2))
+          const xDeltaCoord = Math.sqrt(
+            Math.abs(radius ** 2 - (boxHeight / 2) ** 2),
+          )
 
           context.beginPath()
           context.moveTo(data.x + xDeltaCoord, data.y + boxHeight / 2)
@@ -573,9 +581,14 @@ export class NativeGraphView extends ItemView {
 
         // Label text — use per-node labelColor attribute
         if (typeof data.label === 'string') {
-          const textColor = (data.labelColor as string | undefined) || labelTextColor
+          const textColor =
+            (data.labelColor as string | undefined) || labelTextColor
           context.fillStyle = textColor
-          context.fillText(data.label, data.x + data.size + 3, data.y + size / 3)
+          context.fillText(
+            data.label,
+            data.x + data.size + 3,
+            data.y + size / 3,
+          )
         }
       }
 
