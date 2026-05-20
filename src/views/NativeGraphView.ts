@@ -1125,51 +1125,21 @@ export class NativeGraphView extends ItemView {
     loadingRow.setText('Loading all entities...')
 
     try {
-      // Try the /entities endpoint first (newer LightRAG versions).
-      // Fall back to /graph/label/search with empty query if unavailable.
-      let allLabels: string[] = []
-      let usedFallback = false
-
-      const entitiesResp = await requestUrl({
-        url: `${this.serverUrl}/entities?page=1&page_size=5000`,
+      // /graph/label/list returns every label in the graph DB, including
+      // orphan nodes (degree 0) that /graph/label/popular never surfaces.
+      const response = await requestUrl({
+        url: `${this.serverUrl}/graph/label/list`,
         method: 'GET',
         headers: this.getLightRagHeaders(),
         throw: false,
       })
 
-      if (entitiesResp.status === 200) {
-        const body = entitiesResp.json as { entities?: { entity_name: string }[]; data?: { entity_name: string }[] }
-        const rows = body.entities ?? body.data ?? []
-        allLabels = rows.map((e) => e.entity_name).filter(Boolean)
-      } else {
-        usedFallback = true
-        // /graph/label/search with empty query returns all indexed labels.
-        const searchResp = await requestUrl({
-          url: `${this.serverUrl}/graph/label/search?query=&limit=5000`,
-          method: 'GET',
-          headers: this.getLightRagHeaders(),
-          throw: false,
-        })
-        if (searchResp.status === 200) {
-          const body = searchResp.json
-          allLabels = Array.isArray(body) ? body : (body.labels ?? body.results ?? [])
-        } else {
-          // Last resort: popular labels (connected nodes only)
-          const popularResp = await requestUrl({
-            url: `${this.serverUrl}/graph/label/popular?limit=5000`,
-            method: 'GET',
-            headers: this.getLightRagHeaders(),
-            throw: false,
-          })
-          if (popularResp.status !== 200) {
-            loadingRow.setText(`Failed to load entities (HTTP ${popularResp.status}).`)
-            return
-          }
-          allLabels = popularResp.json as string[]
-          usedFallback = true
-        }
+      if (response.status !== 200) {
+        loadingRow.setText(`Failed to load entities (HTTP ${response.status}).`)
+        return
       }
 
+      const allLabels: string[] = Array.isArray(response.json) ? response.json : []
       const currentIds = new Set(this.allNodes.map((n) => n.id))
       const extra: GraphNode[] = allLabels
         .filter((lbl) => !currentIds.has(lbl))
@@ -1184,11 +1154,6 @@ export class NativeGraphView extends ItemView {
 
       this.filteredNodes = [...this.allNodes, ...extra]
       this.renderList()
-
-      if (usedFallback) {
-        const note = this.sidebarListEl.createDiv({ cls: 'nrlcmp-list-more' })
-        note.setText('Note: orphan nodes may not be listed (API limitation).')
-      }
     } catch (e) {
       loadingRow.setText(`Error loading entities: ${String(e)}`)
     }
