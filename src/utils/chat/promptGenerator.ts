@@ -317,11 +317,18 @@ ${message.annotations
 ${similaritySearchResults
   .map(({ path, content, metadata }) => {
     // --- CORA MOD: Inyección Directa de Contexto de Grafo ---
+    // NOTE: ragEngine uses lowercase "memory"; keep both variants for safety.
     if (
+      path === "Graph's memory" ||
       path.includes("Graph's Memory") ||
       path.includes('❤️ Respuesta de Cora')
     ) {
-      return `\n>>> CONTEXTO DEL GRAFO:\n${content}\n>>> FIN CONTEXTO\n\n`
+      // When citations are disabled, strip [N] markers so the LLM never
+      // sees them and won't generate stray <nrlcmp_block> reference tags.
+      const graphContent = this.settings.lightRagShowCitations
+        ? content
+        : content.replace(/\[\d+\]/g, '').replace(/\n{3,}/g, '\n\n').trim()
+      return `\n>>> CONTEXTO DEL GRAFO:\n${graphContent}\n>>> FIN CONTEXTO\n\n`
     }
     // --------------------------------------------------------
 
