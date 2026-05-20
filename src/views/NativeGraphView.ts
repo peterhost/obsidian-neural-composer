@@ -514,12 +514,22 @@ export class NativeGraphView extends ItemView {
       if (!this.graph) return
       if (this.sigmaInstance) this.sigmaInstance.kill()
 
+      const isDark = document.body.classList.contains('theme-dark')
+      const labelTextColor = isDark ? '#e8e8e8' : '#111111'
+      const hoverLabelColor = isDark ? '#ffffff' : '#000000'
+      container.style.backgroundColor = isDark ? '#111111' : '#f0f0f0'
+
+      // Stamp label color onto every node so hover can override per-node
+      this.graph.forEachNode((n) => {
+        this.graph?.setNodeAttribute(n, 'labelColor', labelTextColor)
+      })
+
       this.sigmaInstance = new Sigma(this.graph, container, {
         minCameraRatio: 0.001,
         maxCameraRatio: 10,
         renderLabels: true,
         labelFont: 'monospace',
-        labelColor: { color: '#fff' },
+        labelColor: { attribute: 'labelColor' },
         labelSize: 14,
         labelWeight: 'bold',
         allowInvalidContainer: true,
@@ -548,6 +558,7 @@ export class NativeGraphView extends ItemView {
         if (attrs.color !== '#ffffff') {
           this.graph?.setNodeAttribute(event.node, 'label', event.node)
           this.graph?.setNodeAttribute(event.node, 'color', '#ff0055')
+          this.graph?.setNodeAttribute(event.node, 'labelColor', hoverLabelColor)
           this.graph?.setNodeAttribute(event.node, 'zIndex', 10)
         }
       })
@@ -557,6 +568,7 @@ export class NativeGraphView extends ItemView {
         if (!attrs) return
         if (attrs.color === '#ff0055') {
           this.graph?.setNodeAttribute(event.node, 'color', '#00d4ff')
+          this.graph?.setNodeAttribute(event.node, 'labelColor', labelTextColor)
           this.graph?.setNodeAttribute(event.node, 'zIndex', 0)
           if (attrs.forceLabel) {
             this.graph?.setNodeAttribute(event.node, 'label', event.node)

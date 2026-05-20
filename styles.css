@@ -1939,7 +1939,12 @@ button.nrlcmp-chat-input-model-select {
 }
 
 .nrlcmp-mode-2d {
-  background-color: #111111; /* Dark grey for 2D */
+  /* Background set dynamically in NativeGraphView.ts based on Obsidian theme */
+  background-color: #111111;
+}
+
+.theme-light .nrlcmp-mode-2d {
+  background-color: #f0f0f0;
 }
 
 .nrlcmp-graph-view .nrlcmp-graph-zone {
