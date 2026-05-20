@@ -1125,51 +1125,72 @@ export class NativeGraphView extends ItemView {
     loadingRow.setText('Loading all entities...')
 
     try {
-      // /entities returns ALL entities from the DB (including orphans with degree 0),
-      // unlike /graph/label/popular which only surfaces connected nodes.
-      // Paginate with a large page_size to minimise round trips.
-      const PAGE_SIZE = 1000
-      let page = 1
-      let total = Infinity
-      const allEntities: { entity_name: string; entity_type?: string; description?: string; source_id?: string }[] = []
+      // Try the /entities endpoint first (newer LightRAG versions).
+      // Fall back to /graph/label/search with empty query if unavailable.
+      let allLabels: string[] = []
+      let usedFallback = false
 
-      while (allEntities.length < total) {
-        const response = await requestUrl({
-          url: `${this.serverUrl}/entities?page=${page}&page_size=${PAGE_SIZE}`,
+      const entitiesResp = await requestUrl({
+        url: `${this.serverUrl}/entities?page=1&page_size=5000`,
+        method: 'GET',
+        headers: this.getLightRagHeaders(),
+        throw: false,
+      })
+
+      if (entitiesResp.status === 200) {
+        const body = entitiesResp.json as { entities?: { entity_name: string }[]; data?: { entity_name: string }[] }
+        const rows = body.entities ?? body.data ?? []
+        allLabels = rows.map((e) => e.entity_name).filter(Boolean)
+      } else {
+        usedFallback = true
+        // /graph/label/search with empty query returns all indexed labels.
+        const searchResp = await requestUrl({
+          url: `${this.serverUrl}/graph/label/search?query=&limit=5000`,
           method: 'GET',
           headers: this.getLightRagHeaders(),
           throw: false,
         })
-        if (response.status !== 200) {
-          loadingRow.setText('Failed to load entities.')
-          return
+        if (searchResp.status === 200) {
+          const body = searchResp.json
+          allLabels = Array.isArray(body) ? body : (body.labels ?? body.results ?? [])
+        } else {
+          // Last resort: popular labels (connected nodes only)
+          const popularResp = await requestUrl({
+            url: `${this.serverUrl}/graph/label/popular?limit=5000`,
+            method: 'GET',
+            headers: this.getLightRagHeaders(),
+            throw: false,
+          })
+          if (popularResp.status !== 200) {
+            loadingRow.setText(`Failed to load entities (HTTP ${popularResp.status}).`)
+            return
+          }
+          allLabels = popularResp.json as string[]
+          usedFallback = true
         }
-        const body = response.json as { entities: typeof allEntities; total: number }
-        total = body.total ?? 0
-        allEntities.push(...(body.entities ?? []))
-        if (!body.entities?.length || allEntities.length >= total) break
-        page++
       }
 
       const currentIds = new Set(this.allNodes.map((n) => n.id))
-
-      // Nodes already in the current graph keep their computed degree (val).
-      // Entities not yet in the graph are added with val=0 so orphans appear too.
-      const extra: GraphNode[] = allEntities
-        .filter((e) => !currentIds.has(e.entity_name))
-        .map((e) => ({
-          id: e.entity_name,
-          type: e.entity_type ?? 'Unknown',
-          desc: e.description ?? '',
-          source_id: e.source_id ?? '',
+      const extra: GraphNode[] = allLabels
+        .filter((lbl) => !currentIds.has(lbl))
+        .map((lbl) => ({
+          id: lbl,
+          type: 'Unknown',
+          desc: '',
+          source_id: '',
           val: 0,
           file_paths: [],
         }))
 
       this.filteredNodes = [...this.allNodes, ...extra]
       this.renderList()
+
+      if (usedFallback) {
+        const note = this.sidebarListEl.createDiv({ cls: 'nrlcmp-list-more' })
+        note.setText('Note: orphan nodes may not be listed (API limitation).')
+      }
     } catch (e) {
-      loadingRow.setText('Error loading entities.')
+      loadingRow.setText(`Error loading entities: ${String(e)}`)
     }
   }
 
