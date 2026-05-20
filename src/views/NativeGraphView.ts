@@ -449,7 +449,8 @@ export class NativeGraphView extends ItemView {
     })
 
     // Highlight target
-    this.graph.setNodeAttribute(nodeId, 'color', '#ffffff')
+    const isDark = document.body.classList.contains('theme-dark')
+    this.graph.setNodeAttribute(nodeId, 'color', isDark ? '#ffffff' : '#00d4ff')
     this.graph.setNodeAttribute(nodeId, 'label', nodeId)
     this.graph.setNodeAttribute(
       nodeId,
