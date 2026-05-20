@@ -449,9 +449,9 @@ export class NativeGraphView extends ItemView {
     }
     const mode = this.plugin.settings.graphViewMode.toUpperCase()
     const truncated =
-      nodes >= this.currentMaxNodes ? ` (truncated at ${nodes})` : ''
+      nodes >= this.currentMaxNodes ? ` · truncated` : ''
     this.statsLabelEl.setText(
-      `${nodes} nodes · ${edges} edges · ${mode}${truncated}`,
+      `${nodes} nodes · ${edges} edges · depth ${this.currentMaxDepth} · ${mode}${truncated}`,
     )
   }
 
@@ -1009,20 +1009,20 @@ export class NativeGraphView extends ItemView {
     // Separator
     tb.createEl('span', { cls: 'nrlcmp-toolbar-sep' })
 
-    // Max-nodes expand/contract controls
+    // Depth expand/contract controls
     const btnLess = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
     setIcon(btnLess, 'minus')
-    setTooltip(btnLess, 'Show fewer nodes (−200)')
+    setTooltip(btnLess, 'Decrease graph depth (−1)')
     btnLess.onclick = () => {
-      this.currentMaxNodes = Math.max(100, this.currentMaxNodes - 200)
+      this.currentMaxDepth = Math.max(1, this.currentMaxDepth - 1)
       void this.render(graphContainer)
     }
 
     const btnMore = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
     setIcon(btnMore, 'plus')
-    setTooltip(btnMore, 'Show more nodes (+200)')
+    setTooltip(btnMore, 'Increase graph depth (+1)')
     btnMore.onclick = () => {
-      this.currentMaxNodes = Math.min(2000, this.currentMaxNodes + 200)
+      this.currentMaxDepth = Math.min(10, this.currentMaxDepth + 1)
       void this.render(graphContainer)
     }
 
@@ -1034,6 +1034,7 @@ export class NativeGraphView extends ItemView {
     setTooltip(btnReload, 'Reload graph from server')
     btnReload.onclick = () => {
       this.currentRootLabel = ''
+      this.currentMaxDepth = 3
       this.currentMaxNodes = 1000
       void this.render(graphContainer)
     }
@@ -1174,7 +1175,8 @@ export class NativeGraphView extends ItemView {
   renderList() {
     if (!this.sidebarListEl) return
     this.sidebarListEl.empty()
-    const visibleNodes = this.filteredNodes.slice(0, 50)
+    const VISIBLE_LIMIT = 100
+    const visibleNodes = this.filteredNodes.slice(0, VISIBLE_LIMIT)
 
     visibleNodes.forEach((node) => {
       const row = this.sidebarListEl!.createDiv({ cls: 'nrlcmp-sidebar-row' })
@@ -1207,9 +1209,9 @@ export class NativeGraphView extends ItemView {
       }
     })
 
-    if (this.filteredNodes.length > 100) {
+    if (this.filteredNodes.length > VISIBLE_LIMIT) {
       this.sidebarListEl.createDiv({
-        text: `...and ${this.filteredNodes.length - 100} more.`,
+        text: `...and ${this.filteredNodes.length - VISIBLE_LIMIT} more. Use search to filter.`,
         cls: 'nrlcmp-list-more',
       })
     }
