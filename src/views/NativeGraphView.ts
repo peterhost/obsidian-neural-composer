@@ -66,12 +66,15 @@ interface GraphNode {
 
 interface ChunkDocMap {
   full_doc_id?: string
+  doc_id?: string
   [key: string]: unknown
 }
 
 interface DocNameMap {
   file_name?: string
+  file_path?: string
   id?: string
+  metadata?: Record<string, unknown>
   [key: string]: unknown
 }
 
@@ -286,15 +289,31 @@ export class NativeGraphView extends ItemView {
 
       if (this._nodeFs.existsSync(chunksPath)) {
         const content = this._nodeFs.readFileSync(chunksPath, 'utf-8')
-        this.chunkToDocMap = JSON.parse(content)
+        this.chunkToDocMap = JSON.parse(content) as Record<string, ChunkDocMap>
       }
+
       if (this._nodeFs.existsSync(docsPath)) {
-        const content = this._nodeFs.readFileSync(docsPath, 'utf-8')
-        this.docToNameMap = JSON.parse(content)
+        const raw = JSON.parse(
+          this._nodeFs.readFileSync(docsPath, 'utf-8'),
+        ) as Record<string, Record<string, unknown>>
+
+        // kv_store_doc_status.json can use either the file path OR the doc ID as
+        // the key depending on the LightRAG version. Build a map that is indexed
+        // by BOTH so lookups via full_doc_id always succeed.
+        this.docToNameMap = {}
+        for (const [key, val] of Object.entries(raw)) {
+          const entry: DocNameMap = { ...val, _rawKey: key }
+          // Index by the raw key (may be a file path or doc ID)
+          this.docToNameMap[key] = entry
+          // Also index by the embedded id field if it differs from the key
+          const embeddedId = val.id as string | undefined
+          if (embeddedId && embeddedId !== key) {
+            this.docToNameMap[embeddedId] = entry
+          }
+        }
       }
     } catch (e) {
       console.error('Error loading maps', e)
-      new Notice('Failed to load graph reference maps.')
     }
   }
 
@@ -400,10 +419,25 @@ export class NativeGraphView extends ItemView {
     const fileNames = new Set<string>()
     chunks.forEach((chunkId) => {
       const chunkData = this.chunkToDocMap[chunkId]
-      if (chunkData && chunkData.full_doc_id) {
-        const docID = String(chunkData.full_doc_id)
-        const docData = this.docToNameMap[docID]
-        if (docData) fileNames.add(docData.file_name || docData.id || 'Unknown')
+      if (!chunkData) return
+      const docID = String(chunkData.full_doc_id ?? chunkData.doc_id ?? '')
+      if (!docID) return
+      const docData = this.docToNameMap[docID]
+      if (!docData) return
+
+      // Try every plausible field/path where LightRAG stores the filename
+      const meta = docData.metadata as Record<string, unknown> | undefined
+      const rawName =
+        docData.file_name ||          // direct field (older versions)
+        docData.file_path ||          // alternative direct field
+        meta?.file_name ||            // nested in metadata
+        meta?.file_path ||            // nested alternative
+        (docData._rawKey as string) ||// the raw JSON key (often is the file path)
+        docData.id                    // doc ID as last-resort display name
+      if (rawName) {
+        // Show only the basename so long paths stay readable
+        const name = String(rawName).replace(/\\/g, '/').split('/').pop() || String(rawName)
+        fileNames.add(name)
       }
     })
     return Array.from(fileNames)
