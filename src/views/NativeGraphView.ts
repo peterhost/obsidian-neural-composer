@@ -171,8 +171,8 @@ export class NativeGraphView extends ItemView {
   private _nodePath: typeof import('path') | null = null
 
   // API-based graph navigation state
-  private currentRootLabel: string = ''  // '' = overview mode
-  private currentMaxDepth: number = 3    // only used in explore mode
+  private currentRootLabel: string = '' // '' = overview mode
+  private currentMaxDepth: number = 3 // only used in explore mode
   private currentMaxNodes: number = 1000
   private statsLabelEl: HTMLElement | null = null
   private graphContainer: HTMLElement | null = null
@@ -428,15 +428,17 @@ export class NativeGraphView extends ItemView {
       // Try every plausible field/path where LightRAG stores the filename
       const meta = docData.metadata as Record<string, unknown> | undefined
       const rawName =
-        docData.file_name ||          // direct field (older versions)
-        docData.file_path ||          // alternative direct field
-        meta?.file_name ||            // nested in metadata
-        meta?.file_path ||            // nested alternative
-        (docData._rawKey as string) ||// the raw JSON key (often is the file path)
-        docData.id                    // doc ID as last-resort display name
+        docData.file_name || // direct field (older versions)
+        docData.file_path || // alternative direct field
+        meta?.file_name || // nested in metadata
+        meta?.file_path || // nested alternative
+        (docData._rawKey as string) || // the raw JSON key (often is the file path)
+        docData.id // doc ID as last-resort display name
       if (rawName) {
         // Show only the basename so long paths stay readable
-        const name = String(rawName).replace(/\\/g, '/').split('/').pop() || String(rawName)
+        const name =
+          String(rawName).replace(/\\/g, '/').split('/').pop() ||
+          String(rawName)
         fileNames.add(name)
       }
     })
@@ -473,7 +475,11 @@ export class NativeGraphView extends ItemView {
     // Overview: traverse with unlimited depth to reach every connected node.
     // Explore: use the user-controlled depth for a focused neighbourhood.
     const depth = isOverview ? 999 : this.currentMaxDepth
-    const data = await this.fetchGraphData(rootLabel, depth, this.currentMaxNodes)
+    const data = await this.fetchGraphData(
+      rootLabel,
+      depth,
+      this.currentMaxNodes,
+    )
 
     loadingEl.remove()
 
@@ -498,7 +504,7 @@ export class NativeGraphView extends ItemView {
             type: 'Unknown',
             desc: '',
             source_id: '',
-            val: 1,  // degree 0 — renders as the smallest node size
+            val: 1, // degree 0 — renders as the smallest node size
             file_paths: [],
           }))
         data.nodes.push(...isolated)
@@ -1132,7 +1138,12 @@ export class NativeGraphView extends ItemView {
     const isExplore = !!this.currentRootLabel
     const btnLess = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
     setIcon(btnLess, 'minus')
-    setTooltip(btnLess, isExplore ? 'Decrease subgraph depth (−1)' : 'Switch to explore mode first')
+    setTooltip(
+      btnLess,
+      isExplore
+        ? 'Decrease subgraph depth (−1)'
+        : 'Switch to explore mode first',
+    )
     btnLess.disabled = !isExplore
     btnLess.onclick = () => {
       if (!this.currentRootLabel) return
@@ -1142,7 +1153,12 @@ export class NativeGraphView extends ItemView {
 
     const btnMore = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
     setIcon(btnMore, 'plus')
-    setTooltip(btnMore, isExplore ? 'Increase subgraph depth (+1)' : 'Switch to explore mode first')
+    setTooltip(
+      btnMore,
+      isExplore
+        ? 'Increase subgraph depth (+1)'
+        : 'Switch to explore mode first',
+    )
     btnMore.disabled = !isExplore
     btnMore.onclick = () => {
       if (!this.currentRootLabel) return
@@ -1261,7 +1277,9 @@ export class NativeGraphView extends ItemView {
         loadingRow.setText(`Failed to load entities (HTTP ${listResp.status}).`)
         return
       }
-      const graphLabels: string[] = Array.isArray(listResp.json) ? listResp.json : []
+      const graphLabels: string[] = Array.isArray(listResp.json)
+        ? listResp.json
+        : []
       const graphLabelSet = new Set(graphLabels)
 
       // Step 2: get all labels sorted by degree — "popular" with a high limit.
@@ -1273,9 +1291,10 @@ export class NativeGraphView extends ItemView {
         headers: this.getLightRagHeaders(),
         throw: false,
       })
-      const popularLabels: string[] = popularResp.status === 200 && Array.isArray(popularResp.json)
-        ? popularResp.json
-        : []
+      const popularLabels: string[] =
+        popularResp.status === 200 && Array.isArray(popularResp.json)
+          ? popularResp.json
+          : []
       const popularSet = new Set(popularLabels)
 
       // True orphans: in graph (have a node) but NOT in popular list (degree 0)

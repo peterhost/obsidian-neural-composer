@@ -23,7 +23,9 @@ function MarkdownPreviewRenderer({ content }: { content: string }) {
     <>
       {blocks.map((block, index) => {
         if (block.type === 'string') {
-          return <ObsidianMarkdown key={index} content={block.content} scale="sm" />
+          return (
+            <ObsidianMarkdown key={index} content={block.content} scale="sm" />
+          )
         }
         if (
           block.type === 'nrlcmp_block' &&

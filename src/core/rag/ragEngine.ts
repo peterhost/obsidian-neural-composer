@@ -368,14 +368,16 @@ export class RAGEngine {
       // --- Compute real relevance scores from citation frequency ---
       // LightRAG embeds [1], [2], ... markers in the response when references
       // are included. Count how often each source is cited → normalize to 0–1.
-      const citationCounts = refs.map((_, i) => countCitations(graphAnswer, i + 1))
+      const citationCounts = refs.map((_, i) =>
+        countCitations(graphAnswer, i + 1),
+      )
       const maxCitations = Math.max(...citationCounts, 1)
 
       // Score formula:
       //   cited ≥1 time  → 0.40 + (citedCount / maxCited) * 0.55   [0.40 – 0.95]
       //   cited 0 times  → 0.20  (listed as reference but not explicitly cited)
       const refScore = (citations: number): number =>
-        citations > 0 ? 0.40 + (citations / maxCitations) * 0.55 : 0.20
+        citations > 0 ? 0.4 + (citations / maxCitations) * 0.55 : 0.2
 
       // Build master "Graph's memory" entry (the raw LightRAG answer)
       if (graphAnswer) {
@@ -397,7 +399,7 @@ export class RAGEngine {
         results.push({
           id: -(i + 2),
           model: 'lightrag-ref',
-          path: filePath,          // clean path — no [N] prefix
+          path: filePath, // clean path — no [N] prefix
           content: ref.content || '',
           similarity: refScore(citationCounts[i]),
           mtime: Date.now(),

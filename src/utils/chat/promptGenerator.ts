@@ -327,7 +327,10 @@ ${similaritySearchResults
       // sees them and won't generate stray <nrlcmp_block> reference tags.
       const graphContent = this.settings.lightRagShowCitations
         ? content
-        : content.replace(/\[\d+\]/g, '').replace(/\n{3,}/g, '\n\n').trim()
+        : content
+            .replace(/\[\d+\]/g, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim()
       return `\n>>> CONTEXTO DEL GRAFO:\n${graphContent}\n>>> FIN CONTEXTO\n\n`
     }
     // --------------------------------------------------------
