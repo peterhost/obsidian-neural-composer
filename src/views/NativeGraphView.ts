@@ -516,13 +516,67 @@ export class NativeGraphView extends ItemView {
 
       const isDark = document.body.classList.contains('theme-dark')
       const labelTextColor = isDark ? '#e8e8e8' : '#111111'
-      const hoverLabelColor = isDark ? '#ffffff' : '#000000'
       container.style.backgroundColor = isDark ? '#111111' : '#f0f0f0'
 
-      // Stamp label color onto every node so hover can override per-node
+      // Stamp label color onto every node so the custom hover renderer can read it
       this.graph.forEachNode((n) => {
         this.graph?.setNodeAttribute(n, 'labelColor', labelTextColor)
       })
+
+      // Custom hover renderer: same shape as Sigma's default but theme-aware background
+      const hoverBgColor = isDark ? 'rgba(28, 28, 28, 0.97)' : '#ffffff'
+      const hoverShadowColor = isDark ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.4)'
+      const drawHover = (
+        context: CanvasRenderingContext2D,
+        data: { x: number; y: number; size: number; label: string; [key: string]: unknown },
+        settings: { labelSize: number; labelFont: string; labelWeight: string },
+      ) => {
+        const size = settings.labelSize
+        const font = settings.labelFont
+        const weight = settings.labelWeight
+        const PADDING = 2
+
+        context.font = `${weight} ${size}px ${font}`
+        context.fillStyle = hoverBgColor
+        context.shadowOffsetX = 0
+        context.shadowOffsetY = 0
+        context.shadowBlur = 8
+        context.shadowColor = hoverShadowColor
+
+        if (typeof data.label === 'string') {
+          const textWidth = context.measureText(data.label).width
+          const boxWidth = Math.round(textWidth + 5)
+          const boxHeight = Math.round(size + 2 * PADDING)
+          const radius = Math.max(data.size, size / 2) + PADDING
+          const angleRadian = Math.asin(Math.min(boxHeight / 2 / radius, 1))
+          const xDeltaCoord = Math.sqrt(Math.abs(radius ** 2 - (boxHeight / 2) ** 2))
+
+          context.beginPath()
+          context.moveTo(data.x + xDeltaCoord, data.y + boxHeight / 2)
+          context.lineTo(data.x + radius + boxWidth, data.y + boxHeight / 2)
+          context.lineTo(data.x + radius + boxWidth, data.y - boxHeight / 2)
+          context.lineTo(data.x + xDeltaCoord, data.y - boxHeight / 2)
+          context.arc(data.x, data.y, radius, angleRadian, -angleRadian)
+          context.closePath()
+          context.fill()
+        } else {
+          context.beginPath()
+          context.arc(data.x, data.y, data.size + PADDING, 0, Math.PI * 2)
+          context.closePath()
+          context.fill()
+        }
+
+        context.shadowOffsetX = 0
+        context.shadowOffsetY = 0
+        context.shadowBlur = 0
+
+        // Label text — use per-node labelColor attribute
+        if (typeof data.label === 'string') {
+          const textColor = (data.labelColor as string | undefined) || labelTextColor
+          context.fillStyle = textColor
+          context.fillText(data.label, data.x + data.size + 3, data.y + size / 3)
+        }
+      }
 
       this.sigmaInstance = new Sigma(this.graph, container, {
         minCameraRatio: 0.001,
@@ -534,6 +588,8 @@ export class NativeGraphView extends ItemView {
         labelWeight: 'bold',
         allowInvalidContainer: true,
         zIndex: true,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        defaultDrawNodeHover: drawHover as any,
       })
 
       const settings = forceAtlas2.inferSettings(this.graph)
@@ -558,7 +614,6 @@ export class NativeGraphView extends ItemView {
         if (attrs.color !== '#ffffff') {
           this.graph?.setNodeAttribute(event.node, 'label', event.node)
           this.graph?.setNodeAttribute(event.node, 'color', '#ff0055')
-          this.graph?.setNodeAttribute(event.node, 'labelColor', hoverLabelColor)
           this.graph?.setNodeAttribute(event.node, 'zIndex', 10)
         }
       })
@@ -568,7 +623,6 @@ export class NativeGraphView extends ItemView {
         if (!attrs) return
         if (attrs.color === '#ff0055') {
           this.graph?.setNodeAttribute(event.node, 'color', '#00d4ff')
-          this.graph?.setNodeAttribute(event.node, 'labelColor', labelTextColor)
           this.graph?.setNodeAttribute(event.node, 'zIndex', 0)
           if (attrs.forceLabel) {
             this.graph?.setNodeAttribute(event.node, 'label', event.node)
