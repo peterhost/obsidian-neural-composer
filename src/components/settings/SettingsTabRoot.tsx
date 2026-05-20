@@ -38,10 +38,10 @@ export function SettingsTabRoot({ app, plugin }: SettingsTabRootProps) {
         heading
       >
         <ObsidianButton
-          text="Original Project (Smart Composer)"
+          text="☕ Support Neural Composer"
           onClick={() =>
             window.open(
-              'https://github.com/glowingjade/obsidian-smart-composer',
+              'https://ko-fi.com/oscampo',
               '_blank',
             )
           }

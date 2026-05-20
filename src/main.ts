@@ -133,6 +133,8 @@ export default class NeuralComposerPlugin extends Plugin {
   private ragEngineInitPromise: Promise<RAGEngine> | null = null
 
   private timeoutIds: ReturnType<typeof setTimeout>[] = []
+  private modifyDebounceMap: Map<string, ReturnType<typeof setTimeout>> =
+    new Map()
   private serverProcess: ChildProcess | null = null
   private lastErrorTime: number = 0
 
@@ -317,7 +319,7 @@ export default class NeuralComposerPlugin extends Plugin {
               const content = await this.app.vault.read(file)
               const finalContent =
                 ext === 'md' ? `Title: ${title}\n\n${content}` : content
-              success = await ragEngine.insertDocument(finalContent, file.name)
+              success = await ragEngine.insertDocument(finalContent, file.path)
             } else {
               success = await ragEngine.uploadDocument(file)
             }
@@ -337,6 +339,156 @@ export default class NeuralComposerPlugin extends Plugin {
         })()
       },
     })
+
+    // --- INCREMENTAL SYNC: vault event listeners ---
+    // Only active when the user has configured a watched sync folder.
+    // isInSyncFolder checks that the file lives inside (or at) that folder.
+    const isInSyncFolder = (filePath: string): boolean => {
+      const syncFolder = this.settings.lightRagSyncFolder.trim()
+      if (!syncFolder) return false
+      const normalized = syncFolder.endsWith('/')
+        ? syncFolder
+        : `${syncFolder}/`
+      return filePath === syncFolder || filePath.startsWith(normalized)
+    }
+
+    this.registerEvent(
+      this.app.vault.on('create', (file) => {
+        if (!(file instanceof TFile)) return
+        if (!isInSyncFolder(file.path)) return
+        if (!SUPPORTED_EXTENSIONS.includes(file.extension.toLowerCase())) return
+        // Wait 2 s so the file content is available (especially for moves/imports)
+        setTimeout(() => {
+          void (async () => {
+            const notice = new Notice(
+              `Graph sync: sending "${file.name}"...`,
+              0,
+            )
+            const ragEngine = await this.getRAGEngine()
+            const ok = await ragEngine.ingestFile(file)
+            notice.setMessage(
+              ok
+                ? `Graph sync: "${file.name}" sent — processing in background.`
+                : `Graph sync: failed to send "${file.name}".`,
+            )
+            setTimeout(() => notice.hide(), 6000)
+          })()
+        }, 2000)
+      }),
+    )
+
+    this.registerEvent(
+      this.app.vault.on('delete', (file) => {
+        if (!(file instanceof TFile)) return
+        if (!isInSyncFolder(file.path)) return
+        void (async () => {
+          const notice = new Notice(
+            `Graph sync: removing "${file.name}" from index...`,
+            0,
+          )
+          const ragEngine = await this.getRAGEngine()
+          const removed = await ragEngine.deleteDocumentByFilePath(
+            file.path,
+            file.name,
+          )
+          notice.setMessage(
+            removed
+              ? `Graph sync: "${file.name}" removed from graph.`
+              : `Graph sync: "${file.name}" was not in the graph.`,
+          )
+          setTimeout(() => notice.hide(), 6000)
+        })()
+      }),
+    )
+
+    this.registerEvent(
+      this.app.vault.on('rename', (file, oldPath) => {
+        if (!(file instanceof TFile)) return
+        const wasInFolder = isInSyncFolder(oldPath)
+        const nowInFolder = isInSyncFolder(file.path)
+        if (!wasInFolder && !nowInFolder) return
+        void (async () => {
+          const ragEngine = await this.getRAGEngine()
+
+          if (wasInFolder && nowInFolder) {
+            // Renamed or moved within the watched folder
+            const notice = new Notice(
+              `Graph sync: updating "${file.name}" in graph...`,
+              0,
+            )
+            const oldName = oldPath.split('/').pop() ?? oldPath
+            await ragEngine.deleteDocumentByFilePath(oldPath, oldName)
+            const ok = await ragEngine.ingestFile(file)
+            notice.setMessage(
+              ok
+                ? `Graph sync: graph updated for "${file.name}".`
+                : `Graph sync: failed to update "${file.name}".`,
+            )
+            setTimeout(() => notice.hide(), 6000)
+          } else if (wasInFolder) {
+            // Moved OUT of the watched folder
+            const notice = new Notice(
+              `Graph sync: removing "${file.name}" from graph...`,
+              0,
+            )
+            const oldName = oldPath.split('/').pop() ?? oldPath
+            const removed = await ragEngine.deleteDocumentByFilePath(
+              oldPath,
+              oldName,
+            )
+            notice.setMessage(
+              removed
+                ? `Graph sync: "${file.name}" removed from graph.`
+                : `Graph sync: "${file.name}" was not in the graph.`,
+            )
+            setTimeout(() => notice.hide(), 6000)
+          } else {
+            // Moved INTO the watched folder
+            const notice = new Notice(
+              `Graph sync: sending "${file.name}"...`,
+              0,
+            )
+            const ok = await ragEngine.ingestFile(file)
+            notice.setMessage(
+              ok
+                ? `Graph sync: "${file.name}" sent — processing in background.`
+                : `Graph sync: failed to send "${file.name}".`,
+            )
+            setTimeout(() => notice.hide(), 6000)
+          }
+        })()
+      }),
+    )
+
+    this.registerEvent(
+      this.app.vault.on('modify', (file) => {
+        if (!(file instanceof TFile)) return
+        if (!isInSyncFolder(file.path)) return
+        if (!SUPPORTED_EXTENSIONS.includes(file.extension.toLowerCase())) return
+
+        // Debounce: wait 5 s of inactivity before re-indexing
+        const existing = this.modifyDebounceMap.get(file.path)
+        if (existing) clearTimeout(existing)
+        const id = setTimeout(() => {
+          this.modifyDebounceMap.delete(file.path)
+          void (async () => {
+            const notice = new Notice(
+              `Graph sync: re-indexing "${file.name}"...`,
+              0,
+            )
+            const ragEngine = await this.getRAGEngine()
+            const ok = await ragEngine.reindexFile(file)
+            notice.setMessage(
+              ok
+                ? `Graph sync: "${file.name}" sent — processing in background.`
+                : `Graph sync: failed to re-index "${file.name}".`,
+            )
+            setTimeout(() => notice.hide(), 6000)
+          })()
+        }, 5000)
+        this.modifyDebounceMap.set(file.path, id)
+      }),
+    )
 
     this.addSettingTab(new NeuralComposerSettingTab(this.app, this))
 
@@ -450,7 +602,7 @@ export default class NeuralComposerPlugin extends Plugin {
             const content = await this.app.vault.read(file)
             const finalContent =
               ext === 'md' ? `Title: ${file.basename}\n\n${content}` : content
-            result = await ragEngine.insertDocument(finalContent, file.name)
+            result = await ragEngine.insertDocument(finalContent, file.path)
           } else {
             result = await ragEngine.uploadDocument(file)
           }
@@ -479,6 +631,8 @@ export default class NeuralComposerPlugin extends Plugin {
     window.clearInterval(this.heartbeatInterval)
     this.timeoutIds.forEach((id) => clearTimeout(id))
     this.timeoutIds = []
+    this.modifyDebounceMap.forEach((id) => clearTimeout(id))
+    this.modifyDebounceMap.clear()
 
     if (this.ragEngine) {
       this.ragEngine.cleanup()

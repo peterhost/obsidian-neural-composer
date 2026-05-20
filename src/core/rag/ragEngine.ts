@@ -169,6 +169,87 @@ export class RAGEngine {
     }
   }
 
+  // --- 2b. INCREMENTAL SYNC HELPERS ---
+
+  // Finds a LightRAG doc_id matching the given file.
+  // Tries the full vault-relative path first (v1.2+ ingest), then falls back to
+  // bare filename (pre-v1.2 ingest used file.name instead of file.path).
+  async findDocIdByFilePath(
+    filePath: string,
+    fileName: string,
+  ): Promise<string | null> {
+    try {
+      const response = await requestUrl({
+        url: `${this.settings.lightRagServerUrl}/documents/paginated`,
+        method: 'POST',
+        headers: this.getLightRagHeaders(),
+        body: JSON.stringify({
+          page: 1,
+          page_size: 200,
+          sort_field: 'file_path',
+          sort_direction: 'asc',
+        }),
+        throw: false,
+      })
+      if (response.status >= 400) return null
+      const data = response.json as {
+        documents?: { id: string; file_path: string }[]
+      }
+      const docs = data.documents ?? []
+      // Prefer exact full-path match, fall back to bare filename for older entries
+      return (
+        docs.find((d) => d.file_path === filePath)?.id ??
+        docs.find((d) => d.file_path === fileName)?.id ??
+        null
+      )
+    } catch {
+      return null
+    }
+  }
+
+  async deleteDocumentByFilePath(
+    filePath: string,
+    fileName: string,
+  ): Promise<boolean> {
+    const docId = await this.findDocIdByFilePath(filePath, fileName)
+    if (!docId) return false
+    try {
+      const response = await requestUrl({
+        url: `${this.settings.lightRagServerUrl}/documents/delete_document`,
+        method: 'DELETE',
+        headers: this.getLightRagHeaders(),
+        body: JSON.stringify({
+          doc_ids: [docId],
+          delete_file: false,
+          delete_llm_cache: true,
+        }),
+        throw: false,
+      })
+      return response.status < 400
+    } catch {
+      return false
+    }
+  }
+
+  // Removes old entry and re-inserts the current file content.
+  async reindexFile(file: TFile): Promise<boolean> {
+    await this.deleteDocumentByFilePath(file.path, file.name)
+    return this.ingestFile(file)
+  }
+
+  // Inserts a file into the index without deleting first.
+  async ingestFile(file: TFile): Promise<boolean> {
+    const ext = file.extension.toLowerCase()
+    const textExts = ['md', 'txt', 'csv', 'json', 'html', 'htm', 'xml']
+    if (textExts.includes(ext)) {
+      const content = await this.app.vault.read(file)
+      const finalContent =
+        ext === 'md' ? `Title: ${file.basename}\n\n${content}` : content
+      return this.insertDocument(finalContent, file.path)
+    }
+    return this.uploadDocument(file)
+  }
+
   // --- 3. MASTER QUERY ---
   async processQuery({
     query,

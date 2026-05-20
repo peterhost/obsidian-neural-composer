@@ -254,6 +254,30 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
           }),
       )
 
+    // --- INCREMENTAL SYNC ---
+    container.createEl('h4', { text: 'Vault sync' })
+
+    new Setting(container)
+      .setName('Watched folder')
+      .setDesc(
+        'Vault-relative folder to watch for changes. ' +
+          'When set, deleting or renaming a note removes it from the graph automatically, ' +
+          'and saving a note re-indexes it after 5 s of inactivity. ' +
+          'Leave empty to disable. Only files you have previously ingested are affected.',
+      )
+      .addText((text) => {
+        text
+          .setPlaceholder('e.g. Main/Knowledge')
+          .setValue(plugin.settings.lightRagSyncFolder)
+          .onChange((value) => {
+            void plugin.setSettings({
+              ...plugin.settings,
+              lightRagSyncFolder: value,
+            })
+          })
+        new FolderSuggest(plugin.app, text.inputEl)
+      })
+
     // --- ONTOLOGY SECTION ---
     container.createEl('h4', { text: 'Ontology (categories)' })
 
