@@ -1126,30 +1126,49 @@ export class NativeGraphView extends ItemView {
     loadingRow.setText('Loading all entities...')
 
     try {
-      // /graph/label/list returns every label in the graph DB, including
-      // orphan nodes (degree 0) that /graph/label/popular never surfaces.
-      const response = await requestUrl({
+      // Step 1: get every label that exists in the graph (nodes in any edge)
+      const listResp = await requestUrl({
         url: `${this.serverUrl}/graph/label/list`,
         method: 'GET',
         headers: this.getLightRagHeaders(),
         throw: false,
       })
-
-      if (response.status !== 200) {
-        loadingRow.setText(`Failed to load entities (HTTP ${response.status}).`)
+      if (listResp.status !== 200) {
+        loadingRow.setText(`Failed to load entities (HTTP ${listResp.status}).`)
         return
       }
+      const graphLabels: string[] = Array.isArray(listResp.json) ? listResp.json : []
+      const graphLabelSet = new Set(graphLabels)
 
-      const allLabels: string[] = Array.isArray(response.json) ? response.json : []
+      // Step 2: get all labels sorted by degree — "popular" with a high limit.
+      // Any label NOT returned here (after requesting up to 1000) that IS in
+      // graphLabels has degree 0 in the stored graph → true orphan node.
+      const popularResp = await requestUrl({
+        url: `${this.serverUrl}/graph/label/popular?limit=1000`,
+        method: 'GET',
+        headers: this.getLightRagHeaders(),
+        throw: false,
+      })
+      const popularLabels: string[] = popularResp.status === 200 && Array.isArray(popularResp.json)
+        ? popularResp.json
+        : []
+      const popularSet = new Set(popularLabels)
+
+      // True orphans: in graph (have a node) but NOT in popular list (degree 0)
+      const orphanLabels = graphLabels.filter((lbl) => !popularSet.has(lbl))
+
       const currentIds = new Set(this.allNodes.map((n) => n.id))
-      const extra: GraphNode[] = allLabels
+
+      // Extra nodes not in current subgraph: mark with val=-1 ("unexplored")
+      // True orphans: mark with val=-2 ("orphan")
+      const extra: GraphNode[] = graphLabels
         .filter((lbl) => !currentIds.has(lbl))
         .map((lbl) => ({
           id: lbl,
           type: 'Unknown',
           desc: '',
           source_id: '',
-          val: 0,
+          val: orphanLabels.includes(lbl) ? -2 : -1,
           file_paths: [],
         }))
 
@@ -1188,21 +1207,34 @@ export class NativeGraphView extends ItemView {
         else this.selectedNodes.delete(node.id)
       }
 
+      // val > 0  → in current subgraph, degree = val-1
+      // val = -1 → unexplored (in graph but not in current view)
+      // val = -2 → orphan (graph node with degree 0, not reachable by traversal)
+      const isInSubgraph = node.val > 0
+      const isOrphan = node.val === -2
+      const rowCls = isOrphan
+        ? 'nrlcmp-row-orphan'
+        : isInSubgraph
+          ? ''
+          : 'nrlcmp-row-external'
+      if (rowCls) row.addClass(rowCls)
+
       const info = row.createDiv({ cls: 'nrlcmp-row-info' })
       info.createDiv({ text: node.id, cls: 'nrlcmp-row-title' })
-      const degree = node.val > 0 ? node.val - 1 : 0
-      info.createDiv({
-        text: `${node.type} (${degree})`,
-        cls: 'nrlcmp-row-meta',
-      })
+      let metaText: string
+      if (isOrphan) {
+        metaText = `${node.type} · orphan`
+      } else if (!isInSubgraph) {
+        metaText = `${node.type} · unexplored`
+      } else {
+        metaText = `${node.type} · ${node.val - 1}`
+      }
+      info.createDiv({ text: metaText, cls: 'nrlcmp-row-meta' })
       info.onclick = () => {
-        const inCurrentGraph =
-          this.graph?.hasNode(node.id) ||
-          this.allNodes.some((n) => n.id === node.id && n.val > 0)
-        if (inCurrentGraph) {
+        if (isInSubgraph) {
           this.searchNode(node.id)
         } else {
-          // Node not in current subgraph — load it as new root
+          // Unexplored or orphan — load as new root to reveal connections
           this.currentRootLabel = node.id
           if (this.graphContainer) void this.render(this.graphContainer)
         }

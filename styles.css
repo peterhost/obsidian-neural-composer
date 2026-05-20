@@ -2366,6 +2366,24 @@ button.nrlcmp-chat-input-model-select {
   color: var(--text-muted);
 }
 
+/* Sidebar row variants */
+.nrlcmp-row-external .nrlcmp-row-title {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.nrlcmp-row-external .nrlcmp-row-meta {
+  color: var(--text-faint);
+}
+
+.nrlcmp-row-orphan .nrlcmp-row-title {
+  color: var(--text-accent);
+  font-style: italic;
+}
+.nrlcmp-row-orphan .nrlcmp-row-meta {
+  color: var(--text-accent);
+  opacity: 0.7;
+}
+
 /* Modal Helper */
 .nrlcmp-confirm-msg {
   margin-bottom: 20px;
