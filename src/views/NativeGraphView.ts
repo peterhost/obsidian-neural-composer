@@ -170,7 +170,7 @@ export class NativeGraphView extends ItemView {
   // API-based graph navigation state
   private currentRootLabel: string = ''
   private currentMaxDepth: number = 3
-  private currentMaxNodes: number = 500
+  private currentMaxNodes: number = 1000
   private statsLabelEl: HTMLElement | null = null
   private graphContainer: HTMLElement | null = null
 
@@ -1033,6 +1033,8 @@ export class NativeGraphView extends ItemView {
     setIcon(btnReload, 'refresh-cw')
     setTooltip(btnReload, 'Reload graph from server')
     btnReload.onclick = () => {
+      this.currentRootLabel = ''
+      this.currentMaxNodes = 1000
       void this.render(graphContainer)
     }
 
