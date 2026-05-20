@@ -55,6 +55,10 @@ function SimiliartySearchItem({
                 : chunk.similarity >= 0.4
                   ? 'var(--color-yellow)'
                   : 'var(--text-muted)',
+            minWidth: '2.8em',
+            textAlign: 'right',
+            flexShrink: 0,
+            marginRight: '8px',
           }}
         >
           {Math.round(chunk.similarity * 100)}%
