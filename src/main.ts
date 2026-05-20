@@ -341,13 +341,27 @@ export default class NeuralComposerPlugin extends Plugin {
     })
 
     // --- INCREMENTAL SYNC: vault event listeners ---
+    // Only active when the user has configured a watched sync folder.
+    // isInSyncFolder checks that the file lives inside (or at) that folder.
+    const isInSyncFolder = (filePath: string): boolean => {
+      const syncFolder = this.settings.lightRagSyncFolder.trim()
+      if (!syncFolder) return false
+      const normalized = syncFolder.endsWith('/')
+        ? syncFolder
+        : `${syncFolder}/`
+      return filePath === syncFolder || filePath.startsWith(normalized)
+    }
+
     this.registerEvent(
       this.app.vault.on('delete', (file) => {
-        if (!this.settings.lightRagAutoSync) return
         if (!(file instanceof TFile)) return
+        if (!isInSyncFolder(file.path)) return
         void (async () => {
           const ragEngine = await this.getRAGEngine()
-          const removed = await ragEngine.deleteDocumentByFilePath(file.path)
+          const removed = await ragEngine.deleteDocumentByFilePath(
+            file.path,
+            file.name,
+          )
           if (removed) new Notice(`Graph: removed "${file.name}" from index.`)
         })()
       }),
@@ -355,19 +369,20 @@ export default class NeuralComposerPlugin extends Plugin {
 
     this.registerEvent(
       this.app.vault.on('rename', (file, oldPath) => {
-        if (!this.settings.lightRagAutoSync) return
         if (!(file instanceof TFile)) return
+        if (!isInSyncFolder(oldPath) && !isInSyncFolder(file.path)) return
         void (async () => {
           const ragEngine = await this.getRAGEngine()
-          await ragEngine.deleteDocumentByFilePath(oldPath)
+          const oldName = oldPath.split('/').pop() ?? oldPath
+          await ragEngine.deleteDocumentByFilePath(oldPath, oldName)
         })()
       }),
     )
 
     this.registerEvent(
       this.app.vault.on('modify', (file) => {
-        if (!this.settings.lightRagAutoSync) return
         if (!(file instanceof TFile)) return
+        if (!isInSyncFolder(file.path)) return
         if (!SUPPORTED_EXTENSIONS.includes(file.extension.toLowerCase())) return
 
         // Debounce: wait 5 s of inactivity before re-indexing
