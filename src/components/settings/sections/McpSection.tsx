@@ -59,7 +59,7 @@ export function McpSection({ app, plugin }: McpSectionProps) {
 
   return (
     <div className="nrlcmp-settings-section">
-      <div className="nrlcmp-settings-header">MCP (Model Context Pool)</div>
+      <div className="nrlcmp-settings-header">MCP (Model Context Protocol)</div>
 
       <div className="nrlcmp-settings-desc nrlcmp-settings-callout">
         <strong>Warning:</strong> When using tools, the tool response is passed
