@@ -1,10 +1,15 @@
 import { Trash2 } from 'lucide-react'
 import { App, Notice } from 'obsidian'
 
-import { DEFAULT_EMBEDDING_MODELS } from '../../../../constants'
+import {
+  DEFAULT_EMBEDDING_MODELS,
+  RECOMMENDED_MODELS_FOR_EMBEDDING,
+} from '../../../../constants'
 import { useSettings } from '../../../../contexts/settings-context'
 import { getEmbeddingModelClient } from '../../../../core/rag/embedding'
 import NeuralComposerPlugin from '../../../../main'
+import { ObsidianDropdown } from '../../../common/ObsidianDropdown'
+import { ObsidianSetting } from '../../../common/ObsidianSetting'
 import { ConfirmModal } from '../../../modals/ConfirmModal'
 import { AddEmbeddingModelModal } from '../../modals/AddEmbeddingModelModal'
 
@@ -69,6 +74,29 @@ export function EmbeddingModelsSubSection({
       <div className="nrlcmp-settings-desc">
         Models used for generating embeddings for RAG
       </div>
+
+      <ObsidianSetting
+        name="Active embedding model"
+        desc="Choose the embedding model used for local RAG (smart context search)"
+      >
+        <ObsidianDropdown
+          value={settings.embeddingModelId}
+          options={Object.fromEntries(
+            settings.embeddingModels.map((embeddingModel) => [
+              embeddingModel.id,
+              `${embeddingModel.id}${RECOMMENDED_MODELS_FOR_EMBEDDING.includes(embeddingModel.id) ? ' (Recommended)' : ''}`,
+            ]),
+          )}
+          onChange={(value) => {
+            void (async () => {
+              await setSettings({
+                ...settings,
+                embeddingModelId: value,
+              })
+            })()
+          }}
+        />
+      </ObsidianSetting>
 
       <div className="nrlcmp-settings-table-container">
         <table className="nrlcmp-settings-table">
