@@ -693,15 +693,22 @@ export default class NeuralComposerPlugin extends Plugin {
       this.serverProcess = null
     }
     try {
-      if (
-        this._nodeChildProcess &&
-        typeof process !== 'undefined' &&
-        process.platform === 'win32'
-      ) {
-        this._nodeChildProcess.execSync(
-          'taskkill /F /IM lightrag-server.exe /T',
-          { stdio: 'ignore' },
-        )
+      if (this._nodeChildProcess && typeof process !== 'undefined') {
+        if (process.platform === 'win32') {
+          this._nodeChildProcess.execSync(
+            'taskkill /F /IM lightrag-server.exe /T',
+            { stdio: 'ignore' },
+          )
+        } else {
+          // macOS / Linux: kill whatever is listening on the server port.
+          // This handles orphaned processes started outside the plugin (e.g.
+          // manually, or from a previous Obsidian session).
+          const port = this.getServerPort()
+          this._nodeChildProcess.execSync(
+            `bash -c "lsof -ti tcp:${port} | xargs kill -9 2>/dev/null || true"`,
+            { stdio: 'ignore' },
+          )
+        }
       }
     } catch {
       // Ignore kill errors if process not found
@@ -803,11 +810,27 @@ export default class NeuralComposerPlugin extends Plugin {
             envContent += `LLM_BINDING_API_KEY=${llmProvider.apiKey}\n`
           }
         } else {
-          // Custom provider: use openai-compatible binding
+          // Custom provider: use openai-compatible binding.
+          // Include a fallback base URL for well-known providers that may not
+          // have an explicit baseUrl stored (e.g. openrouter added before this
+          // field was required). Without this, LightRAG silently falls back to
+          // api.openai.com and rejects non-OpenAI keys with a 401 error.
+          const KNOWN_PROVIDER_BASE_URLS: Record<string, string> = {
+            openrouter: 'https://openrouter.ai/api/v1',
+            groq: 'https://api.groq.com/openai/v1',
+            deepseek: 'https://api.deepseek.com',
+            mistral: 'https://api.mistral.ai/v1',
+            perplexity: 'https://api.perplexity.ai',
+            morph: 'https://api.morph.so/v1',
+            'lm-studio': 'http://localhost:1234/v1',
+          }
           envContent += `LLM_BINDING=openai\n`
-
-          if (llmProvider.baseUrl) {
-            envContent += `LLM_BINDING_HOST=${this.normalizeBindingHost(llmProvider.baseUrl)}\n`
+          const resolvedLlmBaseUrl =
+            llmProvider.baseUrl ||
+            KNOWN_PROVIDER_BASE_URLS[llmProvider.id] ||
+            KNOWN_PROVIDER_BASE_URLS[llmProvider.type]
+          if (resolvedLlmBaseUrl) {
+            envContent += `LLM_BINDING_HOST=${this.normalizeBindingHost(resolvedLlmBaseUrl)}\n`
           }
           if (llmProvider.apiKey) {
             envContent += `LLM_BINDING_API_KEY=${llmProvider.apiKey}\n`
@@ -833,18 +856,45 @@ export default class NeuralComposerPlugin extends Plugin {
         if (isNativeEmbed) {
           envContent += `EMBEDDING_BINDING=${embedProvider.id}\n`
 
-          if (embedProvider.baseUrl) {
-            envContent += `EMBEDDING_BINDING_HOST=${this.normalizeBindingHost(embedProvider.baseUrl)}\n`
+          // LightRAG bug workaround: get_default_host('ollama') reads LLM_BINDING_HOST
+          // as a fallback instead of using a proper Ollama default. When LLM_BINDING_HOST
+          // is set to a remote provider (e.g. OpenRouter), Ollama embedding silently routes
+          // there and gets 404s. Always write EMBEDDING_BINDING_HOST explicitly to prevent this.
+          const NATIVE_EMBED_DEFAULT_HOSTS: Record<string, string> = {
+            ollama: 'http://localhost:11434',
+          }
+          const resolvedNativeEmbedHost =
+            embedProvider.baseUrl ||
+            NATIVE_EMBED_DEFAULT_HOSTS[embedProvider.id]
+          if (resolvedNativeEmbedHost) {
+            // Ollama uses its own /api/* paths — do NOT append /v1
+            const normalizedEmbedHost =
+              embedProvider.id === 'ollama'
+                ? resolvedNativeEmbedHost.replace(/\/+$/, '')
+                : this.normalizeBindingHost(resolvedNativeEmbedHost)
+            envContent += `EMBEDDING_BINDING_HOST=${normalizedEmbedHost}\n`
           }
           if (embedProvider.apiKey) {
             envContent += `EMBEDDING_BINDING_API_KEY=${embedProvider.apiKey}\n`
           }
         } else {
-          // Custom provider: use openai-compatible binding
+          // Custom provider: use openai-compatible binding with fallback base URL.
+          const KNOWN_EMBED_BASE_URLS: Record<string, string> = {
+            openrouter: 'https://openrouter.ai/api/v1',
+            groq: 'https://api.groq.com/openai/v1',
+            deepseek: 'https://api.deepseek.com',
+            mistral: 'https://api.mistral.ai/v1',
+            perplexity: 'https://api.perplexity.ai',
+            morph: 'https://api.morph.so/v1',
+            'lm-studio': 'http://localhost:1234/v1',
+          }
           envContent += `EMBEDDING_BINDING=openai\n`
-
-          if (embedProvider.baseUrl) {
-            envContent += `EMBEDDING_BINDING_HOST=${this.normalizeBindingHost(embedProvider.baseUrl)}\n`
+          const resolvedEmbedBaseUrl =
+            embedProvider.baseUrl ||
+            KNOWN_EMBED_BASE_URLS[embedProvider.id] ||
+            KNOWN_EMBED_BASE_URLS[embedProvider.type]
+          if (resolvedEmbedBaseUrl) {
+            envContent += `EMBEDDING_BINDING_HOST=${this.normalizeBindingHost(resolvedEmbedBaseUrl)}\n`
           }
           if (embedProvider.apiKey) {
             envContent += `EMBEDDING_BINDING_API_KEY=${embedProvider.apiKey}\n`
@@ -949,6 +999,30 @@ export default class NeuralComposerPlugin extends Plugin {
     if (workDir && content) {
       const envPath = this._nodePath.join(workDir, '.env')
       this._nodeFs.writeFileSync(envPath, content)
+    }
+  }
+
+  public async reprocessFailedDocuments(): Promise<void> {
+    const url = `${this.settings.lightRagServerUrl}/documents/reprocess_failed`
+    try {
+      const response = await requestUrl({
+        url,
+        method: 'POST',
+        headers: this.settings.lightRagApiKey
+          ? { Authorization: `Bearer ${this.settings.lightRagApiKey}` }
+          : {},
+        throw: false,
+      })
+      if (response.status < 400) {
+        new Notice(
+          'Re-processing failed documents — check the graph view in a few minutes.',
+        )
+      } else {
+        new Notice(`Reprocess request failed (HTTP ${response.status})`)
+      }
+    } catch (e) {
+      console.error('reprocessFailedDocuments error:', e)
+      new Notice('Could not reach the LightRAG server.')
     }
   }
 
