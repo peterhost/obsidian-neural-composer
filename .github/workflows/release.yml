@@ -9,7 +9,6 @@ permissions:
   contents: write
   id-token: write
   attestations: write
-  pull-requests: write
 
 jobs:
   build:
@@ -17,6 +16,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Fetch full history so we can push back to main
+          fetch-depth: 0
+          ref: main
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -30,6 +33,14 @@ jobs:
 
       - name: Bump version
         run: npm run version $VERSION
+
+      - name: Commit version bump to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json package.json versions.json
+          git diff --staged --quiet || git commit -m "chore: version bump ${{ env.TAG }}"
+          git push origin main
 
       - name: Build plugin
         run: |
@@ -55,16 +66,3 @@ jobs:
             main.js manifest.json styles.css 2>/dev/null || \
           gh release upload "$TAG" \
             main.js manifest.json styles.css --clobber
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          commit-message: 'version bump: ${{ env.TAG }}'
-          title: 'Version bump: ${{ env.TAG }}'
-          body: |
-            Automated version bump after release ${{ env.TAG }}
-
-            This PR was automatically created by the release workflow.
-          branch: 'version-bump/${{ env.TAG }}'
-          base: 'main'
-          delete-branch: true
