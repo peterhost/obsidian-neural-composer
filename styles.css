@@ -2630,11 +2630,17 @@ button.nrlcmp-chat-input-model-select {
   resize: vertical;
 }
 
+.nrlcmp-env-subtitle {
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+  margin: 4px 0 6px;
+}
+
 .nrlcmp-advanced-container {
   padding: 10px;
   background: var(--background-secondary);
   border-radius: 6px;
-  margin-top: 8px;
+  margin-top: 4px;
   border: 1px solid var(--background-modifier-border);
 }
 
@@ -2789,4 +2795,202 @@ button.nrlcmp-chat-input-model-select {
 }
 .nrlcmp-merge-warning p:last-child {
   margin-bottom: 0;
+}
+
+/* ===========================================================================
+   V3 Settings Dashboard  (nc-* namespace)
+   Layout-critical properties live as inline styles on the React components
+   so they always apply regardless of Obsidian theme CSS specificity.
+   Only interactive / pseudo-class styles live here.
+   =========================================================================== */
+
+/* Strip Obsidian's default containerEl padding so the layout fills the pane.
+   position:relative is required so nc-root (position:absolute) is anchored here. */
+.nc-settings-host {
+  padding: 0 !important;
+  overflow: hidden !important;
+  position: relative !important;
+  height: 100% !important;
+}
+
+/* Quick-slot pill buttons — hover state requires a CSS pseudo-class */
+.nc-quickslot {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 5px 10px 5px 7px;
+  border-radius: 7px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary-alt, var(--background-secondary));
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+  white-space: nowrap;
+  color: var(--text-normal);
+  font: inherit;
+  flex-shrink: 0;
+}
+
+.nc-quickslot:hover {
+  border-color: var(--interactive-accent);
+  background: var(--background-modifier-hover);
+}
+
+/* Tab content padding — extra left breathing room between rail and text */
+.nc-tab-content {
+  padding: 20px 28px 32px 40px;
+  max-width: 780px;
+}
+
+/* ── LightRAG server version badge ──────────────────────────────────────
+   Displayed next to the "Neural backend" section header in Graph & Vault.
+   Shows the core_version reported by GET /health when the server is online.
+   ──────────────────────────────────────────────────────────────────────── */
+
+.nc-server-header-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nc-server-header-row h3 {
+  margin: 0;
+}
+
+.nc-version-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-monospace);
+  letter-spacing: 0.02em;
+  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+  color: var(--text-muted);
+  transition: background 0.2s ease, color 0.2s ease;
+  /* Empty badge takes no space */
+  &:empty {
+    display: none;
+  }
+}
+
+.nc-version-badge--online {
+  background: color-mix(in srgb, #22c55e 15%, transparent);
+  color: #22c55e;
+}
+
+.nc-version-badge--offline {
+  background: color-mix(in srgb, #ef4444 15%, transparent);
+  color: #ef4444;
+}
+
+/* ── Document status dots in file explorer ───────────────────────── */
+/* CSS-only approach: dots rendered via ::before, no DOM injection.   */
+/* data-nc-status attribute is set/removed by FileExplorerDecorator.  */
+
+/* Shared dot style — files */
+.nav-file-title[data-nc-status]::before {
+  /* Use a non-breaking space so the pseudo-element is never empty/collapsed. */
+  content: '\00a0' !important;
+  display: inline-block !important;
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  flex-shrink: 0 !important;
+  margin-right: 5px !important;
+  vertical-align: middle !important;
+  align-self: center !important;
+  line-height: 0 !important;
+  font-size: 0 !important;
+}
+
+/* Shared dot style — watched folder (slightly larger for visibility) */
+.nav-folder-title[data-nc-status]::before {
+  content: '\00a0' !important;
+  display: inline-block !important;
+  width: 9px !important;
+  height: 9px !important;
+  border-radius: 50% !important;
+  flex-shrink: 0 !important;
+  margin-right: 5px !important;
+  vertical-align: middle !important;
+  align-self: center !important;
+  line-height: 0 !important;
+  font-size: 0 !important;
+}
+
+/* ── File status colours ──────────────────────────────────────────── */
+.nav-file-title[data-nc-status="processed"]::before {
+  background-color: #22c55e !important;
+}
+.nav-file-title[data-nc-status="processing"]::before {
+  background-color: #f59e0b !important;
+  animation: nc-doc-pulse 1.5s ease-in-out infinite !important;
+}
+.nav-file-title[data-nc-status="failed"]::before {
+  background-color: #ef4444 !important;
+}
+.nav-file-title[data-nc-status="removed"]::before {
+  background-color: #3b82f6 !important; /* blue-500 */
+}
+
+/* ── Folder aggregate colours ─────────────────────────────────────── */
+/* 🟢 All processed                                                    */
+.nav-folder-title[data-nc-status="processed"]::before {
+  background-color: #22c55e !important;
+}
+/* 🟡 Any processing or failed (yellow, pulsing when processing)       */
+.nav-folder-title[data-nc-status="processing"]::before {
+  background-color: #f59e0b !important;
+  animation: nc-doc-pulse 1.5s ease-in-out infinite !important;
+}
+.nav-folder-title[data-nc-status="failed"]::before {
+  background-color: #f59e0b !important; /* yellow — matches processing for folder */
+}
+/* 🔵 Some docs intentionally removed, none processing/failed          */
+.nav-folder-title[data-nc-status="removed"]::before {
+  background-color: #3b82f6 !important; /* blue-500 */
+}
+
+@keyframes nc-doc-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+/* ── Sidebar ribbon buttons: icon theming ────────────────────────────────
+   Targets ONLY the left-sidebar ribbon strip (.side-dock-ribbon-action).
+   Does NOT touch editor file tabs, file-explorer icons, or sidebar panel
+   switcher tabs — those all live in different DOM containers.
+
+   • Non-active  → Obsidian purple/violet stroke (matches theme accent)
+   • Active      → filled purple rounded square + white icon
+                   (same look as the brain-circuit ribbon button when open)
+   ──────────────────────────────────────────────────────────────────────── */
+
+/* Non-active ribbon buttons: accent-coloured icon */
+.side-dock-ribbon-action:not(.is-active) svg {
+  color: var(--color-accent) !important;
+  stroke: var(--color-accent) !important;
+  fill: none !important;
+}
+
+/* Active ribbon button: filled accent rounded square + white icon */
+.side-dock-ribbon-action.is-active {
+  background-color: var(--color-accent) !important;
+  border-radius: 6px !important;
+}
+.side-dock-ribbon-action.is-active svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  fill: none !important;
+}
+
+/* Smooth transitions */
+.side-dock-ribbon-action {
+  transition: background-color 0.15s ease !important;
+}
+.side-dock-ribbon-action svg {
+  transition: color 0.15s ease, stroke 0.15s ease !important;
 }

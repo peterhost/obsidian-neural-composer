@@ -57,8 +57,23 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
   )
   const [useRemote, setUseRemote] = useState(plugin.settings.lightRagUseRemote)
 
+  /**
+   * Server info state — { version, checked }
+   *   checked=false → first health check hasn't run yet → hide badge
+   *   checked=true, version=null → offline → red "offline" badge
+   *   checked=true, version='1.4.16' → online → green version badge
+   */
+  const [serverInfo, setServerInfo] = useState<{ version: string | null; checked: boolean }>(
+    () => ({ version: plugin.lightRagServerVersion, checked: plugin.lightRagServerChecked }),
+  )
+
   useEffect(() => {
     return plugin.addSettingsChangeListener(setLocalSettings)
+  }, [plugin])
+
+  // Subscribe to server version/status changes (populated by checkAndUpdateStatus)
+  useEffect(() => {
+    return plugin.addVersionChangeListener(setServerInfo)
   }, [plugin])
 
   useEffect(() => {
@@ -66,7 +81,26 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
     settingsRef.current.empty()
     const container = settingsRef.current
 
-    container.createEl('h3', { text: `Neural backend (${BACKEND_NAME})` })
+    // Header row: title + version badge side by side
+    const headerRow = container.createDiv({ cls: 'nc-server-header-row' })
+    headerRow.createEl('h3', { text: `Neural backend (${BACKEND_NAME})` })
+    // Version badge — updated reactively by the separate useEffect below.
+    // data-nc-version acts as a stable selector so the reactive effect can
+    // find and update this element without rebuilding the whole DOM.
+    const versionBadge = headerRow.createSpan({
+      cls: 'nc-version-badge',
+      attr: { 'data-nc-version': '' },
+    })
+    // Render initial state (before the reactive effect runs)
+    if (plugin.lightRagServerChecked) {
+      if (plugin.lightRagServerVersion) {
+        versionBadge.textContent = `v${plugin.lightRagServerVersion}`
+        versionBadge.addClass('nc-version-badge--online')
+      } else {
+        versionBadge.textContent = 'offline'
+        versionBadge.addClass('nc-version-badge--offline')
+      }
+    }
 
     // --- SERVER CONNECTION MODE ---
     new Setting(container)
@@ -503,93 +537,11 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
       }
     }
 
-    // --- ADVANCED ENV SECTION ---
-    container.createEl('h4', { text: 'Advanced configuration (total control)' })
-
-    const details = container.createEl('details')
-    // Using class for cursor pointer instead of inline style
-    const summary = details.createEl('summary', {
-      text: 'Edit custom .env variables',
-    })
-    summary.addClass('nrlcmp-cursor-pointer')
-
-    const advancedContainer = details.createDiv({
-      cls: 'nrlcmp-advanced-container',
-    })
-
-    advancedContainer.createEl('p', {
-      text: 'Variables defined here will be appended to the .env file and will *override* any plugin defaults. Use this for advanced tuning (context limits, timeouts, chunking strategies).',
-      cls: 'setting-item-description',
-    })
-
-    // ENV TEXT AREA
-    new Setting(advancedContainer)
-      .setClass('nrlcmp-env-setting')
-      .addTextArea((text) => {
-        text
-          .setPlaceholder(`${ADV_SETTINGS}`)
-          .setValue(plugin.settings.lightRagCustomEnv)
-          .onChange((value) => {
-            // Removed async
-            void plugin.setSettings({
-              ...plugin.settings,
-              lightRagCustomEnv: value,
-            })
-          })
-        text.inputEl.addClass('nrlcmp-env-textarea')
-      })
-
-    // TEMPLATE BUTTON
-    new Setting(advancedContainer)
-      .setName('Load full configuration template')
-      .setDesc(
-        `Paste the full list of available ${BACKEND_NAME} variables (commented out) into the box above.`,
-      )
-      .addButton((btn) =>
-        btn.setButtonText('Insert template').onClick(() => {
-          // Removed async
-          void (async () => {
-            // Wrapped
-            if (plugin.settings.lightRagCustomEnv.length > 50) {
-              new Notice('Overwriting existing custom configuration...')
-            }
-
-            const template = `# --- Query Configuration ---
-# ENABLE_LLM_CACHE=true
-# TOP_K=40
-# CHUNK_TOP_K=20
-# MAX_TOTAL_TOKENS=30000
-# KG_CHUNK_PICK_METHOD=VECTOR
-
-# --- Document Processing ---
-# CHUNK_SIZE=1200
-# CHUNK_OVERLAP_SIZE=100
-# ENABLE_LLM_CACHE_FOR_EXTRACT=true
-
-# --- Timeouts ---
-# LLM_TIMEOUT=180
-# EMBEDDING_TIMEOUT=30
-
-# --- Storage Selection (Advanced) ---
-# LIGHTRAG_KV_STORAGE=JsonKVStorage
-# LIGHTRAG_VECTOR_STORAGE=NanoVectorDBStorage
-`
-            await plugin.setSettings({
-              ...plugin.settings,
-              lightRagCustomEnv: template,
-            })
-
-            const ta = advancedContainer.querySelector('textarea')
-            if (ta) ta.value = template
-          })()
-        }),
-      )
-
-    // 7. RESTART BUTTON (EMPHASIS)
+    // Apply changes & restart — after Reranking, before Visualization
     new Setting(container)
       .setName('Apply changes & restart')
       .setDesc(
-        'You *must* restart the server after changing *any* setting above to apply the new configuration (.env).',
+        'You *must* restart the server after changing any setting above to apply the new configuration (.env).',
       )
       .setClass('nrlcmp-restart-setting')
       .addButton((button) =>
@@ -597,40 +549,12 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
           .setButtonText('Restart server now')
           .setCta()
           .onClick(() => {
-            // Removed async completely as restartLightRagServer is void
             new Notice('Restarting server...')
             plugin.restartLightRagServer()
           }),
       )
 
-    // 8. ENV EDITOR MODAL
-    new Setting(container)
-      .setName('Server configuration')
-      .setDesc(
-        'Review the generated .env file, tweak advanced parameters, and restart the server.',
-      )
-      .addButton((button) =>
-        button
-          .setButtonText('Review .env & restart')
-          .setCta()
-          .onClick(() => {
-            new EnvEditorModal(plugin.app, plugin).open()
-          }),
-      )
-
-    // 9. REPROCESS FAILED DOCUMENTS
-    new Setting(container)
-      .setName('Reprocess failed documents')
-      .setDesc(
-        'Re-submits any documents that failed entity extraction (e.g. after fixing the LLM configuration). The server must be running.',
-      )
-      .addButton((button) =>
-        button.setButtonText('Reprocess failed').onClick(() => {
-          void plugin.reprocessFailedDocuments()
-        }),
-      )
-
-    // VISUALIZATION
+    // VISUALIZATION — Advanced env config moved to Advanced tab
     container.createEl('h4', { text: 'Visualization' })
 
     new Setting(container)
@@ -651,6 +575,31 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
         })
       })
   }, [settings, currentRerankBinding, useCustomOntology, useRemote])
+
+  // Reactively update the version badge on every server info change
+  // without rebuilding the entire DOM (no focus loss, no flicker).
+  useEffect(() => {
+    const badge = settingsRef.current?.querySelector<HTMLElement>('[data-nc-version]')
+    if (!badge) return
+
+    const { version, checked } = serverInfo
+
+    // Reset all state classes first
+    badge.classList.remove('nc-version-badge--online', 'nc-version-badge--offline')
+
+    if (!checked) {
+      // Health check hasn't run yet — hide badge completely
+      badge.textContent = ''
+    } else if (version) {
+      // Online with detected version
+      badge.textContent = `v${version}`
+      badge.classList.add('nc-version-badge--online')
+    } else {
+      // Checked and server is offline
+      badge.textContent = 'offline'
+      badge.classList.add('nc-version-badge--offline')
+    }
+  }, [serverInfo])
 
   return <div ref={settingsRef} />
 }

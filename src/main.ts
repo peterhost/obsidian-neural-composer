@@ -9,6 +9,8 @@ import {
   WorkspaceLeaf,
   setTooltip,
   Platform,
+  Menu,
+  TAbstractFile,
 } from 'obsidian'
 import type { ChildProcess } from 'child_process'
 import {
@@ -22,6 +24,8 @@ import { ChatProps } from './components/chat-view/Chat'
 import { APPLY_VIEW_TYPE, CHAT_VIEW_TYPE } from './constants'
 import { McpManager } from './core/mcp/mcpManager'
 import { RAGEngine } from './core/rag/ragEngine'
+import { DocIndexService } from './core/rag/docIndexService'
+import { FileExplorerDecorator } from './core/rag/fileExplorerDecorator'
 import { DatabaseManager } from './database/DatabaseManager'
 import {
   NeuralComposerSettings,
@@ -135,6 +139,41 @@ export default class NeuralComposerPlugin extends Plugin {
     new Map()
   private serverProcess: ChildProcess | null = null
   private lastErrorTime: number = 0
+  public docIndexService: DocIndexService | null = null
+  private fileExplorerDecorator: FileExplorerDecorator | null = null
+  private lastServerStatus: 'online' | 'offline' | 'busy' = 'offline'
+  /** True once the doc-status index has been loaded from disk. Prevents vault
+   *  events that fire during Obsidian startup from re-submitting already-ingested files. */
+  private docIndexReady = false
+
+  /** Detected LightRAG core version (from GET /health → core_version). Null when offline or not yet checked. */
+  public lightRagServerVersion: string | null = null
+  /** True once at least one health check has completed (distinguishes "not yet checked" from "offline"). */
+  public lightRagServerChecked = false
+
+  private versionChangeListeners: Set<
+    (info: { version: string | null; checked: boolean }) => void
+  > = new Set()
+
+  /** Subscribe to LightRAG server version/status changes. Returns an unsubscribe fn. */
+  addVersionChangeListener(
+    fn: (info: { version: string | null; checked: boolean }) => void,
+  ): () => void {
+    this.versionChangeListeners.add(fn)
+    return () => this.versionChangeListeners.delete(fn)
+  }
+
+  private setServerVersion(v: string | null): void {
+    const wasChecked = this.lightRagServerChecked
+    this.lightRagServerChecked = true
+    // Notify if: first health check (checked state just flipped) OR version changed
+    if (!wasChecked || v !== this.lightRagServerVersion) {
+      this.lightRagServerVersion = v
+      this.versionChangeListeners.forEach((fn) =>
+        fn({ version: v, checked: true }),
+      )
+    }
+  }
 
   // Node.js modules — loaded lazily on desktop only, always null on mobile
   private _nodeFs: typeof import('fs') | null = null
@@ -380,15 +419,31 @@ export default class NeuralComposerPlugin extends Plugin {
         if (!(file instanceof TFile)) return
         if (!isInSyncFolder(file.path)) return
         if (!SUPPORTED_EXTENSIONS.includes(file.extension.toLowerCase())) return
+        // Guard here (before setTimeout) so startup create-events are dropped
+        // before the 2 s timer is even scheduled. By the time the timer would
+        // fire, onLayoutReady has already set docIndexReady = true, so the
+        // guard inside the async callback would be bypassed on every startup file.
+        if (!this.docIndexReady) return
         // Wait 2 s so the file content is available (especially for moves/imports)
         setTimeout(() => {
           void (async () => {
+            // Skip if already processed and not modified
+            if (this.docIndexService && !this.docIndexService.needsIngestion(file.path, file.stat.mtime)) {
+              return
+            }
             const notice = new Notice(
               `Graph sync: sending "${file.name}"...`,
               0,
             )
             const ragEngine = await this.getRAGEngine()
+            this.docIndexService?.setProcessing(file.path, file.stat.mtime)
             const ok = await ragEngine.ingestFile(file)
+            if (!ok) {
+              this.docIndexService?.setFailed(file.path)
+            } else {
+              // Poll pipeline_status every 1 s → sync when done → update dots
+              this.docIndexService?.startPipelineWatch(1000)
+            }
             notice.setMessage(
               ok
                 ? `Graph sync: "${file.name}" sent — processing in background.`
@@ -414,6 +469,7 @@ export default class NeuralComposerPlugin extends Plugin {
             file.path,
             file.name,
           )
+          if (removed) this.docIndexService?.removeEntry(file.path)
           notice.setMessage(
             removed
               ? `Graph sync: "${file.name}" removed from graph.`
@@ -441,6 +497,7 @@ export default class NeuralComposerPlugin extends Plugin {
             )
             const oldName = oldPath.split('/').pop() ?? oldPath
             await ragEngine.deleteDocumentByFilePath(oldPath, oldName)
+            this.docIndexService?.renameEntry(oldPath, file.path)
             const ok = await ragEngine.ingestFile(file)
             notice.setMessage(
               ok
@@ -471,7 +528,13 @@ export default class NeuralComposerPlugin extends Plugin {
               `Graph sync: sending "${file.name}"...`,
               0,
             )
+            this.docIndexService?.setProcessing(file.path, file.stat.mtime)
             const ok = await ragEngine.ingestFile(file)
+            if (!ok) {
+              this.docIndexService?.setFailed(file.path)
+            } else {
+              this.docIndexService?.startPipelineWatch(1000)
+            }
             notice.setMessage(
               ok
                 ? `Graph sync: "${file.name}" sent — processing in background.`
@@ -495,12 +558,23 @@ export default class NeuralComposerPlugin extends Plugin {
         const id = setTimeout(() => {
           this.modifyDebounceMap.delete(file.path)
           void (async () => {
+            if (!this.docIndexReady) return
+            // Skip if not modified since last ingestion
+            if (this.docIndexService && !this.docIndexService.needsIngestion(file.path, file.stat.mtime)) {
+              return
+            }
             const notice = new Notice(
               `Graph sync: re-indexing "${file.name}"...`,
               0,
             )
             const ragEngine = await this.getRAGEngine()
+            this.docIndexService?.setProcessing(file.path, file.stat.mtime)
             const ok = await ragEngine.reindexFile(file)
+            if (!ok) {
+              this.docIndexService?.setFailed(file.path)
+            } else {
+              this.docIndexService?.startPipelineWatch(1000)
+            }
             notice.setMessage(
               ok
                 ? `Graph sync: "${file.name}" sent — processing in background.`
@@ -511,6 +585,111 @@ export default class NeuralComposerPlugin extends Plugin {
         }, 5000)
         this.modifyDebounceMap.set(file.path, id)
       }),
+    )
+
+    // --- DOCUMENT STATUS CONTEXT MENUS ---
+    this.registerEvent(
+      this.app.workspace.on(
+        'file-menu',
+        (menu: Menu, file: TAbstractFile) => {
+          const syncFolder = this.settings.lightRagSyncFolder.trim()
+          if (!syncFolder || !this.docIndexService) return
+
+          if (file instanceof TFile) {
+            const inFolder =
+              file.path === syncFolder ||
+              file.path.startsWith(syncFolder + '/')
+            if (!inFolder) return
+
+            const status = this.docIndexService.getStatus(file.path)
+
+            // Allow reprocessing for any non-processed state, including
+            // 'processing' (stuck from a crashed session) and 'removed'
+            // (user wants to re-add the doc to the graph).
+            if (status === 'failed' || status === 'unknown' || status === 'processing' || status === 'removed') {
+              menu.addItem((item) =>
+                item
+                  .setTitle('Reprocess document')
+                  .setIcon('refresh-cw')
+                  .onClick(() => {
+                    void (async () => {
+                      const ragEngine = await this.getRAGEngine()
+                      this.docIndexService!.setProcessing(
+                        file.path,
+                        file.stat.mtime,
+                      )
+                      const ok = await ragEngine.ingestFile(file)
+                      if (!ok) {
+                        this.docIndexService!.setFailed(file.path)
+                      } else {
+                        this.docIndexService!.startPipelineWatch(1000)
+                      }
+                    })()
+                  }),
+              )
+            }
+
+            if (status === 'processed') {
+              menu.addItem((item) =>
+                item
+                  .setTitle('Remove from graph')
+                  .setIcon('trash-2')
+                  .onClick(() => {
+                    void (async () => {
+                      const ragEngine = await this.getRAGEngine()
+                      await ragEngine.deleteDocumentByFilePath(
+                        file.path,
+                        file.name,
+                      )
+                      // Mark as 'removed' (blue dot) instead of deleting the entry.
+                      // This preserves the intentional-removal state across restarts
+                      // and prevents auto-reingestion on file-change events.
+                      this.docIndexService!.setRemoved(file.path)
+                    })()
+                  }),
+              )
+            }
+          }
+
+          if (file instanceof TFolder && file.path === syncFolder) {
+            menu.addItem((item) =>
+              item
+                .setTitle('Reprocess folder')
+                .setIcon('refresh-cw')
+                .onClick(() => {
+                  void (async () => {
+                    const ragEngine = await this.getRAGEngine()
+                    const files = this.app.vault
+                      .getFiles()
+                      .filter(
+                        (f) =>
+                          (f.path === syncFolder ||
+                            f.path.startsWith(syncFolder + '/')) &&
+                          SUPPORTED_EXTENSIONS.includes(
+                            f.extension.toLowerCase(),
+                          ),
+                      )
+                    let anySubmitted = false
+                    for (const f of files) {
+                      const st = this.docIndexService!.getStatus(f.path)
+                      // Include 'processing' — a doc can be stuck at that
+                      // status from a previous failed/interrupted submission.
+                      if (st === 'failed' || st === 'unknown' || st === 'processing') {
+                        this.docIndexService!.setProcessing(f.path, f.stat.mtime)
+                        const ok = await ragEngine.ingestFile(f)
+                        if (!ok) this.docIndexService!.setFailed(f.path)
+                        else anySubmitted = true
+                      }
+                    }
+                    if (anySubmitted) {
+                      this.docIndexService!.startPipelineWatch(1000)
+                    }
+                  })()
+                }),
+            )
+          }
+        },
+      ),
     )
 
     this.addSettingTab(new NeuralComposerSettingTab(this.app, this))
@@ -534,6 +713,48 @@ export default class NeuralComposerPlugin extends Plugin {
 
       // Primera revisión inmediata
       void this.checkAndUpdateStatus()
+
+      // Initialize doc index service + file explorer decoration
+      this.docIndexService = new DocIndexService(this)
+      this.fileExplorerDecorator = new FileExplorerDecorator()
+      this.docIndexService.setUpdateCallback(() => this.decorateFileExplorer())
+
+      // MutationObserver inside FileExplorerDecorator watches childList changes
+      // (Obsidian re-rendering file items) and re-applies data-nc-status attributes.
+      // Safe: our setAttribute calls are attribute mutations — they do NOT fire
+      // childList observers, so there is zero risk of an infinite loop.
+      this.fileExplorerDecorator.startObserving(() => this.decorateFileExplorer())
+
+      // Re-decorate whenever the workspace layout changes (pane open/close, etc.)
+      this.registerEvent(
+        this.app.workspace.on('layout-change', () => {
+          this.decorateFileExplorer()
+        }),
+      )
+
+      // Load persisted index → render immediately, then sync with server
+      void (async () => {
+        await this.docIndexService!.load()
+        this.docIndexReady = true   // vault events safe to process from here
+        this.decorateFileExplorer() // render cached statuses right away
+
+        // Give a short delay for the server to be reachable, then sync.
+        // We check health first so we don't clobber the cached index when
+        // the server is simply offline.
+        setTimeout(() => {
+          void (async () => {
+            const online = await this.docIndexService?.isServerOnline()
+            if (online) {
+              await this.docIndexService?.syncFromServer()
+              this.decorateFileExplorer()
+              // Always start pipeline watch after the initial sync:
+              // • If the pipeline is idle → one poll → busy=false → stops immediately
+              // • If docs are processing (from a previous session) → watches until done
+              this.docIndexService?.startPipelineWatch(2000)
+            }
+          })()
+        }, 2000)
+      })()
     })
   }
 
@@ -680,7 +901,36 @@ export default class NeuralComposerPlugin extends Plugin {
       void this.mcpManager.cleanup()
       this.mcpManager = null
     }
+    this.docIndexService?.destroy()
+    this.docIndexService = null
+    this.fileExplorerDecorator?.clear()
+    this.fileExplorerDecorator = null
     this.stopLightRagServer()
+  }
+
+  /** Apply data-nc-status attributes to files and the watched folder. No DOM injection. */
+  private decorateFileExplorer(): void {
+    if (!this.fileExplorerDecorator || !this.docIndexService) return
+    const syncFolder = this.settings.lightRagSyncFolder.trim()
+
+    // Compute aggregate folder status from ALL files in the sync folder,
+    // not just the ones visible in the DOM (avoids false-green on scroll).
+    const folderFilePaths = syncFolder
+      ? this.app.vault
+          .getFiles()
+          .filter(
+            (f) =>
+              f.path === syncFolder || f.path.startsWith(syncFolder + '/'),
+          )
+          .map((f) => f.path)
+      : []
+    const folderStatus = this.docIndexService.computeFolderStatus(folderFilePaths)
+
+    this.fileExplorerDecorator.decorate(
+      syncFolder,
+      (path) => this.docIndexService!.getStatus(path),
+      folderStatus,
+    )
   }
 
   public stopLightRagServer() {
@@ -1484,31 +1734,47 @@ export default class NeuralComposerPlugin extends Plugin {
       })
 
       if (response.status === 200) {
-        // Fix: Explicit type annotation for response data
-        const data: { pipeline_busy?: boolean } = response.json
+        const data: { pipeline_busy?: boolean; core_version?: string; api_version?: string } =
+          response.json
         const isBusy = data?.pipeline_busy ?? false
+        // Store the server version (core_version is canonical; api_version as fallback)
+        this.setServerVersion(data?.core_version ?? data?.api_version ?? null)
         this.updateStatusUI(isBusy ? 'busy' : 'online')
       } else {
+        this.setServerVersion(null)
         this.updateStatusUI('offline')
       }
     } catch {
+      this.setServerVersion(null)
       this.updateStatusUI('offline')
     }
   }
 
   private updateStatusUI(status: 'online' | 'offline' | 'busy') {
+    if (status === 'online' && this.lastServerStatus !== 'online') {
+      // Server just came online — sync statuses and update dots
+      void (async () => {
+        await this.docIndexService?.syncFromServer()
+        this.decorateFileExplorer()
+      })()
+    }
+    this.lastServerStatus = status
     if (!this.statusDotEl) return
     this.statusDotEl.removeClass('is-online', 'is-offline', 'is-busy')
 
+    const versionTag = this.lightRagServerVersion ? ` v${this.lightRagServerVersion}` : ''
     if (status === 'online') {
       this.statusDotEl.addClass('is-online')
-      setTooltip(this.statusBarEl, 'LightRAG: Online')
+      setTooltip(this.statusBarEl, `LightRAG${versionTag} · Online`, { placement: 'top' })
     } else if (status === 'busy') {
       this.statusDotEl.addClass('is-busy')
-      setTooltip(this.statusBarEl, 'LightRAG: Processing...')
+      setTooltip(this.statusBarEl, `LightRAG${versionTag} · Processing…`, { placement: 'top' })
     } else {
       this.statusDotEl.addClass('is-offline')
-      setTooltip(this.statusBarEl, 'LightRAG: Offline (Click to restart)')
+      const offlineHint = this.isRemoteServer()
+        ? 'check remote server'
+        : 'click to restart'
+      setTooltip(this.statusBarEl, `LightRAG · Offline (${offlineHint})`, { placement: 'top' })
     }
   }
 
