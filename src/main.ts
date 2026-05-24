@@ -34,6 +34,7 @@ import {
 import { parseNeuralComposerSettings } from './settings/schema/settings'
 import { NeuralComposerSettingTab } from './settings/SettingTab'
 import { getMentionableBlockData } from './utils/obsidian'
+import { isVersionAtLeast } from './utils/version-utils'
 import { VectorManager } from './database/modules/vector/VectorManager'
 
 export const PLUGIN_NAME = 'Neural Composer'
@@ -189,6 +190,17 @@ export default class NeuralComposerPlugin extends Plugin {
   /** Returns true if the user has enabled remote server mode. */
   isRemoteServer(): boolean {
     return this.settings.lightRagUseRemote
+  }
+
+  /**
+   * Returns true when the connected LightRAG server is v1.5.0 or later.
+   * Used to select between the legacy `ENTITY_TYPES` env var (v1.4.x) and
+   * the new file-based `ENTITY_TYPE_PROMPT_FILE` (v1.5+).
+   * Returns false when the server version is unknown (safe fallback = v1.4 behaviour).
+   */
+  isLightRagV15Plus(): boolean {
+    if (!this.lightRagServerVersion) return false
+    return isVersionAtLeast(this.lightRagServerVersion, '1.5.0')
   }
 
   /** Extracts the port number from the configured server URL, with safe fallback. */
@@ -1210,15 +1222,32 @@ export default class NeuralComposerPlugin extends Plugin {
         }
       })
 
-      // Entity Types
-      if (this.settings.useCustomEntityTypes) {
-        const rawTypes = this.settings.lightRagEntityTypes
-        if (rawTypes && rawTypes.trim().length > 0) {
-          const typeList = rawTypes
-            .split(',')
-            .map((t) => t.trim())
-            .filter((t) => t.length > 0)
-          envContent += `\nENTITY_TYPES='${JSON.stringify(typeList)}'\n`
+      // Entity Types — version-aware
+      if (this.isLightRagV15Plus()) {
+        // ── LightRAG v1.5+ ──────────────────────────────────────────────────
+        // ENTITY_TYPES was removed. Custom entity definitions are now supplied
+        // via a jinja2 prompt template file pointed to by ENTITY_TYPE_PROMPT_FILE.
+        const filePath = this.settings.lightRagEntityTypesFilePath?.trim()
+        if (filePath) {
+          envContent += `\n# Custom entity type prompt file (LightRAG v1.5+)\n`
+          envContent += `ENTITY_TYPE_PROMPT_FILE=${filePath}\n`
+        } else if (this.settings.useCustomEntityTypes) {
+          // User wants custom types but hasn't set the file path yet —
+          // add a placeholder comment so the .env is still valid.
+          envContent += `\n# ENTITY_TYPE_PROMPT_FILE=<set in Settings → Graph & Vault>\n`
+          envContent += `# (LightRAG v1.5+ requires a jinja2 template file instead of inline ENTITY_TYPES)\n`
+        }
+      } else {
+        // ── LightRAG v1.4.x (legacy) ────────────────────────────────────────
+        if (this.settings.useCustomEntityTypes) {
+          const rawTypes = this.settings.lightRagEntityTypes
+          if (rawTypes && rawTypes.trim().length > 0) {
+            const typeList = rawTypes
+              .split(',')
+              .map((t) => t.trim())
+              .filter((t) => t.length > 0)
+            envContent += `\nENTITY_TYPES='${JSON.stringify(typeList)}'\n`
+          }
         }
       }
 

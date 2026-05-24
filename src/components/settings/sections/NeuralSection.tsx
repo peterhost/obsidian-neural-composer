@@ -56,6 +56,8 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
     plugin.settings.useCustomEntityTypes,
   )
   const [useRemote, setUseRemote] = useState(plugin.settings.lightRagUseRemote)
+  /** True when the connected server is LightRAG ≥ 1.5.0 */
+  const [isV15, setIsV15] = useState(() => plugin.isLightRagV15Plus())
 
   /**
    * Server info state — { version, checked }
@@ -77,7 +79,11 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
 
   // Subscribe to server version/status changes (populated by checkAndUpdateStatus)
   useEffect(() => {
-    return plugin.addVersionChangeListener(setServerInfo)
+    return plugin.addVersionChangeListener((info) => {
+      setServerInfo(info)
+      // Update v1.5 flag whenever the version changes so the UI re-renders
+      setIsV15(plugin.isLightRagV15Plus())
+    })
   }, [plugin])
 
   useEffect(() => {
@@ -104,6 +110,23 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
         versionBadge.textContent = 'offline'
         versionBadge.addClass('nc-version-badge--offline')
       }
+    }
+
+    // --- LightRAG v1.5+ MIGRATION NOTICE ---
+    if (isV15) {
+      const notice = container.createDiv({
+        cls: 'nc-compat-notice nc-compat-notice--info',
+      })
+      const title = notice.createDiv({ cls: 'nc-compat-notice__title' })
+      title.createSpan({ text: '⚡ LightRAG v1.5 detected' })
+      notice.createDiv({
+        cls: 'nc-compat-notice__body',
+        text:
+          'Your server runs LightRAG v1.5+. Custom entity types now require a ' +
+          'jinja2 prompt template file (ENTITY_TYPE_PROMPT_FILE) instead of an ' +
+          'inline list. Set the path below in the Ontology section. ' +
+          'The ENTITY_TYPES variable has been removed in v1.5.',
+      })
     }
 
     // --- SERVER CONNECTION MODE ---
@@ -341,79 +364,98 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
     if (useCustomOntology) {
       const warningDiv = container.createDiv({ cls: 'nrlcmp-setting-warning' })
 
-      // FIX: Sentence case
       warningDiv.createEl('strong', { text: 'Critical warning:' })
       warningDiv.createEl('br')
-      // FIX: Sentence case (Entity Types -> entity types)
       warningDiv.createSpan({
         text: 'Changing entity types fundamentally alters how the graph is built.',
       })
       warningDiv.createEl('br')
-      // FIX: Sentence case (Graph Data folder -> graph data folder)
       warningDiv.createSpan({ text: 'If you already have data ingested, you ' })
       warningDiv.createEl('strong', {
         text: 'Must delete your graph data folder',
       })
       warningDiv.createSpan({ text: ' and re-ingest all documents.' })
 
-      new Setting(container)
-        .setName('Ontology source folder')
-        .setDesc(
-          'Vault-relative folder with representative notes to analyze (e.g. Main/Memories).',
-        )
-        .addText((text) => {
-          text
-            .setPlaceholder(`${FOLDER_DIR}`)
-            .setValue(plugin.settings.lightRagOntologyFolder)
-            .onChange((value) => {
-              void plugin.setSettings({
-                ...plugin.settings,
-                lightRagOntologyFolder: value,
+      if (isV15) {
+        // ── LightRAG v1.5+: file-based entity type prompt ──────────────────
+        new Setting(container)
+          .setName('Entity type prompt file')
+          .setDesc(
+            'Absolute path to a jinja2 template file for custom entity types ' +
+              '(ENTITY_TYPE_PROMPT_FILE). See the LightRAG v1.5 docs for the ' +
+              'expected template format.',
+          )
+          .addText((text) =>
+            text
+              .setPlaceholder('/absolute/path/to/entity_types.j2')
+              .setValue(plugin.settings.lightRagEntityTypesFilePath ?? '')
+              .onChange((value) => {
+                void (async () => {
+                  await plugin.setSettings({
+                    ...plugin.settings,
+                    lightRagEntityTypesFilePath: value,
+                  })
+                  plugin.updateEnvFile()
+                })()
+              }),
+          )
+      } else {
+        // ── LightRAG v1.4.x (legacy): inline entity type list ──────────────
+        new Setting(container)
+          .setName('Ontology source folder')
+          .setDesc(
+            'Vault-relative folder with representative notes to analyze (e.g. Main/Memories).',
+          )
+          .addText((text) => {
+            text
+              .setPlaceholder(`${FOLDER_DIR}`)
+              .setValue(plugin.settings.lightRagOntologyFolder)
+              .onChange((value) => {
+                void plugin.setSettings({
+                  ...plugin.settings,
+                  lightRagOntologyFolder: value,
+                })
               })
-            })
-          new FolderSuggest(plugin.app, text.inputEl)
-        })
-
-      let typesTextArea: HTMLTextAreaElement
-
-      new Setting(container)
-        .setName('Entity types definition')
-        .setDesc('Define the "categories" of your field of knowledge.')
-        .addButton((button) =>
-          button
-            .setButtonText('Analyze & generate')
-            .setCta()
-            .onClick(() => {
-              // Removed async
-              void (async () => {
-                // Wrapped in void async IIFE
-                const newTypes = await plugin.generateEntityTypes()
-                if (newTypes && typesTextArea) {
-                  typesTextArea.value = newTypes
-                  typesTextArea.dispatchEvent(new Event('change'))
-                }
-              })()
-            }),
-        )
-
-      const textAreaContainer = container.createDiv({
-        cls: 'nrlcmp-textarea-container',
-      })
-      typesTextArea = textAreaContainer.createEl('textarea', {
-        cls: 'nrlcmp-setting-textarea',
-      })
-      typesTextArea.value = plugin.settings.lightRagEntityTypes
-      typesTextArea.onchange = (e) => {
-        // Removed async
-        const target = e.target as HTMLTextAreaElement
-        void (async () => {
-          // Wrapped
-          await plugin.setSettings({
-            ...plugin.settings,
-            lightRagEntityTypes: target.value,
+            new FolderSuggest(plugin.app, text.inputEl)
           })
-          plugin.updateEnvFile()
-        })()
+
+        let typesTextArea: HTMLTextAreaElement
+
+        new Setting(container)
+          .setName('Entity types definition')
+          .setDesc('Define the "categories" of your field of knowledge.')
+          .addButton((button) =>
+            button
+              .setButtonText('Analyze & generate')
+              .setCta()
+              .onClick(() => {
+                void (async () => {
+                  const newTypes = await plugin.generateEntityTypes()
+                  if (newTypes && typesTextArea) {
+                    typesTextArea.value = newTypes
+                    typesTextArea.dispatchEvent(new Event('change'))
+                  }
+                })()
+              }),
+          )
+
+        const textAreaContainer = container.createDiv({
+          cls: 'nrlcmp-textarea-container',
+        })
+        typesTextArea = textAreaContainer.createEl('textarea', {
+          cls: 'nrlcmp-setting-textarea',
+        })
+        typesTextArea.value = plugin.settings.lightRagEntityTypes
+        typesTextArea.onchange = (e) => {
+          const target = e.target as HTMLTextAreaElement
+          void (async () => {
+            await plugin.setSettings({
+              ...plugin.settings,
+              lightRagEntityTypes: target.value,
+            })
+            plugin.updateEnvFile()
+          })()
+        }
       }
     }
 
@@ -578,7 +620,7 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
           })
         })
       })
-  }, [settings, currentRerankBinding, useCustomOntology, useRemote])
+  }, [settings, currentRerankBinding, useCustomOntology, useRemote, isV15])
 
   // Reactively update the version badge on every server info change
   // without rebuilding the entire DOM (no focus loss, no flicker).

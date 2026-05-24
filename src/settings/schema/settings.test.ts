@@ -53,6 +53,7 @@ describe('parseNeuralComposerSettings', () => {
       lightRagCommand: 'lightrag-server',
       lightRagCustomEnv: '',
       lightRagEntityTypes: '',
+      lightRagEntityTypesFilePath: '',
       lightRagMaxAsync: 4,
       lightRagMaxParallelInsert: 1,
       lightRagOntologyFolder: '',

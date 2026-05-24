@@ -107,6 +107,9 @@ export const NeuralComposerSettingsSchema = z.object({
   lightRagOntologyFolder: z.string().catch(''),
   // NUEVO INTERRUPTOR:
   useCustomEntityTypes: z.boolean().catch(false),
+  // LightRAG v1.5+ uses a file-based entity type prompt instead of ENTITY_TYPES.
+  // This field stores the absolute path to that prompt file.
+  lightRagEntityTypesFilePath: z.string().catch(''),
 
   graphViewMode: z.enum(['2d', '3d']).catch('2d'),
 
@@ -192,6 +195,7 @@ export const DEFAULT_SETTINGS: NeuralComposerSettings = {
   lightRagOntologyFolder: '',
   // NUEVO DEFAULT:
   useCustomEntityTypes: false,
+  lightRagEntityTypesFilePath: '',
   graphViewMode: '2d', // Default seguro para todos
   // DEFAULTS NUEVOS
   lightRagMaxAsync: 4,
