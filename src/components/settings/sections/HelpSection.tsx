@@ -9,6 +9,10 @@ import { ConfirmModal } from '../../modals/ConfirmModal'
 
 const LINKS = [
   {
+    label: 'Wiki — help & guides',
+    url: 'https://github.com/oscampo/obsidian-neural-composer/wiki',
+  },
+  {
     label: 'GitHub — source & issues',
     url: 'https://github.com/oscampo/obsidian-neural-composer',
   },
