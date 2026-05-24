@@ -2805,12 +2805,13 @@ button.nrlcmp-chat-input-model-select {
    =========================================================================== */
 
 /* Strip Obsidian's default containerEl padding so the layout fills the pane.
-   position:relative is required so nc-root (position:absolute) is anchored here. */
-.nc-settings-host {
-  padding: 0 !important;
-  overflow: hidden !important;
-  position: relative !important;
-  height: 100% !important;
+   position:relative is required so nc-root (position:absolute) is anchored here.
+   Using .vertical-tab-content.nc-settings-host for higher specificity — avoids !important. */
+.vertical-tab-content.nc-settings-host {
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+  height: 100%;
 }
 
 /* Quick-slot pill buttons — hover state requires a CSS pseudo-class */
@@ -2894,68 +2895,70 @@ button.nrlcmp-chat-input-model-select {
 /* CSS-only approach: dots rendered via ::before, no DOM injection.   */
 /* data-nc-status attribute is set/removed by FileExplorerDecorator.  */
 
-/* Shared dot style — files */
-.nav-file-title[data-nc-status]::before {
+/* Shared dot style — files.
+   Prefixed with .nav-files-container for higher specificity than Obsidian's
+   own ::before rules on .nav-file-title — avoids !important. */
+.nav-files-container .nav-file-title[data-nc-status]::before {
   /* Use a non-breaking space so the pseudo-element is never empty/collapsed. */
-  content: '\00a0' !important;
-  display: inline-block !important;
-  width: 8px !important;
-  height: 8px !important;
-  border-radius: 50% !important;
-  flex-shrink: 0 !important;
-  margin-right: 5px !important;
-  vertical-align: middle !important;
-  align-self: center !important;
-  line-height: 0 !important;
-  font-size: 0 !important;
+  content: '\00a0';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-right: 5px;
+  vertical-align: middle;
+  align-self: center;
+  line-height: 0;
+  font-size: 0;
 }
 
 /* Shared dot style — watched folder (slightly larger for visibility) */
-.nav-folder-title[data-nc-status]::before {
-  content: '\00a0' !important;
-  display: inline-block !important;
-  width: 9px !important;
-  height: 9px !important;
-  border-radius: 50% !important;
-  flex-shrink: 0 !important;
-  margin-right: 5px !important;
-  vertical-align: middle !important;
-  align-self: center !important;
-  line-height: 0 !important;
-  font-size: 0 !important;
+.nav-files-container .nav-folder-title[data-nc-status]::before {
+  content: '\00a0';
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-right: 5px;
+  vertical-align: middle;
+  align-self: center;
+  line-height: 0;
+  font-size: 0;
 }
 
 /* ── File status colours ──────────────────────────────────────────── */
-.nav-file-title[data-nc-status='processed']::before {
-  background-color: #22c55e !important;
+.nav-files-container .nav-file-title[data-nc-status='processed']::before {
+  background-color: #22c55e;
 }
-.nav-file-title[data-nc-status='processing']::before {
-  background-color: #f59e0b !important;
-  animation: nc-doc-pulse 1.5s ease-in-out infinite !important;
+.nav-files-container .nav-file-title[data-nc-status='processing']::before {
+  background-color: #f59e0b;
+  animation: nc-doc-pulse 1.5s ease-in-out infinite;
 }
-.nav-file-title[data-nc-status='failed']::before {
-  background-color: #ef4444 !important;
+.nav-files-container .nav-file-title[data-nc-status='failed']::before {
+  background-color: #ef4444;
 }
-.nav-file-title[data-nc-status='removed']::before {
-  background-color: #3b82f6 !important; /* blue-500 */
+.nav-files-container .nav-file-title[data-nc-status='removed']::before {
+  background-color: #3b82f6; /* blue-500 */
 }
 
 /* ── Folder aggregate colours ─────────────────────────────────────── */
 /* 🟢 All processed                                                    */
-.nav-folder-title[data-nc-status='processed']::before {
-  background-color: #22c55e !important;
+.nav-files-container .nav-folder-title[data-nc-status='processed']::before {
+  background-color: #22c55e;
 }
 /* 🟡 Any processing or failed (yellow, pulsing when processing)       */
-.nav-folder-title[data-nc-status='processing']::before {
-  background-color: #f59e0b !important;
-  animation: nc-doc-pulse 1.5s ease-in-out infinite !important;
+.nav-files-container .nav-folder-title[data-nc-status='processing']::before {
+  background-color: #f59e0b;
+  animation: nc-doc-pulse 1.5s ease-in-out infinite;
 }
-.nav-folder-title[data-nc-status='failed']::before {
-  background-color: #f59e0b !important; /* yellow — matches processing for folder */
+.nav-files-container .nav-folder-title[data-nc-status='failed']::before {
+  background-color: #f59e0b; /* yellow — matches processing for folder */
 }
 /* 🔵 Some docs intentionally removed, none processing/failed          */
-.nav-folder-title[data-nc-status='removed']::before {
-  background-color: #3b82f6 !important; /* blue-500 */
+.nav-files-container .nav-folder-title[data-nc-status='removed']::before {
+  background-color: #3b82f6; /* blue-500 */
 }
 
 @keyframes nc-doc-pulse {
@@ -2976,34 +2979,36 @@ button.nrlcmp-chat-input-model-select {
    • Non-active  → Obsidian purple/violet stroke (matches theme accent)
    • Active      → filled purple rounded square + white icon
                    (same look as the brain-circuit ribbon button when open)
+
+   Prefixed with .side-dock-ribbon for higher specificity — avoids !important.
    ──────────────────────────────────────────────────────────────────────── */
 
 /* Non-active ribbon buttons: accent-coloured icon */
-.side-dock-ribbon-action:not(.is-active) svg {
-  color: var(--color-accent) !important;
-  stroke: var(--color-accent) !important;
-  fill: none !important;
+.side-dock-ribbon .side-dock-ribbon-action:not(.is-active) svg {
+  color: var(--color-accent);
+  stroke: var(--color-accent);
+  fill: none;
 }
 
 /* Active ribbon button: filled accent rounded square + white icon */
-.side-dock-ribbon-action.is-active {
-  background-color: var(--color-accent) !important;
-  border-radius: 6px !important;
+.side-dock-ribbon .side-dock-ribbon-action.is-active {
+  background-color: var(--color-accent);
+  border-radius: 6px;
 }
-.side-dock-ribbon-action.is-active svg {
-  color: #ffffff !important;
-  stroke: #ffffff !important;
-  fill: none !important;
+.side-dock-ribbon .side-dock-ribbon-action.is-active svg {
+  color: #ffffff;
+  stroke: #ffffff;
+  fill: none;
 }
 
 /* Smooth transitions */
-.side-dock-ribbon-action {
-  transition: background-color 0.15s ease !important;
+.side-dock-ribbon .side-dock-ribbon-action {
+  transition: background-color 0.15s ease;
 }
-.side-dock-ribbon-action svg {
+.side-dock-ribbon .side-dock-ribbon-action svg {
   transition:
     color 0.15s ease,
-    stroke 0.15s ease !important;
+    stroke 0.15s ease;
 }
 
 /* ── LightRAG version compatibility notice ───────────────────────────────
