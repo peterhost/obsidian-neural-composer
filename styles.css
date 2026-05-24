@@ -2824,7 +2824,9 @@ button.nrlcmp-chat-input-model-select {
   border: 1px solid var(--background-modifier-border);
   background: var(--background-primary-alt, var(--background-secondary));
   cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
   white-space: nowrap;
   color: var(--text-normal);
   font: inherit;
@@ -2869,7 +2871,9 @@ button.nrlcmp-chat-input-model-select {
   letter-spacing: 0.02em;
   background: color-mix(in srgb, var(--text-muted) 12%, transparent);
   color: var(--text-muted);
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
   /* Empty badge takes no space */
   &:empty {
     display: none;
@@ -2922,41 +2926,46 @@ button.nrlcmp-chat-input-model-select {
 }
 
 /* ── File status colours ──────────────────────────────────────────── */
-.nav-file-title[data-nc-status="processed"]::before {
+.nav-file-title[data-nc-status='processed']::before {
   background-color: #22c55e !important;
 }
-.nav-file-title[data-nc-status="processing"]::before {
+.nav-file-title[data-nc-status='processing']::before {
   background-color: #f59e0b !important;
   animation: nc-doc-pulse 1.5s ease-in-out infinite !important;
 }
-.nav-file-title[data-nc-status="failed"]::before {
+.nav-file-title[data-nc-status='failed']::before {
   background-color: #ef4444 !important;
 }
-.nav-file-title[data-nc-status="removed"]::before {
+.nav-file-title[data-nc-status='removed']::before {
   background-color: #3b82f6 !important; /* blue-500 */
 }
 
 /* ── Folder aggregate colours ─────────────────────────────────────── */
 /* 🟢 All processed                                                    */
-.nav-folder-title[data-nc-status="processed"]::before {
+.nav-folder-title[data-nc-status='processed']::before {
   background-color: #22c55e !important;
 }
 /* 🟡 Any processing or failed (yellow, pulsing when processing)       */
-.nav-folder-title[data-nc-status="processing"]::before {
+.nav-folder-title[data-nc-status='processing']::before {
   background-color: #f59e0b !important;
   animation: nc-doc-pulse 1.5s ease-in-out infinite !important;
 }
-.nav-folder-title[data-nc-status="failed"]::before {
+.nav-folder-title[data-nc-status='failed']::before {
   background-color: #f59e0b !important; /* yellow — matches processing for folder */
 }
 /* 🔵 Some docs intentionally removed, none processing/failed          */
-.nav-folder-title[data-nc-status="removed"]::before {
+.nav-folder-title[data-nc-status='removed']::before {
   background-color: #3b82f6 !important; /* blue-500 */
 }
 
 @keyframes nc-doc-pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.35; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }
 
 /* ── Sidebar ribbon buttons: icon theming ────────────────────────────────
@@ -2992,5 +3001,7 @@ button.nrlcmp-chat-input-model-select {
   transition: background-color 0.15s ease !important;
 }
 .side-dock-ribbon-action svg {
-  transition: color 0.15s ease, stroke 0.15s ease !important;
+  transition:
+    color 0.15s ease,
+    stroke 0.15s ease !important;
 }

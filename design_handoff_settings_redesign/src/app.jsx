@@ -1,35 +1,56 @@
 // App: wraps the 3 variations in a DesignCanvas with Tweaks for theme + accent.
 
-const TWEAK_DEFAULS = /*EDITMODE-BEGIN*/{
-  "theme": "dark",
-  "accent": "#7c3aed",
-  "dense": false
-}/*EDITMODE-END*/;
+const TWEAK_DEFAULS = /*EDITMODE-BEGIN*/ {
+  theme: 'dark',
+  accent: '#7c3aed',
+  dense: false,
+} /*EDITMODE-END*/
 
 const ACCENTS = {
-  "#7c3aed": { soft: 'rgba(124,58,237,0.16)', softLight: 'rgba(124,58,237,0.10)', hover: '#8b5cf6', textDark: '#a78bfa' },
-  "#2563eb": { soft: 'rgba(37,99,235,0.16)', softLight: 'rgba(37,99,235,0.10)', hover: '#3b82f6', textDark: '#93c5fd' },
-  "#10b981": { soft: 'rgba(16,185,129,0.16)', softLight: 'rgba(16,185,129,0.10)', hover: '#34d399', textDark: '#6ee7b7' },
-  "#f97316": { soft: 'rgba(249,115,22,0.16)', softLight: 'rgba(249,115,22,0.10)', hover: '#fb923c', textDark: '#fdba74' },
-};
+  '#7c3aed': {
+    soft: 'rgba(124,58,237,0.16)',
+    softLight: 'rgba(124,58,237,0.10)',
+    hover: '#8b5cf6',
+    textDark: '#a78bfa',
+  },
+  '#2563eb': {
+    soft: 'rgba(37,99,235,0.16)',
+    softLight: 'rgba(37,99,235,0.10)',
+    hover: '#3b82f6',
+    textDark: '#93c5fd',
+  },
+  '#10b981': {
+    soft: 'rgba(16,185,129,0.16)',
+    softLight: 'rgba(16,185,129,0.10)',
+    hover: '#34d399',
+    textDark: '#6ee7b7',
+  },
+  '#f97316': {
+    soft: 'rgba(249,115,22,0.16)',
+    softLight: 'rgba(249,115,22,0.10)',
+    hover: '#fb923c',
+    textDark: '#fdba74',
+  },
+}
 
 function App() {
-  const [t, setTweak] = useTweaks(TWEAK_DEFAULS);
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULS)
 
   // Build active theme.
-  const base = t.theme === 'light' ? window.OBSIDIAN_LIGHT : window.OBSIDIAN_DARK;
-  const a = ACCENTS[t.accent] || ACCENTS["#7c3aed"];
+  const base =
+    t.theme === 'light' ? window.OBSIDIAN_LIGHT : window.OBSIDIAN_DARK
+  const a = ACCENTS[t.accent] || ACCENTS['#7c3aed']
   const theme = {
     ...base,
     accent: t.accent,
     accentHover: a.hover,
     accentSoft: t.theme === 'light' ? a.softLight : a.soft,
     textAccent: t.theme === 'light' ? t.accent : a.textDark,
-  };
+  }
 
   // Artboard dimensions — Obsidian settings modal is typically ~1024x720.
-  const W = 1100;
-  const H = 760;
+  const W = 1100
+  const H = 760
 
   return (
     <>
@@ -73,7 +94,7 @@ function App() {
         />
       </TweaksPanel>
     </>
-  );
+  )
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+ReactDOM.createRoot(document.getElementById('root')).render(<App />)

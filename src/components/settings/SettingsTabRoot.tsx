@@ -320,11 +320,7 @@ function TabContent({
   app: App
   plugin: NeuralComposerPlugin
 }) {
-  const wrap = (
-    title: string,
-    children: React.ReactNode,
-    sub?: string,
-  ) => (
+  const wrap = (title: string, children: React.ReactNode, sub?: string) => (
     <div className="nc-tab-content">
       <TabHeader title={title} sub={sub} />
       {children}

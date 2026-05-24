@@ -1,7 +1,12 @@
 import { requestUrl } from 'obsidian'
 import NeuralComposerPlugin from '../../main'
 
-export type DocStatus = 'processed' | 'processing' | 'failed' | 'removed' | 'unknown'
+export type DocStatus =
+  | 'processed'
+  | 'processing'
+  | 'failed'
+  | 'removed'
+  | 'unknown'
 
 export interface DocRecord {
   status: DocStatus
@@ -44,9 +49,13 @@ export class DocIndexService {
 
   async load(): Promise<void> {
     try {
-      const exists = await this.plugin.app.vault.adapter.exists(this.statusFilePath)
+      const exists = await this.plugin.app.vault.adapter.exists(
+        this.statusFilePath,
+      )
       if (exists) {
-        const raw = await this.plugin.app.vault.adapter.read(this.statusFilePath)
+        const raw = await this.plugin.app.vault.adapter.read(
+          this.statusFilePath,
+        )
         this.index = JSON.parse(raw) as Record<string, DocRecord>
       }
     } catch {
@@ -92,7 +101,7 @@ export class DocIndexService {
     if (!rec || rec.status === 'unknown') return true
     if (rec.status === 'processing') return false
     if (rec.status === 'failed') return false
-    if (rec.status === 'removed') return false  // intentionally removed; user must reprocess manually
+    if (rec.status === 'removed') return false // intentionally removed; user must reprocess manually
     return rec.mtime !== undefined && currentMtime > rec.mtime
   }
 
@@ -164,7 +173,8 @@ export class DocIndexService {
     if (hasFailed) return 'failed'
     if (hasRemoved) return 'removed'
     // Green only when every file is confirmed processed
-    if (processedCount === vaultFilePaths.length && vaultFilePaths.length > 0) return 'processed'
+    if (processedCount === vaultFilePaths.length && vaultFilePaths.length > 0)
+      return 'processed'
     // Mix of processed + unknown → no indicator yet
     if (hasUnknown) return 'unknown'
     return 'unknown'
@@ -279,16 +289,23 @@ export class DocIndexService {
       const docs = await this.fetchViaPaginated()
       // If paginated returned results, trust them
       if (docs.length > 0) {
-        console.log(`[NeuralComposer] DocIndex: fetched ${docs.length} docs via paginated endpoint`)
+        console.log(
+          `[NeuralComposer] DocIndex: fetched ${docs.length} docs via paginated endpoint`,
+        )
         return docs
       }
     } catch (e) {
-      console.warn('[NeuralComposer] DocIndex: paginated endpoint failed, trying grouped', e)
+      console.warn(
+        '[NeuralComposer] DocIndex: paginated endpoint failed, trying grouped',
+        e,
+      )
     }
 
     try {
       const docs = await this.fetchViaGrouped()
-      console.log(`[NeuralComposer] DocIndex: fetched ${docs.length} docs via grouped endpoint`)
+      console.log(
+        `[NeuralComposer] DocIndex: fetched ${docs.length} docs via grouped endpoint`,
+      )
       return docs
     } catch {
       return []
@@ -331,7 +348,9 @@ export class DocIndexService {
         // Do NOT reset 'processing' here: we can't distinguish "server down"
         // from "empty graph".  The pipeline watch (if running) will sync once
         // the server becomes reachable.
-        console.warn('[NeuralComposer] DocIndex: server returned 0 docs — keeping cache')
+        console.warn(
+          '[NeuralComposer] DocIndex: server returned 0 docs — keeping cache',
+        )
         return
       }
 
@@ -358,7 +377,9 @@ export class DocIndexService {
 
         if (lgDoc) {
           const newStatus = this.mapStatus(lgDoc.status)
-          console.log(`[NeuralComposer] DocIndex: ${file.name} → ${lgDoc.status} → ${newStatus}`)
+          console.log(
+            `[NeuralComposer] DocIndex: ${file.name} → ${lgDoc.status} → ${newStatus}`,
+          )
           this.index[file.path] = {
             ...this.index[file.path],
             status: newStatus,
@@ -372,12 +393,16 @@ export class DocIndexService {
             // Intentionally removed by the user — not a stale processing entry.
             // The server correctly has no record of it; preserve the status so
             // the blue dot stays visible and needsIngestion() stays false.
-            console.log(`[NeuralComposer] DocIndex: ${file.name} NOT on server (was: removed) → keeping removed`)
+            console.log(
+              `[NeuralComposer] DocIndex: ${file.name} NOT on server (was: removed) → keeping removed`,
+            )
           } else {
             // The server is authoritative: the doc does not exist in LightRAG.
             // Reset to 'unknown' — clears docs stuck at 'processing' from a
             // previous session where submission failed silently.
-            console.log(`[NeuralComposer] DocIndex: ${file.name} NOT on server (was: ${prev}) → unknown`)
+            console.log(
+              `[NeuralComposer] DocIndex: ${file.name} NOT on server (was: ${prev}) → unknown`,
+            )
             this.index[file.path] = { status: 'unknown' }
           }
         }
@@ -388,7 +413,9 @@ export class DocIndexService {
 
       // Auto-start pipeline watch if the server reports docs still processing
       if (anyProcessing && !this.pipelineTimer) {
-        console.log('[NeuralComposer] DocIndex: docs still processing on server — starting pipeline watch')
+        console.log(
+          '[NeuralComposer] DocIndex: docs still processing on server — starting pipeline watch',
+        )
         this.startPipelineWatch(2000)
       }
     } catch (e) {
@@ -407,7 +434,9 @@ export class DocIndexService {
    */
   startPipelineWatch(intervalMs = 1000): void {
     this.stopPipelineWatch()
-    console.log(`[NeuralComposer] DocIndex: pipeline watch started (interval: ${intervalMs}ms)`)
+    console.log(
+      `[NeuralComposer] DocIndex: pipeline watch started (interval: ${intervalMs}ms)`,
+    )
     this.schedulePipelinePoll(intervalMs)
   }
 
@@ -433,7 +462,9 @@ export class DocIndexService {
         if (data.busy === false) {
           // Pipeline finished — get definitive statuses (does NOT restart watch
           // unless it finds more processing docs, preventing infinite loops)
-          console.log('[NeuralComposer] DocIndex: pipeline stopped — syncing from server')
+          console.log(
+            '[NeuralComposer] DocIndex: pipeline stopped — syncing from server',
+          )
           await this.syncFromServer()
           return // watch ended
         }

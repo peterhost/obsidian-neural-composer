@@ -52,7 +52,12 @@ export function HelpSection({ app, plugin }: HelpSectionProps) {
       <div className="nrlcmp-settings-section">
         <div className="nrlcmp-settings-header">Resources</div>
         <div
-          style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            marginTop: 4,
+          }}
         >
           {LINKS.map(({ label, url }) => (
             <a

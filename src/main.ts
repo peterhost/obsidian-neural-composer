@@ -428,7 +428,10 @@ export default class NeuralComposerPlugin extends Plugin {
         setTimeout(() => {
           void (async () => {
             // Skip if already processed and not modified
-            if (this.docIndexService && !this.docIndexService.needsIngestion(file.path, file.stat.mtime)) {
+            if (
+              this.docIndexService &&
+              !this.docIndexService.needsIngestion(file.path, file.stat.mtime)
+            ) {
               return
             }
             const notice = new Notice(
@@ -560,7 +563,10 @@ export default class NeuralComposerPlugin extends Plugin {
           void (async () => {
             if (!this.docIndexReady) return
             // Skip if not modified since last ingestion
-            if (this.docIndexService && !this.docIndexService.needsIngestion(file.path, file.stat.mtime)) {
+            if (
+              this.docIndexService &&
+              !this.docIndexService.needsIngestion(file.path, file.stat.mtime)
+            ) {
               return
             }
             const notice = new Notice(
@@ -589,107 +595,112 @@ export default class NeuralComposerPlugin extends Plugin {
 
     // --- DOCUMENT STATUS CONTEXT MENUS ---
     this.registerEvent(
-      this.app.workspace.on(
-        'file-menu',
-        (menu: Menu, file: TAbstractFile) => {
-          const syncFolder = this.settings.lightRagSyncFolder.trim()
-          if (!syncFolder || !this.docIndexService) return
+      this.app.workspace.on('file-menu', (menu: Menu, file: TAbstractFile) => {
+        const syncFolder = this.settings.lightRagSyncFolder.trim()
+        if (!syncFolder || !this.docIndexService) return
 
-          if (file instanceof TFile) {
-            const inFolder =
-              file.path === syncFolder ||
-              file.path.startsWith(syncFolder + '/')
-            if (!inFolder) return
+        if (file instanceof TFile) {
+          const inFolder =
+            file.path === syncFolder || file.path.startsWith(syncFolder + '/')
+          if (!inFolder) return
 
-            const status = this.docIndexService.getStatus(file.path)
+          const status = this.docIndexService.getStatus(file.path)
 
-            // Allow reprocessing for any non-processed state, including
-            // 'processing' (stuck from a crashed session) and 'removed'
-            // (user wants to re-add the doc to the graph).
-            if (status === 'failed' || status === 'unknown' || status === 'processing' || status === 'removed') {
-              menu.addItem((item) =>
-                item
-                  .setTitle('Reprocess document')
-                  .setIcon('refresh-cw')
-                  .onClick(() => {
-                    void (async () => {
-                      const ragEngine = await this.getRAGEngine()
-                      this.docIndexService!.setProcessing(
-                        file.path,
-                        file.stat.mtime,
-                      )
-                      const ok = await ragEngine.ingestFile(file)
-                      if (!ok) {
-                        this.docIndexService!.setFailed(file.path)
-                      } else {
-                        this.docIndexService!.startPipelineWatch(1000)
-                      }
-                    })()
-                  }),
-              )
-            }
-
-            if (status === 'processed') {
-              menu.addItem((item) =>
-                item
-                  .setTitle('Remove from graph')
-                  .setIcon('trash-2')
-                  .onClick(() => {
-                    void (async () => {
-                      const ragEngine = await this.getRAGEngine()
-                      await ragEngine.deleteDocumentByFilePath(
-                        file.path,
-                        file.name,
-                      )
-                      // Mark as 'removed' (blue dot) instead of deleting the entry.
-                      // This preserves the intentional-removal state across restarts
-                      // and prevents auto-reingestion on file-change events.
-                      this.docIndexService!.setRemoved(file.path)
-                    })()
-                  }),
-              )
-            }
-          }
-
-          if (file instanceof TFolder && file.path === syncFolder) {
+          // Allow reprocessing for any non-processed state, including
+          // 'processing' (stuck from a crashed session) and 'removed'
+          // (user wants to re-add the doc to the graph).
+          if (
+            status === 'failed' ||
+            status === 'unknown' ||
+            status === 'processing' ||
+            status === 'removed'
+          ) {
             menu.addItem((item) =>
               item
-                .setTitle('Reprocess folder')
+                .setTitle('Reprocess document')
                 .setIcon('refresh-cw')
                 .onClick(() => {
                   void (async () => {
                     const ragEngine = await this.getRAGEngine()
-                    const files = this.app.vault
-                      .getFiles()
-                      .filter(
-                        (f) =>
-                          (f.path === syncFolder ||
-                            f.path.startsWith(syncFolder + '/')) &&
-                          SUPPORTED_EXTENSIONS.includes(
-                            f.extension.toLowerCase(),
-                          ),
-                      )
-                    let anySubmitted = false
-                    for (const f of files) {
-                      const st = this.docIndexService!.getStatus(f.path)
-                      // Include 'processing' — a doc can be stuck at that
-                      // status from a previous failed/interrupted submission.
-                      if (st === 'failed' || st === 'unknown' || st === 'processing') {
-                        this.docIndexService!.setProcessing(f.path, f.stat.mtime)
-                        const ok = await ragEngine.ingestFile(f)
-                        if (!ok) this.docIndexService!.setFailed(f.path)
-                        else anySubmitted = true
-                      }
-                    }
-                    if (anySubmitted) {
+                    this.docIndexService!.setProcessing(
+                      file.path,
+                      file.stat.mtime,
+                    )
+                    const ok = await ragEngine.ingestFile(file)
+                    if (!ok) {
+                      this.docIndexService!.setFailed(file.path)
+                    } else {
                       this.docIndexService!.startPipelineWatch(1000)
                     }
                   })()
                 }),
             )
           }
-        },
-      ),
+
+          if (status === 'processed') {
+            menu.addItem((item) =>
+              item
+                .setTitle('Remove from graph')
+                .setIcon('trash-2')
+                .onClick(() => {
+                  void (async () => {
+                    const ragEngine = await this.getRAGEngine()
+                    await ragEngine.deleteDocumentByFilePath(
+                      file.path,
+                      file.name,
+                    )
+                    // Mark as 'removed' (blue dot) instead of deleting the entry.
+                    // This preserves the intentional-removal state across restarts
+                    // and prevents auto-reingestion on file-change events.
+                    this.docIndexService!.setRemoved(file.path)
+                  })()
+                }),
+            )
+          }
+        }
+
+        if (file instanceof TFolder && file.path === syncFolder) {
+          menu.addItem((item) =>
+            item
+              .setTitle('Reprocess folder')
+              .setIcon('refresh-cw')
+              .onClick(() => {
+                void (async () => {
+                  const ragEngine = await this.getRAGEngine()
+                  const files = this.app.vault
+                    .getFiles()
+                    .filter(
+                      (f) =>
+                        (f.path === syncFolder ||
+                          f.path.startsWith(syncFolder + '/')) &&
+                        SUPPORTED_EXTENSIONS.includes(
+                          f.extension.toLowerCase(),
+                        ),
+                    )
+                  let anySubmitted = false
+                  for (const f of files) {
+                    const st = this.docIndexService!.getStatus(f.path)
+                    // Include 'processing' — a doc can be stuck at that
+                    // status from a previous failed/interrupted submission.
+                    if (
+                      st === 'failed' ||
+                      st === 'unknown' ||
+                      st === 'processing'
+                    ) {
+                      this.docIndexService!.setProcessing(f.path, f.stat.mtime)
+                      const ok = await ragEngine.ingestFile(f)
+                      if (!ok) this.docIndexService!.setFailed(f.path)
+                      else anySubmitted = true
+                    }
+                  }
+                  if (anySubmitted) {
+                    this.docIndexService!.startPipelineWatch(1000)
+                  }
+                })()
+              }),
+          )
+        }
+      }),
     )
 
     this.addSettingTab(new NeuralComposerSettingTab(this.app, this))
@@ -723,7 +734,9 @@ export default class NeuralComposerPlugin extends Plugin {
       // (Obsidian re-rendering file items) and re-applies data-nc-status attributes.
       // Safe: our setAttribute calls are attribute mutations — they do NOT fire
       // childList observers, so there is zero risk of an infinite loop.
-      this.fileExplorerDecorator.startObserving(() => this.decorateFileExplorer())
+      this.fileExplorerDecorator.startObserving(() =>
+        this.decorateFileExplorer(),
+      )
 
       // Re-decorate whenever the workspace layout changes (pane open/close, etc.)
       this.registerEvent(
@@ -735,7 +748,7 @@ export default class NeuralComposerPlugin extends Plugin {
       // Load persisted index → render immediately, then sync with server
       void (async () => {
         await this.docIndexService!.load()
-        this.docIndexReady = true   // vault events safe to process from here
+        this.docIndexReady = true // vault events safe to process from here
         this.decorateFileExplorer() // render cached statuses right away
 
         // Give a short delay for the server to be reachable, then sync.
@@ -919,12 +932,12 @@ export default class NeuralComposerPlugin extends Plugin {
       ? this.app.vault
           .getFiles()
           .filter(
-            (f) =>
-              f.path === syncFolder || f.path.startsWith(syncFolder + '/'),
+            (f) => f.path === syncFolder || f.path.startsWith(syncFolder + '/'),
           )
           .map((f) => f.path)
       : []
-    const folderStatus = this.docIndexService.computeFolderStatus(folderFilePaths)
+    const folderStatus =
+      this.docIndexService.computeFolderStatus(folderFilePaths)
 
     this.fileExplorerDecorator.decorate(
       syncFolder,
@@ -1734,8 +1747,11 @@ export default class NeuralComposerPlugin extends Plugin {
       })
 
       if (response.status === 200) {
-        const data: { pipeline_busy?: boolean; core_version?: string; api_version?: string } =
-          response.json
+        const data: {
+          pipeline_busy?: boolean
+          core_version?: string
+          api_version?: string
+        } = response.json
         const isBusy = data?.pipeline_busy ?? false
         // Store the server version (core_version is canonical; api_version as fallback)
         this.setServerVersion(data?.core_version ?? data?.api_version ?? null)
@@ -1762,19 +1778,27 @@ export default class NeuralComposerPlugin extends Plugin {
     if (!this.statusDotEl) return
     this.statusDotEl.removeClass('is-online', 'is-offline', 'is-busy')
 
-    const versionTag = this.lightRagServerVersion ? ` v${this.lightRagServerVersion}` : ''
+    const versionTag = this.lightRagServerVersion
+      ? ` v${this.lightRagServerVersion}`
+      : ''
     if (status === 'online') {
       this.statusDotEl.addClass('is-online')
-      setTooltip(this.statusBarEl, `LightRAG${versionTag} · Online`, { placement: 'top' })
+      setTooltip(this.statusBarEl, `LightRAG${versionTag} · Online`, {
+        placement: 'top',
+      })
     } else if (status === 'busy') {
       this.statusDotEl.addClass('is-busy')
-      setTooltip(this.statusBarEl, `LightRAG${versionTag} · Processing…`, { placement: 'top' })
+      setTooltip(this.statusBarEl, `LightRAG${versionTag} · Processing…`, {
+        placement: 'top',
+      })
     } else {
       this.statusDotEl.addClass('is-offline')
       const offlineHint = this.isRemoteServer()
         ? 'check remote server'
         : 'click to restart'
-      setTooltip(this.statusBarEl, `LightRAG · Offline (${offlineHint})`, { placement: 'top' })
+      setTooltip(this.statusBarEl, `LightRAG · Offline (${offlineHint})`, {
+        placement: 'top',
+      })
     }
   }
 
