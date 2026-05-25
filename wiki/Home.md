@@ -8,12 +8,12 @@ Welcome to the Neural Composer wiki. This is the best place to go deeper than th
 
 ## Pages
 
-| Page                               | What's inside                                                                     |
-| :--------------------------------- | :-------------------------------------------------------------------------------- |
-| [Installation](Installation)       | Prerequisites, Python setup, plugin install (BRAT + manual), first-run checklist |
-| [Configuration](Configuration)     | Every settings tab explained in detail                                            |
-| [Features](Features)               | Deep dives into Chat, Document Status, Graph Visualization, and Vault Sync        |
-| [Troubleshooting](Troubleshooting) | Fixes for the most common problems                                                |
+| Page                               | What's inside                                                                |
+| :--------------------------------- | :--------------------------------------------------------------------------- |
+| [Installation](Installation)       | Prerequisites, Python setup, plugin install, first-run checklist            |
+| [Configuration](Configuration)     | Every settings tab explained in detail (Providers, Models, Chat, Graph & Vault, MCP, Advanced) |
+| [Features](Features)               | Deep dives into Chat, Document Status, Graph Visualization, and Vault Sync   |
+| [Troubleshooting](Troubleshooting) | Fixes for the most common problems                                           |
 
 ---
 
@@ -21,7 +21,7 @@ Welcome to the Neural Composer wiki. This is the best place to go deeper than th
 
 Download the latest version from the [Releases page](https://github.com/oscampo/obsidian-neural-composer/releases).
 
-The changelog for each version is attached to its release. v1.3.x introduced Vault Sync, Remote Server support, Knowledge Graph Visualization, and MCP Tools.
+The changelog for each version is attached to its release. v1.3.x introduced Vault Sync, Document Status tracking, Knowledge Graph Visualization, and MCP Tools.
 
 ---
 
