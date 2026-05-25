@@ -96,17 +96,38 @@ There is an additional API-level difference: `gemini-embedding-001` accepts a `t
 
 #### Migration strategy (gemini-embedding-001 → gemini-embedding-2)
 
-Google's recommended approach for production systems is a **shadow index**:
+Choose an approach based on the size of your vault:
 
-1. Keep your existing vault running normally on `gemini-embedding-001` (works until July 14, 2026).
-2. Create a new, empty LightRAG data directory.
-3. Configure Neural Composer to point at the new directory with `gemini-embedding-2` as the embedding model.
-4. Re-ingest all your notes into the new directory (run overnight for large vaults).
-5. Validate the new index with a set of representative queries before switching.
-6. Once satisfied, update the **Data Directory** path in settings to the new directory and click **Restart Server**.
-7. Delete the old data directory.
+---
 
-> **Tip:** Use the **Batch Embedding API** option in LightRAG's `.env` if available — Google prices batch embeddings at 50% of the standard per-call rate, significantly reducing the cost of a full re-ingestion.
+**Option A — Simple migration (small vaults, < ~500 notes)**
+
+If re-ingesting takes less than an hour and you can afford a short downtime, this is the quickest path:
+
+1. In Settings → Graph & Vault, change the **Embedding model (server-side)** to `gemini-embedding-2`.
+2. Click **Restart Server**.
+3. Right-click your watched folder → **Add to graph** to re-ingest everything.
+4. Wait for all status dots to turn 🟢.
+
+The graph is unavailable for queries while re-ingestion is in progress. For a small vault this is a minor inconvenience.
+
+---
+
+**Option B — Shadow index (large vaults, or if you need zero downtime)**
+
+Build the new index in a separate directory while your existing vault keeps working normally. Only switch over once the new index is fully built and validated.
+
+1. Create a new, empty folder anywhere on your disk (e.g., `lightrag-data-v2`).
+2. In Settings → Graph & Vault, change **Data Directory** to the new folder and set **Embedding model** to `gemini-embedding-2`.
+3. Click **Restart Server** — LightRAG now points at the empty new directory.
+4. Re-ingest all your notes (right-click watched folder → **Add to graph**). Run overnight for large vaults.
+5. Test the new index with a few representative queries to confirm quality.
+6. Once satisfied, the migration is complete — the new directory is now your active index.
+7. Delete the old data directory when you no longer need it as a fallback.
+
+The key benefit: if anything goes wrong during steps 2–5 (API error, power cut, poor result quality), you can simply point **Data Directory** back at the original folder and continue using the old index until you're ready to try again.
+
+> **Cost tip:** Google prices batch embeddings at 50% of the standard per-call rate. If LightRAG's `.env` exposes a batch embedding option, enabling it before re-ingestion can meaningfully reduce the API cost of a large rebuild.
 
 ### Notes
 
