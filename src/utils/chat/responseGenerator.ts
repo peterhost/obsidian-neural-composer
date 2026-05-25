@@ -336,7 +336,8 @@ export class ResponseGenerator {
         index,
         id: merged[index].id ?? toolCall.id,
         type: merged[index].type ?? toolCall.type,
-        thought_signature: merged[index].thought_signature ?? toolCall.thought_signature,
+        thought_signature:
+          merged[index].thought_signature ?? toolCall.thought_signature,
       }
 
       if (merged[index].function || toolCall.function) {

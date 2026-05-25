@@ -277,7 +277,9 @@ export class GeminiProvider extends BaseLLMProvider<
             } catch {
               // If the arguments are not valid JSON, return an empty object
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const part: any = { functionCall: { name: toolCall.name, args: {} } }
+              const part: any = {
+                functionCall: { name: toolCall.name, args: {} },
+              }
               if (toolCall.thought_signature) {
                 part.thoughtSignature = toolCall.thought_signature
               }
@@ -329,7 +331,8 @@ export class GeminiProvider extends BaseLLMProvider<
               // Use raw candidates parts so we can capture thoughtSignature.
               // response.response.functionCalls() discards that field.
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const parts = (response.response.candidates?.[0]?.content?.parts ?? []) as any[]
+              const parts = (response.response.candidates?.[0]?.content
+                ?.parts ?? []) as any[]
               const fnParts = parts.filter((p) => p.functionCall)
               if (fnParts.length === 0) return undefined
               return fnParts.map((part) => ({
@@ -375,7 +378,8 @@ export class GeminiProvider extends BaseLLMProvider<
               // Use raw candidates parts so we can capture thoughtSignature.
               // chunk.functionCalls() discards that field.
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const parts = (chunk.candidates?.[0]?.content?.parts ?? []) as any[]
+              const parts = (chunk.candidates?.[0]?.content?.parts ??
+                []) as any[]
               const fnParts = parts.filter((p) => p.functionCall)
               if (fnParts.length === 0) return undefined
               return fnParts.map((part, index) => ({
