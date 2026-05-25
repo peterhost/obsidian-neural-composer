@@ -1,124 +1,154 @@
 # MCP Tools
 
-Neural Composer can expose your vault's knowledge graph to any client that supports the [Model Context Protocol](https://modelcontextprotocol.io/) (MCP). This lets external AI agents — Claude Desktop, Cursor, VS Code with Copilot, or custom scripts — query and reason over your graph without opening Obsidian.
+Neural Composer integrates with the [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) as a **client**. This means you can connect external MCP servers to Neural Composer and use their tools directly from the chat pane — alongside your vault graph.
+
+> **Note:** Neural Composer connects *to* external MCP servers. It does not currently expose your vault as an MCP server to external clients such as Claude Desktop. The Tools (MCP) tab is for adding tools *into* Neural Composer's chat, not for exposing Neural Composer to other applications.
 
 ---
 
-## How it works
+## What you can do with MCP
 
-Neural Composer acts as an **MCP server**. It exposes tools that an MCP-compatible client can call:
+When an MCP server is connected, its tools appear in the chat pane alongside the built-in vault tools. The model can call them automatically when **Enable tools** is on (Settings → Chat).
 
-| Tool | What it does |
+Example use cases:
+
+| MCP server | What it adds to your chat |
 | :--- | :--- |
-| `query_graph` | Sends a question to LightRAG and returns the answer with citations. |
-| `list_documents` | Returns the list of ingested documents and their statuses. |
-| `get_entity` | Retrieves metadata and relationships for a named entity. |
+| `@modelcontextprotocol/server-github` | Read issues, PRs, and code from a GitHub repo |
+| `@modelcontextprotocol/server-filesystem` | Read and write files outside the vault |
+| `@modelcontextprotocol/server-brave-search` | Web search from within the chat |
+| Any custom MCP server | Whatever tools your server exposes |
 
-The client connects to Neural Composer, discovers these tools, and can invoke them as part of a conversation or automated workflow.
+[screenshot: chat pane — a tool call visible inline where the model called an MCP tool and shows its result before the final answer]
 
 ---
 
-## Step 1 — Enable the MCP server in Neural Composer
+## Adding an MCP server
 
 1. Open **Settings → Neural Composer → Tools (MCP)**.
 2. Click **Add MCP server**.
 3. Fill in the form:
-   - **Name:** anything you like (e.g., `Vault Graph`)
-   - **Transport:** `stdio` for local clients (Claude Desktop, Cursor); `sse` for network clients
-   - **Command:** the path to the Neural Composer MCP bridge (see below)
-4. Click **Save**.
+   - **Name:** a label for your reference (e.g., `GitHub`)
+   - **Parameters:** a JSON object describing how to launch the server
 
-[screenshot: filled-in "Add MCP server" form with Name "Vault Graph", Transport "stdio", and a command path]
+[screenshot: "Add MCP server" dialog with Name and Parameters fields]
 
----
+### Parameters format
 
-## Step 2 — Connect Claude Desktop
-
-Claude Desktop reads MCP server definitions from its config file.
-
-### Locate the config file
-
-| Platform | Path |
-| :--- | :--- |
-| macOS | `~/Library/Application Support/Claude/claude_desktop_config.json` |
-| Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
-
-### Add the Neural Composer entry
-
-Open the file in any text editor and add an entry under `mcpServers`:
+The Parameters field expects a JSON object with this shape:
 
 ```json
 {
-  "mcpServers": {
-    "neural-composer": {
-      "command": "/path/to/neural-composer-mcp-bridge",
-      "args": [],
-      "env": {
-        "LIGHTRAG_URL": "http://localhost:9621"
-      }
-    }
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-github"],
+  "env": {
+    "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_..."
   }
 }
 ```
 
-Replace `/path/to/neural-composer-mcp-bridge` with the command path shown in Neural Composer's settings.
+| Field | Required | Notes |
+| :--- | :--- | :--- |
+| `command` | Yes | The executable to run. Usually `npx` or `node`. |
+| `args` | No | Array of arguments passed to the command. |
+| `env` | No | Key/value pairs injected into the server's environment. |
 
-[screenshot: claude_desktop_config.json open in a text editor with the neural-composer entry visible]
+> **Important:** paste only this inner object into the Parameters field — do not wrap it in a `mcpServers` key or any other outer structure.
 
-### Restart Claude Desktop
-
-Quit and relaunch Claude Desktop. The Neural Composer tools will appear in the tool picker when you start a new conversation.
-
-[screenshot: Claude Desktop tool picker showing "neural-composer" as an available MCP server with its tools listed]
-
----
-
-## Step 3 — Test the connection
-
-In Claude Desktop (or your MCP client), start a conversation and ask:
-
-> "What topics are covered in my knowledge graph?"
-
-Claude should call `query_graph` and return an answer sourced from your vault.
-
-[screenshot: Claude Desktop conversation — user asks a question, Claude shows a tool call to query_graph, then the answer with citations]
+4. Click **Save**. Neural Composer launches the server as a subprocess and connects to it via stdio.
 
 ---
 
-## SSE transport (network clients)
+## Example: GitHub MCP server
 
-If you want to expose your graph to a remote client or a browser-based tool, use **SSE** transport instead of `stdio`.
+**Prerequisites:** Node.js installed; a GitHub personal access token with `repo` scope.
 
-1. In the Tools (MCP) tab, set Transport to `sse`.
-2. Neural Composer will expose an SSE endpoint at `http://localhost:<port>/sse`.
-3. Point your MCP client at that URL.
+Parameters:
 
-> **Security note:** SSE transport has no built-in authentication. Do not expose the SSE endpoint to the public internet without a reverse proxy and auth layer in front of it.
+```json
+{
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-github"],
+  "env": {
+    "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_your_token_here"
+  }
+}
+```
+
+Once connected, you can ask questions in the chat like:
+- *"What are the open issues in my repo?"*
+- *"Summarize the last 5 commits."*
+
+The model will call the GitHub MCP tools automatically and combine the results with your vault graph.
+
+[screenshot: chat pane — a question about a GitHub repo, with a visible tool call to the GitHub MCP server and a combined answer]
 
 ---
 
-## Using MCP tools in the chat pane
+## Example: Filesystem MCP server
 
-When **Enable tools** is on in the Chat tab, the chat pane itself can call MCP tools registered in the Tools (MCP) tab. This means you can add external MCP servers (e.g., a web search tool or a calendar) and the chat model will use them alongside your vault graph.
+Allows the model to read files outside your Obsidian vault.
 
-[screenshot: chat pane with a tool call visible inline — the model invoked a registered MCP tool and shows the result before its final answer]
+```json
+{
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/you/Documents"]
+}
+```
+
+Replace `/Users/you/Documents` with the directory you want to expose.
 
 ---
 
-## Troubleshooting MCP
+## Enabling and disabling tools per server
 
-### "No tools available" in Claude Desktop
+In the Tools (MCP) tab, each server has a toggle. When disabled, its tools are hidden from the model and will not be called.
 
-- Confirm the command path in `claude_desktop_config.json` is correct and the binary is executable.
-- Check that Neural Composer (and the LightRAG server) is running in Obsidian before opening Claude Desktop.
-- Try running the command manually in a terminal to see if it outputs errors.
+You can also configure individual tools per server — for example, to disable a destructive tool (like file deletion) while keeping read-only tools active.
 
-### Tool calls return empty results
+[screenshot: Tools (MCP) tab showing a server entry expanded with individual tool toggles visible]
 
-- The LightRAG server may be offline. Check the status bar dot in Obsidian.
-- Confirm `LIGHTRAG_URL` in the config matches the URL Neural Composer is listening on (default: `http://localhost:9621`).
+---
 
-### SSE client can't connect
+## MCP is desktop-only
 
-- Check that the port is not blocked by a firewall.
-- Verify the SSE endpoint URL in the client matches the one shown in the Neural Composer Tools (MCP) tab.
+MCP functionality is not available on mobile. The Tools (MCP) tab is hidden when Obsidian is running on iOS or Android.
+
+---
+
+## Troubleshooting
+
+### "No tools available" after adding a server
+
+- Confirm Node.js is installed and accessible (`node --version` in a terminal).
+- Try running the command manually in a terminal to see if it produces errors (e.g., `npx -y @modelcontextprotocol/server-github`).
+- Check that the API key or token in `env` is valid.
+
+### The server connects but no tool calls happen in chat
+
+- Confirm **Enable tools** is toggled on in the Chat settings tab.
+- Check that **Max auto-iterations** is at least `1` (Settings → Chat).
+
+### "Invalid JSON format" error in the Add MCP server dialog
+
+Paste only the inner object into the Parameters field. The correct format is:
+
+```json
+{
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-github"],
+  "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_..." }
+}
+```
+
+Not this:
+
+```json
+{
+  "mcpServers": {
+    "my-server": { ... }
+  }
+}
+```
+
+The `mcpServers` wrapper is Claude Desktop's config format — it is not used here.

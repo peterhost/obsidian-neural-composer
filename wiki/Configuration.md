@@ -177,31 +177,36 @@ Changes to the `.env` file take effect after the next **Restart Server**.
 
 ## Tools (MCP)
 
-Neural Composer can expose your vault's knowledge graph to external AI clients via the [Model Context Protocol](https://modelcontextprotocol.io/).
+Neural Composer connects to external [Model Context Protocol](https://modelcontextprotocol.io/) servers and makes their tools available inside the chat pane. This tab is where you register those servers.
+
+> Neural Composer is an MCP **client** — it calls tools *from* external servers. It does not expose itself as a server to other applications.
 
 [screenshot: Tools (MCP) tab — showing an empty server list with an "Add MCP server" button]
 
 ### Adding an MCP server
 
-Each entry has:
+Click **Add MCP server** and fill in:
 
 | Field | Notes |
 | :--- | :--- |
-| **Name** | A label for your own reference. |
-| **Transport** | `stdio` (local clients) or `sse` (network). Use `stdio` for Claude Desktop. |
-| **Command / URL** | For `stdio`: the command to launch the MCP client bridge. For `sse`: the SSE endpoint URL. |
-| **Arguments** | Extra arguments passed to the command (`stdio` only). |
-| **Environment** | Key/value pairs injected into the command's environment (`stdio` only). |
+| **Name** | A label for your own reference (e.g., `GitHub`). |
+| **Parameters** | A JSON object with `command`, optional `args`, and optional `env`. See below. |
 
-### Claude Desktop example
+### Parameters format
 
-1. In the Tools (MCP) tab, add a new server with transport `stdio`.
-2. Set the command to the Neural Composer MCP bridge path.
-3. Add the corresponding entry to Claude Desktop's `claude_desktop_config.json`.
+```json
+{
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-github"],
+  "env": {
+    "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_..."
+  }
+}
+```
 
-[screenshot: filled-in MCP server form with example values for Claude Desktop]
+Paste only this inner object — do not wrap it in a `mcpServers` key.
 
-See the [Features](Features) page for a full walkthrough of the MCP integration.
+See the [MCP Tools](MCP-Tools) page for full examples and troubleshooting.
 
 ---
 

@@ -196,11 +196,13 @@ POST /rerank
 
 ## MCP Tools
 
-Neural Composer can expose your vault's knowledge graph to any client that supports the [Model Context Protocol](https://modelcontextprotocol.io/). This lets external AI agents — Claude Desktop, Cursor, or custom scripts — query your graph programmatically.
+Neural Composer connects to external [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) servers and makes their tools available inside the chat pane. This lets you combine your vault graph with external capabilities — GitHub, web search, filesystem access, and more — in a single conversation.
 
-[screenshot: Tools (MCP) tab showing a configured server entry with name, transport, and command visible]
+> Neural Composer is an MCP **client**. It connects *to* external servers; it does not expose itself as a server to applications like Claude Desktop.
 
-For a full setup guide, see the [MCP Tools](MCP-Tools) page.
+[screenshot: Tools (MCP) tab showing a configured server entry with name and command visible]
+
+For setup instructions and examples, see the [MCP Tools](MCP-Tools) page.
 
 ---
 
