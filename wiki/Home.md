@@ -8,12 +8,29 @@ Welcome to the Neural Composer wiki. This is the best place to go deeper than th
 
 ## Pages
 
-| Page                               | What's inside                                                                |
-| :--------------------------------- | :--------------------------------------------------------------------------- |
-| [Installation](Installation)       | Prerequisites, Python setup, plugin install, first-run checklist            |
-| [Configuration](Configuration)     | Every settings tab explained in detail (Providers, Models, Chat, Graph & Vault, MCP, Advanced) |
-| [Features](Features)               | Deep dives into Chat, Document Status, Graph Visualization, and Vault Sync   |
-| [Troubleshooting](Troubleshooting) | Fixes for the most common problems                                           |
+### Getting started
+
+| Page | What's inside |
+| :--- | :--- |
+| [Installation](Installation) | Prerequisites, Python setup, plugin install, first-run checklist |
+| [Providers Guide](Providers-Guide) | Per-provider setup: API keys, recommended models, known quirks |
+| [Configuration](Configuration) | Every settings tab explained in detail |
+
+### Features
+
+| Page | What's inside |
+| :--- | :--- |
+| [Features](Features) | Chat, Document Status, Graph Visualization, Vault Sync, Reranking, MCP Tools |
+| [MCP Tools](MCP-Tools) | Connecting Claude Desktop and other MCP clients to your vault graph |
+| [Custom Ontology](Custom-Ontology) | Teaching the graph your domain's entity types (v1.4 and v1.5+) |
+| [Reranking](Reranking) | Improving retrieval quality with Jina AI, Cohere, or a local reranker |
+| [Remote Server](Remote-Server) | Running LightRAG on a NAS, VPS, or Docker container |
+
+### Support
+
+| Page | What's inside |
+| :--- | :--- |
+| [Troubleshooting](Troubleshooting) | Fixes for the most common problems |
 
 ---
 
