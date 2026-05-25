@@ -1,132 +1,201 @@
 # Neural Composer
-**Deep, graph-based search for your Obsidian Vault.**
+
+**Graph-based AI chat for your Obsidian vault.**
 
 ![Hero Banner](https://raw.githubusercontent.com/oscampo/obsidian-neural-composer/main/images/hero-banner.GIF)
 
-## 👋 Hello, Obsidian Community!
-
-We built **Neural Composer** because we love Obsidian, but we often felt limited by standard search tools. 
-
-Have you ever searched for a topic in your vault and gotten a list of notes that contain the *word*, but miss the *context*? Or tried to ask an AI plugin a complex question, only for it to fail because it couldn't "see" the connections between your files?
-
-**We wanted a way to talk to our notes that felt like talking to someone who actually remembers them.**
-
-That's why we integrated **LightRAG** (Graph-based Retrieval) into Obsidian. Unlike standard plugins that just look for matching text chunks, Neural Composer builds a **Knowledge Graph** of your ideas, helping you find relationships you might have forgotten.
+[![Release](https://img.shields.io/github/v/release/oscampo/obsidian-neural-composer?style=flat-square&color=6c47ff)](https://github.com/oscampo/obsidian-neural-composer/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+[![Obsidian](https://img.shields.io/badge/Obsidian-Community%20Plugin-7c3aed?style=flat-square&logo=obsidian&logoColor=white)](https://obsidian.md/plugins?id=neural-composer)
 
 ---
 
-## 🤔 Why use Graph RAG?
+## TL;DR
 
-Standard AI search (Vector RAG) is great for finding *similar text*. But **Graph RAG** is better for finding *connected ideas*.
+Chat with your vault using a **Knowledge Graph**, not just keyword search. Neural Composer runs a local [LightRAG](https://github.com/HKUDS/LightRAG) server, builds a graph of your notes, and lets you ask questions that trace connections across your entire vault.
 
-| Feature | Standard Vector Search | Neural Composer (Graph) |
-| :--- | :--- | :--- |
-| **How it searches** | Finds matching keywords/concepts | Follows relationships between entities |
-| **Best for** | Simple questions ("What is X?") | Complex questions ("How does X influence Y?") |
-| **Context** | Often fragmented | Holistic and interconnected |
+- 🔍 **Finds relationships**, not just matching words
+- ⚡ **Manages the LightRAG server** for you — no terminal juggling
+- 🔒 **100% local** when used with Ollama — your data never leaves your machine
 
----
-
-## 🛠️ How it helps (Use Cases)
-
-We designed this to fit into different workflows. Here is how it might help you:
-
-*   **For Researchers:** If you have hundreds of papers, you can ask it to synthesize arguments across multiple authors, finding consensus or contradictions that a simple search would miss.
-*   **For Writers & DMs:** If you are building a world or a story, the graph tracks the relationships between characters and lore, helping you maintain consistency without digging through folders.
-*   **For Daily Journalers:** It connects entries from months ago to today, helping you spot patterns in your life or work that aren't obvious day-to-day.
-*   **For Project Managers:** It helps visualize dependencies between different project notes that might otherwise look like separate tasks.
+**Requirements:** Python 3.10+ · `pip install "lightrag-hku[api]"` · Obsidian 1.7.2+
 
 ---
 
 ## Features
 
-We wanted the experience to be as smooth as possible:
+| | |
+|---|---|
+| **⚡ Automated Server** | Starts and stops the LightRAG Python process automatically. No terminal needed. |
+| **🧠 Graph + Vector Search** | Combines entity-relationship traversal with semantic vector search for deep, contextual answers. |
+| **📂 Vault Sync** | Set a watched folder — notes are re-indexed on save. Status dots in the file explorer show each note's graph state: 🟢 processed · 🟡 processing · 🔴 failed · 🔵 removed. |
+| **📊 Knowledge Graph View** | Explore your graph visually in 2D or 3D. Overview mode renders all nodes; Explore mode does a BFS walk from any entity. |
+| **🌐 Remote Server** | Connect to a LightRAG instance on a NAS, VPS, or Docker container. |
+| **🤖 MCP Tools** | Expose your graph to any MCP-compatible client (Claude Desktop, etc.). |
+| **🔍 Source Transparency** | Every answer includes citations `[1]` linked to the exact notes and text chunks that were used. |
+| **🔒 Local & Private** | Use Ollama for a fully offline setup, or any hosted provider you prefer. |
 
-*   **⚡ Automated Server:** No need to fiddle with terminals. The plugin handles the background Python server for you (starts and stops automatically).
-*   **Hybrid Search:** You don't have to choose. It combines Vector search with Graph traversal for the best results.
-*   **Easy Ingestion:** Right-click any folder to add your notes to the graph. It supports PDFs, DOCX, and more...  <details> <summary> Complete list of supported formats </summary> md, txt, docx, pdf, pptx, xlsx, rtf, odt, epub, html, htm, xml, json, yaml, yml, csv, tex, log, conf, ini, properties, sql, bat, sh, c, cpp, py, java, js, ts, swift, go, rb, php, css, scss, less  </details>
-*   **🔍 Transparency:** The chat shows you exactly which files and text segments were used to generate the answer (with citations like `[1]`), so you can always verify the source.
-*   **🔒 Local & Private:** You can use local models (like Ollama) for a completely offline experience, or connect to Gemini/OpenAI if you prefer.
+<details>
+<summary>Complete list of supported file formats</summary>
+
+`md` `txt` `docx` `pdf` `pptx` `xlsx` `rtf` `odt` `epub` `html` `htm` `xml` `json` `yaml` `yml` `csv` `tex` `log` `conf` `ini` `properties` `sql` `bat` `sh` `c` `cpp` `py` `java` `js` `ts` `swift` `go` `rb` `php` `css` `scss` `less`
+
+</details>
+
+---
+
+## Why Graph RAG?
+
+Standard vector search finds *similar text*. Graph RAG finds *connected ideas*.
+
+| | Standard Vector Search | Neural Composer (Graph RAG) |
+|:---|:---|:---|
+| **How it works** | Finds chunks that match your query semantically | Traverses relationships between entities in your notes |
+| **Best for** | "What is X?" | "How does X influence Y across my research?" |
+| **Context quality** | Often fragmented | Holistic — sees the whole picture |
+| **Multi-hop reasoning** | ✗ | ✓ |
 
 ---
 
 ## Getting Started
 
-> Full documentation (in construction) on [wiki](https://github.com/oscampo/obsidian-neural-composer/wiki)
+> 📖 Full documentation on the [Wiki](https://github.com/oscampo/obsidian-neural-composer/wiki)
 
-This plugin requires a small backend setup (Python) to run the LightRAG engine.
+### 1. Install the LightRAG backend
 
-### 1. One-time Setup
-1.  Ensure you have **Python 3.10+** installed.
-2.  Install the engine via terminal:
-    ```bash
-    pip install "lightrag-hku[api]"
-    ```
-    *(We recommend using a virtual environment).*
+```bash
+# Recommended: use a virtual environment
+python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install "lightrag-hku[api]"
+```
+
+Then find the path to the installed executable (you'll need it in Step 3):
+
+```bash
+which lightrag-server        # macOS / Linux
+where.exe lightrag-server    # Windows
+```
 
 ### 2. Install the Plugin
-- Recommended: install via BRAT
-- Manual Installation:
-Download `main.js`, `manifest.json`, and `styles.css` from the **[Releases](../../releases)** page and place them in your `.obsidian/plugins/neural-composer` folder. Enable it in Obsidian.
 
-### 3. Connect & Go
-Go to **Settings > Neural Composer**.
-1.  Enter your API Keys (Gemini/OpenAI/Ollama).
-2.  In the **Neural Backend** section, paste the path to your `lightrag-server` executable and choose a folder for your data.
-3.  Turn on **Auto-start** and click **"Restart Server"**.
+Search for **"Neural Composer"** in **Settings → Community Plugins → Browse** and enable it.
 
-You are ready! You can now right-click a folder to ingest your notes and start chatting with your vault.
+### 3. Connect & Configure
 
----
+Open **Settings → Neural Composer**. The panel has a sidebar with seven tabs:
 
-## 🧩 Advanced Options
+1. **Providers** — add your API keys (OpenAI, Anthropic, Gemini, Groq, Ollama, etc.)
+2. **Models** — select your chat, apply, and embedding models
+3. **Graph & Vault** — set the `lightrag-server` path, choose a data directory, and optionally configure a **Watched Folder** for auto-sync
+4. Toggle **Auto-start** on, then click **Restart Server**
 
-For those who like to tinker, we added some power features:
-*   **Custom Ontology:** Teach the graph the specific categories of your field (e.g., "Experiment", "Theorem") instead of generic ones.
-*   **Reranking:** Connect to Jina AI or a local reranker for higher precision results.
+A green dot in the status bar confirms the server is running. Right-click any folder in your vault to ingest notes and start chatting.
 
 ---
 
-## 🔒 Privacy & Security
+<details>
+<summary>🛠️ Use Cases</summary>
 
-Neural Composer is designed with privacy as a core principle. Here is an exact account of every network call the plugin makes and why.
+- **Researchers** — synthesize arguments across hundreds of papers, surface consensus and contradictions that keyword search misses.
+- **Writers & Game Masters** — track relationships between characters and lore; keep your world internally consistent without digging through folders.
+- **Journalers** — connect entries from months ago to today, spotting patterns that aren't visible day-to-day.
+- **Project Managers** — visualize dependencies between project notes that otherwise look like separate tasks.
+
+</details>
+
+<details>
+<summary>🧩 Advanced Options</summary>
+
+| Feature | Where to configure |
+|:---|:---|
+| **Watched Folder** | Settings → Graph & Vault → Watched folder |
+| **Remote Server** | Settings → Graph & Vault → Use remote server |
+| **Custom Ontology** | Settings → Graph & Vault → Ontology section — teach the graph domain-specific entity types (e.g. "Experiment", "Theorem") |
+| **Reranking** | Settings → Graph & Vault → Reranking — Jina AI, Cohere, or a custom local endpoint |
+| **MCP Servers** | Settings → Tools (MCP) |
+| **Graph Visualization** | Settings → Graph & Vault → Graph rendering engine — 2D (fast) or 3D (immersive) |
+| **Performance Tuning** | Settings → Advanced — chunk size, overlap, async workers |
+| **Custom `.env` overrides** | Settings → Advanced — raw `.env` editor with full LightRAG configuration access |
+
+</details>
+
+<details>
+<summary>🔒 Privacy & Security</summary>
+
+Neural Composer is designed with privacy as a core principle.
 
 ### What leaves your machine
 
 | Destination | When | Why |
-| :--- | :--- | :--- |
-| **Your AI provider** (OpenAI, Anthropic, Gemini, Groq, etc.) | Every chat message or ingestion | To generate responses and embeddings. Only the notes you explicitly ingest or attach are sent. |
-| **Your local LightRAG server** (`localhost`) | Every query and ingestion | The plugin talks to the LightRAG Python process running on your own machine. No data leaves. |
-| **Your custom / remote LightRAG server** | Only if you configure a remote URL | If you opt in to a remote server, queries go to that URL. This is off by default. |
+|:---|:---|:---|
+| **Your AI provider** (OpenAI, Anthropic, Gemini, Groq, etc.) | Every chat message or ingestion | To generate responses and embeddings. Only notes you explicitly ingest or attach are sent. |
+| **Your local LightRAG server** (`localhost`) | Every query and ingestion | The plugin talks to a Python process on your own machine. No data leaves. |
+| **Your remote LightRAG server** | Only if you configure a remote URL | Off by default. Opt-in only. |
 
-**If you use local models (Ollama) and a local LightRAG server, no data ever leaves your machine.**
+**Using Ollama + local LightRAG = zero data leaves your machine.**
 
 ### What never happens
 
-- The plugin **does not send telemetry, analytics, or crash reports** to any server.
-- The plugin **does not contact `github.com` or any other domain at runtime.** GitHub URLs visible in the settings UI are navigation links only — they are never fetched programmatically.
-- The plugin **does not store your API keys anywhere other than Obsidian's own `data.json`** in your local vault.
+- The plugin does **not** send telemetry, analytics, or crash reports.
+- The plugin does **not** contact `github.com` or any external domain at runtime. Links in the UI are navigation-only — never fetched programmatically.
+- API keys are stored **only** in Obsidian's own `data.json` in your local vault.
 
-### System-level access (Obsidian scorecard disclosures)
+### System-level access disclosures
 
-The Obsidian automated scanner flags several capabilities. Here is the plain-English explanation for each:
+<details>
+<summary>Why the Obsidian scanner flags certain capabilities</summary>
 
-| Disclosure | Why it exists |
-| :--- | :--- |
-| **Direct filesystem access (`fs`)** | Required to write the LightRAG `.env` configuration file to your chosen work directory, which may be outside the vault. |
-| **Shell execution (`child_process`)** | Required to start and stop the local LightRAG Python server. The command is the exact path you configure in settings — no user input is ever interpolated into shell arguments. |
-| **Vault enumeration** | Required to list your notes for ingestion and for the RAG search index. Only metadata (file paths) is read; content is read only when you explicitly ingest a file. |
-| **Clipboard access** | Inherited from the Lexical rich-text editor used in the chat input. Allows standard paste operations. |
-| **Base64 calls (`atob`/`btoa`)** | Used by bundled dependencies: `@modelcontextprotocol/sdk` decodes JWT tokens for MCP OAuth, and `sigma`/`three-forcegraph` encode WebGL shader data. No API keys or sensitive data are encoded this way. |
-| **Dynamic code execution (`new Function`)** | Used by two bundled libraries: `ngraph.forcelayout` generates optimized N-dimensional physics code for the 3D graph, and `ajv` (via the MCP SDK) compiles JSON schema validators. Neither is used to execute user-provided code. |
+| Capability | Reason |
+|:---|:---|
+| **`fs` (filesystem)** | Writes the LightRAG `.env` config file to your chosen work directory, which may be outside the vault. |
+| **`child_process` (shell)** | Starts and stops the local LightRAG Python server. The command is always the exact path you configure — no user input is interpolated into shell arguments. |
+| **Vault enumeration** | Lists file paths for ingestion and the search index. File content is only read when you explicitly ingest a file. |
+| **Clipboard** | Inherited from the Lexical rich-text editor in the chat input. Standard paste operations only. |
+| **`atob`/`btoa` (Base64)** | Used by bundled deps: `@modelcontextprotocol/sdk` decodes JWT tokens for MCP OAuth; `sigma`/`three-forcegraph` encode WebGL shader data. No sensitive data is encoded this way. |
+| **`new Function`** | Used by two bundled libraries: `ngraph.forcelayout` (3D physics) and `ajv` (JSON schema validation via MCP SDK). Neither executes user-provided code. |
+
+</details>
+</details>
+
+<details>
+<summary>📋 Changelog</summary>
+
+### v1.3.1 — 2026-05-25
+- Fix: removed all `!important` CSS declarations — replaced with higher-specificity selectors to comply with the Obsidian plugin linter.
+
+### v1.3.0 — 2026-05-24
+- **Settings UI redesign** — new sidebar navigation with 7 tabs: Providers, Models, Chat, Graph & Vault, Tools (MCP), Advanced, Help.
+- **Document status tracking** — colored dots in the file explorer for each note (🟢 processed, 🟡 processing, 🔴 failed, 🔵 removed). Watched folder shows an aggregate status dot.
+- **LightRAG version detection** — the server version is displayed as a badge in Settings → Graph & Vault.
+- **Watched folder sync** — notes are automatically re-indexed on save with a 5-second debounce.
+- **"Remove from graph" action** — right-click context menu lets you remove individual notes from the graph without deleting the file.
+- **Tooltip improvements** — status bar tooltip correctly distinguishes local vs. remote server offline state.
+
+### v1.2.3 — 2026-05-22
+- Fix: correct LightRAG provider config for OpenRouter and Ollama (LLM\_BINDING\_HOST was missing, causing 401 errors).
+- Fix: expose active embedding model selector in settings UI.
+- Add: "Reprocess failed documents" button in Graph & Vault settings.
+- Fix: stop server now correctly kills orphaned processes on macOS/Linux via port lookup.
+
+### v1.2.1 — 2026-05-20
+- **Knowledge Graph Visualization** — 2D and 3D interactive graph view inside Obsidian.
+- Overview mode (all nodes) and Explore mode (BFS from a selected entity).
+- Real relevance scores for cited references (citation-frequency formula).
+- Improved "Context used" panel — shows scores, snippets, and click-to-open for `.md` files.
+- Fix: single-click on isolated nodes now auto-explores and shows full entity details.
+
+### v1.2.0 — 2026-05-17
+- Initial public release on the Obsidian Community Plugin marketplace.
+- Local LightRAG server management (auto-start, restart, stop).
+- Right-click folder ingestion with multi-format support.
+- Chat with graph RAG, hybrid query modes, Jina/Cohere reranking.
+- Custom ontology (entity types) and `.env` editor.
+
+</details>
 
 ---
 
-
-
-This project is a labor of love, built upon the shoulders of giants:
-*   Forked from the excellent **[Smart Composer](https://github.com/glowingjade/obsidian-smart-composer)** by glowingjade.
-*   Powered by the **[LightRAG](https://github.com/HKUDS/LightRAG)** library.
-*   Developed by **Oscar Campo** & **Cora** (AI).
-
-We hope this helps you connect the dots in your own second brain. Happy composing!
+Built on the shoulders of giants:
+- Forked from **[Smart Composer](https://github.com/glowingjade/obsidian-smart-composer)** by glowingjade
+- Powered by **[LightRAG](https://github.com/HKUDS/LightRAG)**
+- Developed by **Oscar Campo** & **Cora** (AI)
