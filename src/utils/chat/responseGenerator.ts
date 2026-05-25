@@ -217,6 +217,7 @@ export class ResponseGenerator {
           id: toolCall.id ?? uuidv4(),
           name: toolCall.function.name,
           arguments: toolCall.function.arguments,
+          thought_signature: toolCall.thought_signature,
         }
       })
       .filter((toolCall) => toolCall !== null)
@@ -335,6 +336,7 @@ export class ResponseGenerator {
         index,
         id: merged[index].id ?? toolCall.id,
         type: merged[index].type ?? toolCall.type,
+        thought_signature: merged[index].thought_signature ?? toolCall.thought_signature,
       }
 
       if (merged[index].function || toolCall.function) {

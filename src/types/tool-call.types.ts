@@ -2,6 +2,7 @@ export type ToolCallRequest = {
   id: string
   name: string
   arguments?: string
+  thought_signature?: string // Gemini thinking models (2.5+) require this on multi-turn tool calls
 }
 
 export type ToolCallResponse =
