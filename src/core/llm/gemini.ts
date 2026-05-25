@@ -85,15 +85,27 @@ export class GeminiProvider extends BaseLLMProvider<
         : undefined
 
     try {
+      // Gemini 2.5+ thinking models require a `thought_signature` field on every
+      // FunctionCallPart when tools are in use. The current SDK (@google/generative-ai
+      // v0.24.x) does not propagate thought_signature, so tool calls always fail with
+      // a 400 error on these models. Setting thinkingBudget=0 disables thinking mode
+      // for this request, which removes the thought_signature requirement and lets tool
+      // calls succeed. TODO: migrate to @google/genai SDK (v2+) which has full
+      // thought_signature support, so thinking can remain enabled alongside tools.
+      const hasTools = (request.tools?.length ?? 0) > 0
+      const generationConfig = {
+        maxOutputTokens: request.max_tokens,
+        temperature: request.temperature,
+        topP: request.top_p,
+        presencePenalty: request.presence_penalty,
+        frequencyPenalty: request.frequency_penalty,
+        ...(hasTools ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+      } as Record<string, unknown>
+
       const model = this.client.getGenerativeModel({
         model: request.model,
-        generationConfig: {
-          maxOutputTokens: request.max_tokens,
-          temperature: request.temperature,
-          topP: request.top_p,
-          presencePenalty: request.presence_penalty,
-          frequencyPenalty: request.frequency_penalty,
-        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        generationConfig: generationConfig as any,
         systemInstruction: systemInstruction,
       })
 
@@ -156,15 +168,21 @@ export class GeminiProvider extends BaseLLMProvider<
         : undefined
 
     try {
+      // Same thinkingBudget=0 workaround as in generateResponse — see comment there.
+      const hasTools = (request.tools?.length ?? 0) > 0
+      const generationConfig = {
+        maxOutputTokens: request.max_tokens,
+        temperature: request.temperature,
+        topP: request.top_p,
+        presencePenalty: request.presence_penalty,
+        frequencyPenalty: request.frequency_penalty,
+        ...(hasTools ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+      } as Record<string, unknown>
+
       const model = this.client.getGenerativeModel({
         model: request.model,
-        generationConfig: {
-          maxOutputTokens: request.max_tokens,
-          temperature: request.temperature,
-          topP: request.top_p,
-          presencePenalty: request.presence_penalty,
-          frequencyPenalty: request.frequency_penalty,
-        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        generationConfig: generationConfig as any,
         systemInstruction: systemInstruction,
       })
 
