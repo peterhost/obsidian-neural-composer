@@ -6,11 +6,11 @@ This page walks you through the full setup from scratch.
 
 ## Prerequisites
 
-| Requirement           | Minimum version | Notes                                              |
-| :-------------------- | :-------------- | :------------------------------------------------- |
-| **Python**            | 3.10            | 3.11 or 3.12 recommended                          |
-| **Obsidian**          | 1.7.2           | Desktop only (mobile is not supported)            |
-| **pip**               | any recent      | Comes with Python; update with `pip install -U pip` |
+| Requirement  | Minimum version | Notes                                               |
+| :----------- | :-------------- | :-------------------------------------------------- |
+| **Python**   | 3.10            | 3.11 or 3.12 recommended                           |
+| **Obsidian** | 1.7.2           | Desktop only (mobile is not supported)             |
+| **pip**      | any recent      | Comes with Python; update with `pip install -U pip` |
 
 ---
 

@@ -1,4 +1,5 @@
 # Neural Composer
+
 **Deep, graph-based search for your Obsidian Vault.**
 
 ![Hero Banner](https://raw.githubusercontent.com/oscampo/obsidian-neural-composer/main/images/hero-banner.GIF)
@@ -19,11 +20,11 @@ That's why we integrated **LightRAG** (Graph-based Retrieval) into Obsidian. Unl
 
 Standard AI search (Vector RAG) is great for finding _similar text_. But **Graph RAG** is better for finding _connected ideas_.
 
-| Feature            | Standard Vector Search                  | Neural Composer (Graph)                      |
-| :----------------- | :-------------------------------------- | :------------------------------------------- |
-| **How it searches** | Finds matching keywords/concepts        | Follows relationships between entities       |
+| Feature             | Standard Vector Search                  | Neural Composer (Graph)                       |
+| :------------------ | :-------------------------------------- | :-------------------------------------------- |
+| **How it searches** | Finds matching keywords/concepts        | Follows relationships between entities        |
 | **Best for**        | Simple questions ("What is X?")         | Complex questions ("How does X influence Y?") |
-| **Context**         | Often fragmented                        | Holistic and interconnected                  |
+| **Context**         | Often fragmented                        | Holistic and interconnected                   |
 
 ---
 
@@ -77,7 +78,7 @@ This plugin requires a small backend setup (Python) to run the LightRAG engine.
 
 ### 3. Connect & Go
 
-Go to **Settings → Neural Composer**. The settings panel has a sidebar with seven tabs.
+Go to **Settings → Neural Composer**. The settings panel has a sidebar with seven tabs: **Providers**, **Models**, **Chat**, **Graph & Vault**, **Tools (MCP)**, **Advanced**, and **Help**.
 
 1. **Providers** tab: enter your API keys for whichever AI providers you use (OpenAI, Anthropic, Gemini, Ollama, etc.).
 2. **Models** tab: choose your chat model, apply model, and embedding model.
@@ -110,11 +111,11 @@ Neural Composer is designed with privacy as a core principle. Here is an exact a
 
 ### What leaves your machine
 
-| Destination                                                  | When                                    | Why                                                                                                                         |
-| :----------------------------------------------------------- | :-------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
-| **Your AI provider** (OpenAI, Anthropic, Gemini, Groq, etc.) | Every chat message or ingestion         | To generate responses and embeddings. Only the notes you explicitly ingest or attach are sent.                              |
-| **Your local LightRAG server** (`localhost`)                 | Every query and ingestion               | The plugin talks to the LightRAG Python process running on your own machine. No data leaves.                               |
-| **Your custom / remote LightRAG server**                     | Only if you configure a remote URL      | If you opt in to a remote server, queries go to that URL. This is off by default.                                          |
+| Destination                                                  | When                               | Why                                                                                                                        |
+| :----------------------------------------------------------- | :--------------------------------- | :------------------------------------------------------------------------------------------------------------------------- |
+| **Your AI provider** (OpenAI, Anthropic, Gemini, Groq, etc.) | Every chat message or ingestion    | To generate responses and embeddings. Only the notes you explicitly ingest or attach are sent.                             |
+| **Your local LightRAG server** (`localhost`)                 | Every query and ingestion          | The plugin talks to the LightRAG Python process running on your own machine. No data leaves.                              |
+| **Your custom / remote LightRAG server**                     | Only if you configure a remote URL | If you opt in to a remote server, queries go to that URL. This is off by default.                                         |
 
 **If you use local models (Ollama) and a local LightRAG server, no data ever leaves your machine.**
 
@@ -128,13 +129,13 @@ Neural Composer is designed with privacy as a core principle. Here is an exact a
 
 The Obsidian automated scanner flags several capabilities. Here is the plain-English explanation for each:
 
-| Disclosure                              | Why it exists                                                                                                                                                                                   |
-| :-------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Direct filesystem access (`fs`)**     | Required to write the LightRAG `.env` configuration file to your chosen work directory, which may be outside the vault.                                                                         |
-| **Shell execution (`child_process`)**   | Required to start and stop the local LightRAG Python server. The command is the exact path you configure in settings — no user input is ever interpolated into shell arguments.                 |
-| **Vault enumeration**                   | Required to list your notes for ingestion and for the RAG search index. Only metadata (file paths) is read; content is read only when you explicitly ingest a file.                            |
-| **Clipboard access**                    | Inherited from the Lexical rich-text editor used in the chat input. Allows standard paste operations.                                                                                          |
-| **Base64 calls (`atob`/`btoa`)**        | Used by bundled dependencies: `@modelcontextprotocol/sdk` decodes JWT tokens for MCP OAuth, and `sigma`/`three-forcegraph` encode WebGL shader data. No API keys or sensitive data are encoded this way. |
+| Disclosure                                  | Why it exists                                                                                                                                                                                         |
+| :------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Direct filesystem access (`fs`)**         | Required to write the LightRAG `.env` configuration file to your chosen work directory, which may be outside the vault.                                                                               |
+| **Shell execution (`child_process`)**       | Required to start and stop the local LightRAG Python server. The command is the exact path you configure in settings — no user input is ever interpolated into shell arguments.                       |
+| **Vault enumeration**                       | Required to list your notes for ingestion and for the RAG search index. Only metadata (file paths) is read; content is read only when you explicitly ingest a file.                                   |
+| **Clipboard access**                        | Inherited from the Lexical rich-text editor used in the chat input. Allows standard paste operations.                                                                                                |
+| **Base64 calls (`atob`/`btoa`)**            | Used by bundled dependencies: `@modelcontextprotocol/sdk` decodes JWT tokens for MCP OAuth, and `sigma`/`three-forcegraph` encode WebGL shader data. No API keys or sensitive data are encoded this way. |
 | **Dynamic code execution (`new Function`)** | Used by two bundled libraries: `ngraph.forcelayout` generates optimized N-dimensional physics code for the 3D graph, and `ajv` (via the MCP SDK) compiles JSON schema validators. Neither is used to execute user-provided code. |
 
 ---

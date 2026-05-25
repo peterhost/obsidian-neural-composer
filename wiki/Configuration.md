@@ -10,19 +10,19 @@ This is where you tell the plugin which AI providers you have access to and ente
 
 **Supported providers:**
 
-| Provider        | Type   | Notes                                              |
-| :-------------- | :----- | :------------------------------------------------- |
-| OpenAI          | Cloud  | GPT-4o, GPT-4.1, o3, etc.                        |
-| Anthropic       | Cloud  | Claude 3.x / 4.x models                          |
-| Gemini          | Cloud  | Google's Gemini family                            |
-| Groq            | Cloud  | Fast inference, Llama/Mixtral models              |
-| Deepseek        | Cloud  | Deepseek-chat and Deepseek-reasoner               |
-| Mistral         | Cloud  | Mistral and Mixtral models                        |
-| Perplexity      | Cloud  | Search-augmented models                           |
-| OpenRouter      | Cloud  | Unified gateway to many providers                 |
-| Ollama          | Local  | Fully offline; no API key required                |
-| LM Studio       | Local  | Local model runner with an OpenAI-compatible API  |
-| Morph           | Cloud  | Code-focused model for the Apply step             |
+| Provider    | Type  | Notes                                             |
+| :---------- | :---- | :------------------------------------------------ |
+| OpenAI      | Cloud | GPT-4o, GPT-4.1, o3, etc.                       |
+| Anthropic   | Cloud | Claude 3.x / 4.x models                         |
+| Gemini      | Cloud | Google's Gemini family                           |
+| Groq        | Cloud | Fast inference, Llama/Mixtral models             |
+| Deepseek    | Cloud | Deepseek-chat and Deepseek-reasoner              |
+| Mistral     | Cloud | Mistral and Mixtral models                       |
+| Perplexity  | Cloud | Search-augmented models                          |
+| OpenRouter  | Cloud | Unified gateway to many providers                |
+| Ollama      | Local | Fully offline; no API key required               |
+| LM Studio   | Local | Local model runner with an OpenAI-compatible API |
+| Morph       | Cloud | Code-focused model for the Apply step            |
 
 For each cloud provider, paste the API key into the corresponding field. Keys are stored only in Obsidian's local `data.json` and never sent anywhere except the provider's own API.
 
@@ -34,11 +34,11 @@ For Ollama and LM Studio, enter the base URL of their local API server (defaults
 
 Three model slots to configure:
 
-| Slot                | Purpose                                                                                   |
-| :------------------ | :---------------------------------------------------------------------------------------- |
-| **Chat model**      | Answers your questions in the chat pane. Pick whatever gives you the best quality/cost.   |
-| **Apply model**     | Used when applying a suggested edit back into your note. A fast, cheap model works well.  |
-| **Embedding model** | Converts text to vectors for similarity search. Must match what LightRAG expects.         |
+| Slot                | Purpose                                                                                 |
+| :------------------ | :-------------------------------------------------------------------------------------- |
+| **Chat model**      | Answers your questions in the chat pane. Pick whatever gives you the best quality/cost. |
+| **Apply model**     | Used when applying a suggested edit back into your note. A fast, cheap model works well. |
+| **Embedding model** | Converts text to vectors for similarity search. Must match what LightRAG expects.       |
 
 After changing the embedding model, you should re-ingest your notes so the stored embeddings stay consistent.
 
@@ -100,11 +100,11 @@ Add arbitrary `KEY=VALUE` pairs that are injected into the LightRAG server's env
 
 ### Performance tuning
 
-| Setting          | What it does                                                                                       |
-| :--------------- | :------------------------------------------------------------------------------------------------- |
-| **Chunk size**   | How many characters each text chunk contains before being embedded. Larger = more context per chunk, but more tokens per embedding call. |
-| **Chunk overlap** | How many characters overlap between consecutive chunks. Helps avoid splitting concepts across chunk boundaries. |
-| **Async workers** | Number of parallel workers LightRAG uses during ingestion. Higher = faster ingestion, higher API concurrency. |
+| Setting           | What it does                                                                                                                                   |
+| :---------------- | :--------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Chunk size**    | How many characters each text chunk contains before being embedded. Larger = more context per chunk, but more tokens per embedding call.       |
+| **Chunk overlap** | How many characters overlap between consecutive chunks. Helps avoid splitting concepts across chunk boundaries.                                |
+| **Async workers** | Number of parallel workers LightRAG uses during ingestion. Higher = faster ingestion, higher API concurrency.                                  |
 
 ---
 
@@ -124,7 +124,7 @@ Each MCP server entry has:
 
 ### Claude Desktop example
 
-To expose your graph to Claude Desktop, add an entry with transport `stdio` and point the command at the Neural Composer MCP bridge. Then add the corresponding entry in Claude Desktop's `claude_desktop_config.json`. The wiki [Features](Features) page has more detail.
+To expose your graph to Claude Desktop, add an entry with transport `stdio` and point the command at the Neural Composer MCP bridge. Then add the corresponding entry in Claude Desktop's `claude_desktop_config.json`. The [Features](Features) page has more detail.
 
 ---
 
