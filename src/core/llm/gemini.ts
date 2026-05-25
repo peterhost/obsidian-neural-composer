@@ -268,20 +268,22 @@ export class GeminiProvider extends BaseLLMProvider<
           ...(message.tool_calls?.map((toolCall): FunctionCallPart => {
             try {
               const args = JSON.parse(toolCall.arguments ?? '{}')
-              return {
-                functionCall: {
-                  name: toolCall.name,
-                  args,
-                },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const part: any = { functionCall: { name: toolCall.name, args } }
+              if (toolCall.thought_signature) {
+                part.thoughtSignature = toolCall.thought_signature
               }
+              return part as FunctionCallPart
             } catch {
               // If the arguments are not valid JSON, return an empty object
-              return {
-                functionCall: {
-                  name: toolCall.name,
-                  args: {},
-                },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const part: any = {
+                functionCall: { name: toolCall.name, args: {} },
               }
+              if (toolCall.thought_signature) {
+                part.thoughtSignature = toolCall.thought_signature
+              }
+              return part as FunctionCallPart
             }
           }) ?? []),
         ]
@@ -325,14 +327,24 @@ export class GeminiProvider extends BaseLLMProvider<
           message: {
             content: response.response.text(),
             role: 'assistant',
-            tool_calls: response.response.functionCalls()?.map((f) => ({
-              id: uuidv4(),
-              type: 'function',
-              function: {
-                name: f.name,
-                arguments: JSON.stringify(f.args),
-              },
-            })),
+            tool_calls: (() => {
+              // Use raw candidates parts so we can capture thoughtSignature.
+              // response.response.functionCalls() discards that field.
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const parts = (response.response.candidates?.[0]?.content
+                ?.parts ?? []) as any[]
+              const fnParts = parts.filter((p) => p.functionCall)
+              if (fnParts.length === 0) return undefined
+              return fnParts.map((part) => ({
+                id: uuidv4(),
+                type: 'function' as const,
+                function: {
+                  name: part.functionCall.name,
+                  arguments: JSON.stringify(part.functionCall.args),
+                },
+                thought_signature: part.thoughtSignature ?? undefined,
+              }))
+            })(),
           },
         },
       ],
@@ -362,15 +374,25 @@ export class GeminiProvider extends BaseLLMProvider<
           finish_reason: chunk.candidates?.[0]?.finishReason ?? null,
           delta: {
             content: chunk.text(),
-            tool_calls: chunk.functionCalls()?.map((f, index) => ({
-              index,
-              id: uuidv4(),
-              type: 'function',
-              function: {
-                name: f.name,
-                arguments: JSON.stringify(f.args),
-              },
-            })),
+            tool_calls: (() => {
+              // Use raw candidates parts so we can capture thoughtSignature.
+              // chunk.functionCalls() discards that field.
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const parts = (chunk.candidates?.[0]?.content?.parts ??
+                []) as any[]
+              const fnParts = parts.filter((p) => p.functionCall)
+              if (fnParts.length === 0) return undefined
+              return fnParts.map((part, index) => ({
+                index,
+                id: uuidv4(),
+                type: 'function' as const,
+                function: {
+                  name: part.functionCall.name,
+                  arguments: JSON.stringify(part.functionCall.args),
+                },
+                thought_signature: part.thoughtSignature ?? undefined,
+              }))
+            })(),
           },
         },
       ],

@@ -74,6 +74,7 @@ export type ToolCall = {
     arguments?: string
     name: string
   }
+  thought_signature?: string // Gemini thinking models (2.5+)
 }
 
 export type ToolCallDelta = {
@@ -84,4 +85,5 @@ export type ToolCallDelta = {
     arguments?: string
     name?: string
   }
+  thought_signature?: string // Gemini thinking models (2.5+)
 }
