@@ -59,22 +59,59 @@ Each provider needs two things: a configuration entry in **Settings → Provider
 
 **Get an API key:** [aistudio.google.com](https://aistudio.google.com)
 
-> ⚠️ **Important:** Gemini 1.5 models (`gemini-1.5-pro`, `gemini-1.5-flash`) are **completely shut down** and return 404. `text-embedding-004` was shut down on **January 14, 2026**. If you were using these, migrate immediately.
+> ⚠️ **Shut-down alerts:**
+> - Gemini 1.5 models (`gemini-1.5-pro`, `gemini-1.5-flash`) are **completely shut down** and return 404.
+> - `text-embedding-004` was shut down **January 14, 2026**.
+> - `gemini-embedding-001` shuts down **July 14, 2026** (~7 weeks from the date of this writing).
+> - `gemini-2.0-flash` was retired March 3, 2026.
 
-### Recommended models
+### Recommended models — chat
 
 | Use | Model ID | Notes |
 | :--- | :--- | :--- |
 | Chat (quality) | `gemini-2.5-pro` | State-of-the-art; best for complex reasoning |
 | Chat (fast/cheap) | `gemini-2.5-flash` | Best balance of speed and quality |
 | Graph logic | `gemini-2.5-flash-lite` | Most cost-efficient option; high throughput |
-| Embedding | `gemini-embedding-2` | GA since April 23, 2026; replaces `text-embedding-004`; 3,072 dimensions |
+
+### Embedding models — read this before choosing
+
+The embedding situation for Gemini users requires a deliberate choice. **Do not switch embedding models mid-project without planning a full re-ingestion.**
+
+| Model | Dimensions | Status | Notes |
+| :--- | :--- | :--- | :--- |
+| `gemini-embedding-001` | 3072 (default) | ⚠️ Active until **Jul 14, 2026** | GA since July 2025; supports `task_type` parameter |
+| `gemini-embedding-2` | 3072 (default) | ✅ GA since Apr 23, 2026 | Multimodal; does NOT support `task_type` |
+
+**If you are starting a new vault from scratch:** use `gemini-embedding-2`.
+
+**If you already have an indexed vault using `gemini-embedding-001`:** you must migrate before July 14, 2026, but do not rush — a full re-ingestion of all your notes is required. See the migration notes below.
+
+#### Why switching requires a full rebuild
+
+Even though both models output 3072-dimensional vectors, they live in **completely different vector spaces**. Cosine similarity scores computed between a vector from `gemini-embedding-001` and one from `gemini-embedding-2` are mathematically meaningless. You cannot partially migrate — every document in the graph must be re-embedded with the new model before the index is useful.
+
+This is the same reason the `text-embedding-004` → `gemini-embedding-001` migration required a full rebuild (in that case there was also a dimension change: 768 → 3072 dims).
+
+There is an additional API-level difference: `gemini-embedding-001` accepts a `task_type` parameter (e.g., `RETRIEVAL_DOCUMENT`, `RETRIEVAL_QUERY`). `gemini-embedding-2` does **not** support `task_type` — LightRAG handles this internally, but be aware if you use the API directly.
+
+#### Migration strategy (gemini-embedding-001 → gemini-embedding-2)
+
+Google's recommended approach for production systems is a **shadow index**:
+
+1. Keep your existing vault running normally on `gemini-embedding-001` (works until July 14, 2026).
+2. Create a new, empty LightRAG data directory.
+3. Configure Neural Composer to point at the new directory with `gemini-embedding-2` as the embedding model.
+4. Re-ingest all your notes into the new directory (run overnight for large vaults).
+5. Validate the new index with a set of representative queries before switching.
+6. Once satisfied, update the **Data Directory** path in settings to the new directory and click **Restart Server**.
+7. Delete the old data directory.
+
+> **Tip:** Use the **Batch Embedding API** option in LightRAG's `.env` if available — Google prices batch embeddings at 50% of the standard per-call rate, significantly reducing the cost of a full re-ingestion.
 
 ### Notes
 
-- **`gemini-2.0-flash`** was retired March 3, 2026. Do not use.
-- The free tier (no credit card required) allows: `gemini-2.5-flash` at 10 RPM / 250 RPD / 250k TPM; `gemini-2.5-pro` at 5 RPM / 100 RPD. Quotas were reduced ~50–80% in December 2025 — switch to a paid key for ingestion workloads.
-- `gemini-2.5-flash-lite` is the best choice for the **graph logic model** — it's called for every chunk during ingestion, so cost compounds quickly on large vaults.
+- The free tier (no credit card required): `gemini-2.5-flash` at 10 RPM / 250 RPD / 250k TPM; `gemini-2.5-pro` at 5 RPM / 100 RPD. Quotas were reduced ~50–80% in December 2025 — use a paid key for ingestion workloads.
+- `gemini-2.5-flash-lite` is the best choice for the **graph logic model** — it's called for every chunk during ingestion, so cost adds up quickly on large vaults.
 
 ---
 
