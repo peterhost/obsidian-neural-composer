@@ -3010,3 +3010,89 @@ button.nrlcmp-chat-input-model-select {
     color 0.15s ease,
     stroke 0.15s ease;
 }
+
+/* ── Graph view: mobile layout ─────────────────────────────────────────────
+   On narrow viewports the 320px sidebar dominates the screen. Make it an
+   overlay that the user can dismiss to reclaim the full graph area, and
+   move the toolbar down a bit so it doesn't collide with the view header.
+*/
+.nrlcmp-toolbar-btn-mobile {
+  display: none;
+}
+
+.nrlcmp-graph-view.nrlcmp-mobile-layout .nrlcmp-toolbar-btn-mobile {
+  display: inline-flex;
+}
+
+.nrlcmp-graph-view.nrlcmp-mobile-layout .nrlcmp-toolbar {
+  /* Wrap toolbar buttons so the search input doesn't push them off-screen. */
+  flex-wrap: wrap;
+  max-width: calc(100% - 30px);
+}
+
+.nrlcmp-graph-view.nrlcmp-mobile-layout .nrlcmp-sidebar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(85vw, 320px);
+  min-width: 0;
+  max-width: 85vw;
+  z-index: 30;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.35);
+  transition: transform 0.22s ease;
+  transform: translateX(0);
+}
+
+.nrlcmp-graph-view.nrlcmp-mobile-layout.nrlcmp-sidebar-hidden .nrlcmp-sidebar {
+  transform: translateX(100%);
+}
+
+/* When the sidebar is overlaying the graph, give the graph zone the full
+   width so sigma sizes the canvas correctly. */
+.nrlcmp-graph-view.nrlcmp-mobile-layout .nrlcmp-graph-zone {
+  flex-basis: 100%;
+}
+
+/* Compact the toolbar input on mobile so the rest of the buttons fit. */
+.nrlcmp-graph-view.nrlcmp-mobile-layout .nrlcmp-toolbar-input {
+  width: 130px;
+}
+.nrlcmp-graph-view.nrlcmp-mobile-layout .nrlcmp-toolbar-input:focus {
+  width: 170px;
+}
+
+/* The 320px floating details panel covers most of a phone screen. Make it
+   nearly full-width with safe margins instead. */
+.nrlcmp-graph-view.nrlcmp-mobile-layout .nrlcmp-details-panel {
+  width: calc(100vw - 24px);
+  max-width: 360px;
+  right: 12px;
+  top: 80px;
+  max-height: 60%;
+}
+
+/* Sidebar header: place the mobile close button immediately after the title. */
+.nrlcmp-sidebar-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.nrlcmp-sidebar-title-row h4 {
+  margin: 0;
+}
+.nrlcmp-sidebar-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.nrlcmp-sidebar-close:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
