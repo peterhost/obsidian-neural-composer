@@ -236,7 +236,7 @@ export class NativeGraphView extends ItemView {
 
     // On mobile the 320px sidebar dominates a narrow viewport — start with it
     // collapsed off-screen; users toggle it via the mobile-only toolbar button.
-    if (Platform.isMobile) {
+    if (!Platform.isDesktop) {
       container.addClass('nrlcmp-mobile-layout')
       container.addClass('nrlcmp-sidebar-hidden')
     }

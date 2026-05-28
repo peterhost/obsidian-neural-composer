@@ -144,32 +144,40 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
         .setDesc(
           'Base URL of the remote LightRAG server (e.g., http://192.168.1.100:9621).',
         )
-        .addText((text) =>
+        .addText((text) => {
+          let debounceTimer: ReturnType<typeof setTimeout>
           text
             .setPlaceholder(`${YOUR_SERVER}`)
             .setValue(plugin.settings.lightRagServerUrl)
             .onChange((value) => {
-              void plugin.setSettings({
-                ...plugin.settings,
-                lightRagServerUrl: value,
-              })
-            }),
-        )
+              clearTimeout(debounceTimer)
+              debounceTimer = setTimeout(() => {
+                void plugin.setSettings({
+                  ...plugin.settings,
+                  lightRagServerUrl: value,
+                })
+              }, 500)
+            })
+        })
 
       new Setting(container)
         .setName('API key')
         .setDesc('Optional authentication key for the remote server.')
-        .addText((text) =>
+        .addText((text) => {
+          let debounceTimer: ReturnType<typeof setTimeout>
           text
             .setPlaceholder('Leave empty if not required')
             .setValue(plugin.settings.lightRagApiKey)
             .onChange((value) => {
-              void plugin.setSettings({
-                ...plugin.settings,
-                lightRagApiKey: value,
-              })
-            }),
-        )
+              clearTimeout(debounceTimer)
+              debounceTimer = setTimeout(() => {
+                void plugin.setSettings({
+                  ...plugin.settings,
+                  lightRagApiKey: value,
+                })
+              }, 500)
+            })
+        })
     } else {
       // --- LOCAL MODE ---
       new Setting(container)
