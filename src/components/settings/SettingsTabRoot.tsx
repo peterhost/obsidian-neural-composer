@@ -215,6 +215,8 @@ function CommandBar({ onModelsClick }: { onModelsClick: () => void }) {
         flexShrink: 0,
         background: 'var(--background-secondary)',
         borderBottom: '1px solid var(--background-modifier-border)',
+        overflowX: 'auto',
+        overflowY: 'hidden',
       }}
     >
       {/* small fixed spacer — keeps pills away from rail edge */}
