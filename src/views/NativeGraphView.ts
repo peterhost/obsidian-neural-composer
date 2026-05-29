@@ -684,7 +684,7 @@ export class NativeGraphView extends ItemView {
 
     // Mobile screens are dense — shrink nodes so the graph isn't drowned in
     // overlapping circles. Desktop keeps its existing sizing.
-    const isMobile = Platform.isMobile
+    const isMobile = !Platform.isDesktop
     const sizeScale = isMobile ? 0.175 : 1
     const sizeMin = isMobile ? 0.75 : 3
     const sizeMax = isMobile ? 3 : 20
@@ -900,7 +900,7 @@ export class NativeGraphView extends ItemView {
       .backgroundColor('#000005')
       .nodeAutoColorBy('type')
       .nodeVal('val')
-      .nodeRelSize(Platform.isMobile ? 0.75 : 4)
+      .nodeRelSize(!Platform.isDesktop ? 0.75 : 4)
       .nodeLabel('id')
       .nodeOpacity(0.9)
       .linkWidth(0.6)
