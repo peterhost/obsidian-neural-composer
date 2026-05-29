@@ -1445,13 +1445,6 @@ export default class NeuralComposerPlugin extends Plugin {
 
   async loadSettings() {
     this.settings = parseNeuralComposerSettings(await this.loadData())
-    // Mobile cannot spawn a local LightRAG server (no child_process / fs).
-    // Force remote-server mode on so the rest of the plugin treats the backend
-    // as remote-only and never tries to auto-start or shell out.
-    if (!Platform.isDesktop) {
-      this.settings.lightRagUseRemote = true
-      this.settings.enableAutoStartServer = false
-    }
     await this.saveData(this.settings)
   }
 

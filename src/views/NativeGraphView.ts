@@ -219,27 +219,25 @@ export class NativeGraphView extends ItemView {
     const container = this.contentEl
     container.empty()
 
-    // Graph data is served over HTTP by LightRAG, so the view works on mobile
-    // when remote-server mode is configured. The only desktop-only piece is
-    // loadReferenceMaps (reads local kv_store_*.json files from the work dir
-    // for citation-source filenames). On mobile we skip that — the graph still
-    // renders, just without filename resolution in the side panel.
-    if (Platform.isDesktop) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      this._nodeFs = require('fs') as typeof import('fs')
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      this._nodePath = require('path') as typeof import('path')
-      this.workDir = this.plugin.settings.lightRagWorkDir
+    if (!Platform.isDesktop) {
+      container.addClass('nrlcmp-graph-view')
+      const notice = container.createDiv({ cls: 'nrlcmp-mobile-notice' })
+      notice.createEl('p', {
+        text: 'The graph view requires a local LightRAG server and is only available on desktop. On mobile, use remote server mode to access chat features.',
+      })
+      return
     }
+
+    // Load Node.js modules — desktop only, used by loadReferenceMaps for source file resolution.
+    // Use require() (not import()) because the bundle is CJS and dynamic ESM
+    // import() is not resolved correctly in Obsidian's plugin loader.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    this._nodeFs = require('fs') as typeof import('fs')
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    this._nodePath = require('path') as typeof import('path')
+    this.workDir = this.plugin.settings.lightRagWorkDir
 
     container.addClass('nrlcmp-graph-view')
-
-    // On mobile the 320px sidebar dominates a narrow viewport — start with it
-    // collapsed off-screen; users toggle it via the mobile-only toolbar button.
-    if (Platform.isMobile) {
-      container.addClass('nrlcmp-mobile-layout')
-      container.addClass('nrlcmp-sidebar-hidden')
-    }
 
     const is3D = this.plugin.settings.graphViewMode === '3d'
     container.addClass(is3D ? 'nrlcmp-mode-3d' : 'nrlcmp-mode-2d')
@@ -395,13 +393,7 @@ export class NativeGraphView extends ItemView {
         desc: String(n.properties.description ?? ''),
         source_id: String(n.properties.source_id ?? ''),
         val: (nodeDegrees.get(n.id) || 0) + 1,
-        // LightRAG ≥1.4 sends a `<SEP>`-joined file_path property directly on
-        // the node. Prefer that (works on mobile without local kv_store files);
-        // fall back to chunk-id resolution via the local maps when desktop has
-        // them loaded.
-        file_paths:
-          this.extractFilePathsFromProperty(n.properties.file_path) ??
-          this.getFilenames(String(n.properties.source_id ?? '')),
+        file_paths: this.getFilenames(String(n.properties.source_id ?? '')),
       }))
 
       const edges: GraphMLRawEdge[] = data.edges.map((e) => ({
@@ -416,24 +408,6 @@ export class NativeGraphView extends ItemView {
       console.error('Failed to fetch graph data:', e)
       return null
     }
-  }
-
-  // Parse a `<SEP>`-joined `file_path` property from a LightRAG graph node
-  // into a list of basenames. Returns null when the property is missing/empty
-  // so the caller can fall back to chunk-id resolution.
-  private extractFilePathsFromProperty(raw: unknown): string[] | null {
-    if (typeof raw !== 'string' || !raw.trim()) return null
-    const paths = raw
-      .split(/<SEP>|,/)
-      .map((s) => s.trim().replace(/['"[\]]/g, ''))
-      .filter(Boolean)
-    if (paths.length === 0) return null
-    const names = new Set<string>()
-    for (const p of paths) {
-      const name = p.replace(/\\/g, '/').split('/').pop() || p
-      names.add(name)
-    }
-    return Array.from(names)
   }
 
   getFilenames(sourceIds: string): string[] {
@@ -682,19 +656,12 @@ export class NativeGraphView extends ItemView {
     this.graph = new Graph()
     const LABEL_THRESHOLD = 4
 
-    // Mobile screens are dense — shrink nodes so the graph isn't drowned in
-    // overlapping circles. Desktop keeps its existing sizing.
-    const isMobile = Platform.isMobile
-    const sizeScale = isMobile ? 0.175 : 1
-    const sizeMin = isMobile ? 0.75 : 3
-    const sizeMax = isMobile ? 3 : 20
-
     nodes.forEach((n) => {
       if (!this.graph?.hasNode(n.id)) {
         const showLabel = n.val > LABEL_THRESHOLD
         this.graph?.addNode(n.id, {
           label: showLabel ? n.id : '',
-          size: Math.max(sizeMin, Math.min(n.val * 1.5 * sizeScale, sizeMax)),
+          size: Math.max(3, Math.min(n.val * 1.5, 20)),
           color: '#00d4ff',
           type: 'circle',
           node_type: n.type,
@@ -900,7 +867,7 @@ export class NativeGraphView extends ItemView {
       .backgroundColor('#000005')
       .nodeAutoColorBy('type')
       .nodeVal('val')
-      .nodeRelSize(Platform.isMobile ? 0.75 : 4)
+      .nodeRelSize(4)
       .nodeLabel('id')
       .nodeOpacity(0.9)
       .linkWidth(0.6)
@@ -1223,37 +1190,13 @@ export class NativeGraphView extends ItemView {
           .animate({ x: 0.5, y: 0.5, ratio: 0.1 }, { duration: 500 })
     }
 
-    // Sidebar toggle — only renders on mobile (CSS hides it elsewhere).
-    // Sits right after the "Reset camera" button so it's adjacent to the
-    // other view controls.
-    const btnSidebar = tb.createEl('button', {
-      cls: 'nrlcmp-toolbar-btn nrlcmp-toolbar-btn-mobile',
-    })
-    setIcon(btnSidebar, 'panel-right')
-    setTooltip(btnSidebar, 'Toggle entity panel')
-    btnSidebar.onclick = () => {
-      this.contentEl.classList.toggle('nrlcmp-sidebar-hidden')
-    }
-
     // Stats label — updated after each render
     this.statsLabelEl = tb.createEl('span', { cls: 'nrlcmp-toolbar-stats' })
   }
 
   buildSidebar(container: HTMLElement) {
     const header = container.createDiv({ cls: 'nrlcmp-sidebar-header' })
-    const titleRow = header.createDiv({ cls: 'nrlcmp-sidebar-title-row' })
-    titleRow.createEl('h4', { text: 'Node manager' })
-
-    // Mobile-only close button — the sidebar overlays the graph, so users need
-    // a way to dismiss it without reaching past the overlay to the toolbar.
-    const btnClose = titleRow.createEl('button', {
-      cls: 'nrlcmp-sidebar-close nrlcmp-toolbar-btn-mobile',
-    })
-    setIcon(btnClose, 'x')
-    setTooltip(btnClose, 'Close entity panel')
-    btnClose.onclick = () => {
-      this.contentEl.classList.add('nrlcmp-sidebar-hidden')
-    }
+    header.createEl('h4', { text: 'Node manager' })
 
     const searchInput = new TextComponent(header)
     searchInput.setPlaceholder('Filter list...')

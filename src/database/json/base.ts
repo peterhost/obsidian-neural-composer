@@ -4,15 +4,12 @@ import path from 'path-browserify'
 export abstract class AbstractJsonRepository<T, M> {
   protected dataDir: string
   protected app: App
-  // Started in the constructor and awaited by every public method, so callers
-  // that race the directory-creation (notably on Obsidian mobile, where
-  // adapter.list throws immediately on a missing dir) wait for mkdir to finish.
-  private directoryReady: Promise<void>
 
   constructor(app: App, dataDir: string) {
     this.app = app
     this.dataDir = normalizePath(dataDir)
-    this.directoryReady = this.ensureDirectory()
+    // FIX: Use void operator to handle async call in constructor
+    void this.ensureDirectory()
   }
 
   private async ensureDirectory(): Promise<void> {
@@ -28,7 +25,6 @@ export abstract class AbstractJsonRepository<T, M> {
   protected abstract parseFileName(fileName: string): M | null
 
   public async create(row: T): Promise<void> {
-    await this.directoryReady
     const fileName = this.generateFileName(row)
     const filePath = normalizePath(path.join(this.dataDir, fileName))
     const content = JSON.stringify(row, null, 2)
@@ -41,7 +37,6 @@ export abstract class AbstractJsonRepository<T, M> {
   }
 
   public async update(oldRow: T, newRow: T): Promise<void> {
-    await this.directoryReady
     const oldFileName = this.generateFileName(oldRow)
     const newFileName = this.generateFileName(newRow)
     const content = JSON.stringify(newRow, null, 2)
@@ -60,7 +55,6 @@ export abstract class AbstractJsonRepository<T, M> {
 
   // List metadata for all records by parsing file names.
   public async listMetadata(): Promise<(M & { fileName: string })[]> {
-    await this.directoryReady
     const files = await this.app.vault.adapter.list(this.dataDir)
     return files.files
       .map((filePath) => path.basename(filePath))
@@ -75,7 +69,6 @@ export abstract class AbstractJsonRepository<T, M> {
   }
 
   public async read(fileName: string): Promise<T | null> {
-    await this.directoryReady
     const filePath = normalizePath(path.join(this.dataDir, fileName))
     if (!(await this.app.vault.adapter.exists(filePath))) return null
 
@@ -84,7 +77,6 @@ export abstract class AbstractJsonRepository<T, M> {
   }
 
   public async delete(fileName: string): Promise<void> {
-    await this.directoryReady
     const filePath = normalizePath(path.join(this.dataDir, fileName))
     if (await this.app.vault.adapter.exists(filePath)) {
       await this.app.vault.adapter.remove(filePath)

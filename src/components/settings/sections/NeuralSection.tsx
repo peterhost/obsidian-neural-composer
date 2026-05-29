@@ -1,11 +1,4 @@
-import {
-  AbstractInputSuggest,
-  App,
-  Platform,
-  Setting,
-  Notice,
-  TFolder,
-} from 'obsidian'
+import { AbstractInputSuggest, App, Setting, Notice, TFolder } from 'obsidian'
 import { EnvEditorModal } from '../../modals/EnvEditorModal'
 import { useEffect, useRef, useState } from 'react'
 import NeuralComposerPlugin from '../../../main'
@@ -114,30 +107,22 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
     }
 
     // --- SERVER CONNECTION MODE ---
-    if (Platform.isDesktop) {
-      new Setting(container)
-        .setName('Use remote server')
-        .setDesc(
-          `Connect to a remote ${BACKEND_NAME} server instead of running one locally.`,
-        )
-        .addToggle((toggle) =>
-          toggle.setValue(useRemote).onChange((value) => {
-            setUseRemote(value)
-            void plugin.setSettings({
-              ...plugin.settings,
-              lightRagUseRemote: value,
-            })
-          }),
-        )
-    } else {
-      // Mobile: local server is not possible — remote mode is the only option.
-      container.createEl('p', {
-        text: `Mobile uses your remote ${BACKEND_NAME} server. Local server management is desktop-only.`,
-        cls: 'setting-item-description',
-      })
-    }
+    new Setting(container)
+      .setName('Use remote server')
+      .setDesc(
+        'Connect to a remote ${BACKEND_NAME} server instead of running one locally.',
+      )
+      .addToggle((toggle) =>
+        toggle.setValue(useRemote).onChange((value) => {
+          setUseRemote(value)
+          void plugin.setSettings({
+            ...plugin.settings,
+            lightRagUseRemote: value,
+          })
+        }),
+      )
 
-    if (useRemote || !Platform.isDesktop) {
+    if (useRemote) {
       // --- REMOTE MODE ---
       new Setting(container)
         .setName('Server URL')
