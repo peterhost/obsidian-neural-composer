@@ -1317,15 +1317,28 @@ export default class NeuralComposerPlugin extends Plugin {
       // API Keys
       const providersNeeded = new Set([llmProvider, embedProvider])
       envContent += `\n# API Keys\n`
+      let openAiKeyWritten = false
       providersNeeded.forEach((p) => {
         if (p && p.apiKey) {
           const keyName = p.id.toUpperCase()
           if (keyName === 'GEMINI') envContent += `GEMINI_API_KEY=${p.apiKey}\n`
-          if (keyName === 'OPENAI') envContent += `OPENAI_API_KEY=${p.apiKey}\n`
+          if (keyName === 'OPENAI') {
+            envContent += `OPENAI_API_KEY=${p.apiKey}\n`
+            openAiKeyWritten = true
+          }
           if (keyName === 'ANTHROPIC')
             envContent += `ANTHROPIC_API_KEY=${p.apiKey}\n`
         }
       })
+      // Providers that use LightRAG's "openai" binding (e.g. LM Studio,
+      // OpenRouter, Groq) don't necessarily have an OPENAI_API_KEY, but
+      // LightRAG's Python client accesses os.environ['OPENAI_API_KEY']
+      // directly and raises KeyError when it's absent. Writing a placeholder
+      // satisfies the client without affecting auth (the real key is in
+      // LLM_BINDING_API_KEY / EMBEDDING_BINDING_API_KEY).
+      if (!openAiKeyWritten) {
+        envContent += `OPENAI_API_KEY=no-api-key\n`
+      }
 
       // Entity Types
       if (this.settings.useCustomEntityTypes) {
