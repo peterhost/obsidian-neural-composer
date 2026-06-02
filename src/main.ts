@@ -21,6 +21,7 @@ import {
 import { ApplyView } from './ApplyView'
 import { ChatView } from './ChatView'
 import { ChatProps } from './components/chat-view/Chat'
+import { ConfirmModal } from './components/modals/ConfirmModal'
 import { APPLY_VIEW_TYPE, CHAT_VIEW_TYPE } from './constants'
 import { McpManager } from './core/mcp/mcpManager'
 import { RAGEngine } from './core/rag/ragEngine'
@@ -151,6 +152,9 @@ export default class NeuralComposerPlugin extends Plugin {
   /** True once at least one health check has completed (distinguishes "not yet checked" from "offline"). */
   public lightRagServerChecked = false
 
+  private ingestedFolderPaths: Set<string> = new Set()
+  private ingestedFolderPathsLoaded = false
+
   private versionChangeListeners: Set<
     (info: { version: string | null; checked: boolean }) => void
   > = new Set()
@@ -204,7 +208,7 @@ export default class NeuralComposerPlugin extends Plugin {
   private getLightRagHeaders(): Record<string, string> {
     const headers: Record<string, string> = {}
     if (this.settings.lightRagApiKey) {
-      headers['Authorization'] = `Bearer ${this.settings.lightRagApiKey}`
+      headers['X-API-Key'] = this.settings.lightRagApiKey
     }
     return headers
   }
@@ -338,14 +342,30 @@ export default class NeuralComposerPlugin extends Plugin {
     this.registerEvent(
       this.app.workspace.on('file-menu', (menu, file) => {
         if (file instanceof TFolder) {
-          menu.addItem((item) => {
-            item
-              .setTitle('Ingest folder into graph')
-              .setIcon('layers')
-              .onClick(() => {
-                void this.batchIngestFolder(file)
-              })
-          })
+          const inGraph = this.isFolderInGraph(file.path)
+          const showIngest = !this.ingestedFolderPathsLoaded || !inGraph
+          const showRemove = !this.ingestedFolderPathsLoaded || inGraph
+
+          if (showIngest) {
+            menu.addItem((item) => {
+              item
+                .setTitle('Ingest folder into graph')
+                .setIcon('layers')
+                .onClick(() => {
+                  void this.batchIngestFolder(file)
+                })
+            })
+          }
+          if (showRemove) {
+            menu.addItem((item) => {
+              item
+                .setTitle('Remove folder from graph')
+                .setIcon('trash-2')
+                .onClick(() => {
+                  void this.batchRemoveFolderFromGraph(file)
+                })
+            })
+          }
         }
       }),
     )
@@ -879,9 +899,106 @@ export default class NeuralComposerPlugin extends Plugin {
         `Uploaded files (${successCount}).\nStart processing...`,
       )
       await this.monitorPipeline(notice)
+      void this.refreshIngestedFolderPaths()
     } catch (error) {
       console.error('Batch error:', error)
       notice.setMessage('Error starting upload.')
+      setTimeout(() => notice.hide(), 5000)
+    }
+  }
+
+  async refreshIngestedFolderPaths(): Promise<void> {
+    try {
+      const ragEngine = await this.getRAGEngine()
+      const paths = await ragEngine.listAllDocumentPaths()
+      const folders = new Set<string>()
+      for (const filePath of paths) {
+        const normalized = filePath.replace(/\\/g, '/')
+        const parts = normalized.split('/')
+        for (let i = parts.length - 1; i > 0; i--) {
+          folders.add(parts.slice(0, i).join('/'))
+        }
+      }
+      this.ingestedFolderPaths = folders
+      this.ingestedFolderPathsLoaded = true
+    } catch (e) {
+      console.error('refreshIngestedFolderPaths failed:', e)
+    }
+  }
+
+  private isFolderInGraph(folderPath: string): boolean {
+    if (!this.ingestedFolderPathsLoaded) return false
+    return this.ingestedFolderPaths.has(folderPath)
+  }
+
+  async batchRemoveFolderFromGraph(folder: TFolder) {
+    const files = this.getAllSupportedFiles(folder)
+    if (files.length === 0) {
+      new Notice('Empty folder or no supported files.')
+      return
+    }
+
+    new ConfirmModal(this.app, {
+      title: 'Remove folder from graph',
+      message: `Remove ${files.length} file${
+        files.length === 1 ? '' : 's'
+      } in "${folder.path}" (and its subfolders) from the ${BACKEND_NAME} graph?\n\nThe files themselves stay in the vault.`,
+      ctaText: 'Remove',
+      onConfirm: () => {
+        void this.executeBatchRemoveFolderFromGraph(folder, files)
+      },
+    }).open()
+  }
+
+  private async executeBatchRemoveFolderFromGraph(
+    folder: TFolder,
+    files: TFile[],
+  ) {
+    const notice = new Notice(`Removing ${files.length} files from graph...`, 0)
+    const syncFolder = this.settings.lightRagSyncFolder.trim()
+    const isInWatchedFolder = (path: string) =>
+      !!syncFolder && (path === syncFolder || path.startsWith(syncFolder + '/'))
+
+    try {
+      const ragEngine = await this.getRAGEngine()
+      let removed = 0
+      let missing = 0
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        notice.setMessage(`Removing (${i + 1}/${files.length}):\n${file.name}`)
+        try {
+          const ok = await ragEngine.deleteDocumentByFilePath(
+            file.path,
+            file.name,
+          )
+          if (ok) {
+            removed++
+            if (isInWatchedFolder(file.path)) {
+              this.docIndexService?.setRemoved(file.path)
+            }
+          } else {
+            missing++
+          }
+        } catch (err) {
+          console.error(`Error removing ${file.name}:`, err)
+          missing++
+        }
+      }
+
+      if (removed > 0) {
+        void this.refreshIngestedFolderPaths()
+      }
+
+      notice.setMessage(
+        `Removed ${removed} from "${folder.path}"` +
+          (missing > 0 ? ` (${missing} not in graph)` : ''),
+      )
+      setTimeout(() => notice.hide(), 4000)
+      this.decorateFileExplorer()
+    } catch (error) {
+      console.error('Batch remove error:', error)
+      notice.setMessage('Error removing files from graph.')
       setTimeout(() => notice.hide(), 5000)
     }
   }
@@ -1272,7 +1389,7 @@ export default class NeuralComposerPlugin extends Plugin {
         url,
         method: 'POST',
         headers: this.settings.lightRagApiKey
-          ? { Authorization: `Bearer ${this.settings.lightRagApiKey}` }
+          ? { 'X-API-Key': this.settings.lightRagApiKey }
           : {},
         throw: false,
       })
@@ -1756,6 +1873,9 @@ export default class NeuralComposerPlugin extends Plugin {
         // Store the server version (core_version is canonical; api_version as fallback)
         this.setServerVersion(data?.core_version ?? data?.api_version ?? null)
         this.updateStatusUI(isBusy ? 'busy' : 'online')
+        if (!this.ingestedFolderPathsLoaded) {
+          void this.refreshIngestedFolderPaths()
+        }
       } else {
         this.setServerVersion(null)
         this.updateStatusUI('offline')

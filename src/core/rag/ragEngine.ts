@@ -93,7 +93,7 @@ export class RAGEngine {
   ): Record<string, string> {
     const headers: Record<string, string> = { 'Content-Type': contentType }
     if (this.settings.lightRagApiKey) {
-      headers['Authorization'] = `Bearer ${this.settings.lightRagApiKey}`
+      headers['X-API-Key'] = this.settings.lightRagApiKey
     }
     return headers
   }
@@ -182,6 +182,44 @@ export class RAGEngine {
   }
 
   // --- 2b. INCREMENTAL SYNC HELPERS ---
+
+  async listAllDocumentPaths(): Promise<string[]> {
+    const pageSize = 200
+    const paths: string[] = []
+    let page = 1
+    try {
+      while (page <= 200) {
+        const response = await requestUrl({
+          url: `${this.settings.lightRagServerUrl}/documents/paginated`,
+          method: 'POST',
+          headers: this.getLightRagHeaders(),
+          body: JSON.stringify({
+            page,
+            page_size: pageSize,
+            sort_field: 'file_path',
+            sort_direction: 'asc',
+          }),
+          throw: false,
+        })
+        if (response.status >= 400) break
+        const data = response.json as {
+          documents?: { id: string; file_path?: string | null }[]
+          pagination?: { has_next?: boolean }
+        }
+        for (const doc of data.documents ?? []) {
+          if (typeof doc.file_path === 'string' && doc.file_path.length > 0) {
+            paths.push(doc.file_path)
+          }
+        }
+        if (!data.pagination?.has_next) break
+        page++
+      }
+    } catch (e) {
+      console.error('listAllDocumentPaths failed:', e)
+      return []
+    }
+    return paths
+  }
 
   // Finds a LightRAG doc_id matching the given file.
   // Tries the full vault-relative path first (v1.2+ ingest), then falls back to
