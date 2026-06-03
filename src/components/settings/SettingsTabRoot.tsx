@@ -52,7 +52,6 @@ const TABS: TabDef[] = [
   { id: 'help', label: 'Help', Icon: CircleHelp },
 ]
 
-const LS_KEY = 'neural-composer-settings-active-tab'
 
 // ---------------------------------------------------------------------------
 // Brand logo tile — violet rounded square with brain-circuit glyph inside
@@ -460,13 +459,10 @@ type SettingsTabRootProps = {
 export function SettingsTabRoot({ app, plugin }: SettingsTabRootProps) {
   const rootRef = useRef<HTMLDivElement>(null)
 
-  const [activeTab, setActiveTab] = useState<TabId>(
-    () => (localStorage.getItem(LS_KEY) as TabId | null) ?? 'models',
-  )
+  const [activeTab, setActiveTab] = useState<TabId>('models')
 
   const switchTab = useCallback((tab: TabId) => {
     setActiveTab(tab)
-    localStorage.setItem(LS_KEY, tab)
   }, [])
 
   // Strip Obsidian's default containerEl padding so the layout fills the pane
