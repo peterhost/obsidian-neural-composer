@@ -1,6 +1,6 @@
 import { PgliteDatabase } from 'drizzle-orm/pglite'
 import { backOff } from 'exponential-backoff'
-import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter'
+import { RecursiveMarkdownTextSplitter } from '../../../utils/text-splitter'
 import { minimatch } from 'minimatch'
 import { App, TFile } from 'obsidian'
 
@@ -129,17 +129,9 @@ export class VectorManager {
       return
     }
 
-    const textSplitter = RecursiveCharacterTextSplitter.fromLanguage(
-      'markdown',
-      {
-        chunkSize: options.chunkSize,
-        // TODO: Use token-based chunking after migrating to WebAssembly-based tiktoken
-        // Current token counting method is too slow for practical use
-        // lengthFunction: async (text) => {
-        //   return await tokenCount(text)
-        // },
-      },
-    )
+    const textSplitter = new RecursiveMarkdownTextSplitter({
+      chunkSize: options.chunkSize,
+    })
 
     const failedFiles: { path: string; error: string }[] = []
     const contentChunks = (

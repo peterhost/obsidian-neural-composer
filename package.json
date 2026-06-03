@@ -71,7 +71,6 @@
     "graphology-library": "^0.8.0",
     "groq-sdk": "^0.7.0",
     "js-tiktoken": "^1.0.15",
-    "langchain": "^0.3.2",
     "lexical": "^0.17.1",
     "lucide-react": "^0.447.0",
     "minimatch": "^10.2.5",
