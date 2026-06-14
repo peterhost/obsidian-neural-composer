@@ -91,11 +91,6 @@ interface DocNameMap {
   [key: string]: unknown
 }
 
-interface GraphMLNodeData {
-  key: string
-  value: string | number
-}
-
 interface GraphMLRawEdge {
   source: string
   target: string
@@ -1215,10 +1210,10 @@ export class NativeGraphView extends ItemView {
       .onClick(() => {
         this.createRelationBetweenSelected()
       })
-    new ButtonComponent(actionButtons)
-      .setButtonText('Delete')
-      // eslint-disable-next-line obsidianmd/prefer-destructive-button -- setDestructive not available in obsidian@1.11.4
-      .setWarning()
+    // setDestructive exists at runtime but not yet in obsidian@1.11.4 type declarations
+    ;(new ButtonComponent(actionButtons)
+      .setButtonText('Delete') as ButtonComponent & { setDestructive: () => ButtonComponent })
+      .setDestructive()
       .onClick(() => {
         void this.deleteSelectedNodes()
       })
@@ -1600,10 +1595,10 @@ class ConfirmationModal extends Modal {
       .setButtonText('Cancel')
       .onClick(() => this.close())
 
-    new ButtonComponent(btnContainer)
-      .setButtonText('Confirm')
-      // eslint-disable-next-line obsidianmd/prefer-destructive-button -- setDestructive not available in obsidian@1.11.4
-      .setWarning()
+    // setDestructive exists at runtime but not yet in obsidian@1.11.4 type declarations
+    ;(new ButtonComponent(btnContainer)
+      .setButtonText('Confirm') as ButtonComponent & { setDestructive: () => ButtonComponent })
+      .setDestructive()
       .onClick(() => {
         void (async () => {
           await this.onConfirm()

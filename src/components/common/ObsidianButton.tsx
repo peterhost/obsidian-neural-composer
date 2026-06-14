@@ -65,8 +65,8 @@ export function ObsidianButton({
     if (icon) buttonComponent.setIcon(icon)
     if (tooltip) buttonComponent.setTooltip(tooltip)
     if (cta) buttonComponent.setCta()
-    // eslint-disable-next-line obsidianmd/prefer-destructive-button -- setDestructive not available in obsidian@1.11.4
-    if (warning) buttonComponent.setWarning()
+    // setDestructive exists at runtime but not yet in obsidian@1.11.4 type declarations
+    if (warning) (buttonComponent as ButtonComponent & { setDestructive: () => void }).setDestructive()
     buttonComponent.setDisabled(!!disabled)
   }, [buttonComponent, text, icon, tooltip, cta, warning, disabled])
 
