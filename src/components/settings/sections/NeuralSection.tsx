@@ -320,7 +320,7 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
       .setName('Exclude hidden files and folders')
       .setDesc(
         'When enabled, files and folders whose name starts with a dot ' +
-          '(e.g. ".trash", ".obsidian") are never ingested into the graph.',
+          '(e.g. ".trash", ".git") are never ingested into the graph.',
       )
       .addToggle((toggle) =>
         toggle
@@ -356,7 +356,7 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
             })
           })
         textArea.inputEl.rows = 4
-        textArea.inputEl.style.width = '100%'
+        textArea.inputEl.setCssStyles({ width: '100%' })
       })
 
     // --- ONTOLOGY SECTION ---
