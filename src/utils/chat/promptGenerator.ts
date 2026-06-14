@@ -316,7 +316,7 @@ ${message.annotations
         filePrompt = `## Potentially Relevant Snippets from the current vault
 ${similaritySearchResults
   .map(({ path, content, metadata }) => {
-    // --- CORA MOD: Inyección Directa de Contexto de Grafo ---
+    // --- Graph context injection ---
     // NOTE: ragEngine uses lowercase "memory"; keep both variants for safety.
     if (
       path === "Graph's memory" ||
@@ -331,7 +331,7 @@ ${similaritySearchResults
             .replace(/\[\d+\]/g, '')
             .replace(/\n{3,}/g, '\n\n')
             .trim()
-      return `\n>>> CONTEXTO DEL GRAFO:\n${graphContent}\n>>> FIN CONTEXTO\n\n`
+      return `\n>>> GRAPH CONTEXT:\n${graphContent}\n>>> END GRAPH CONTEXT\n\n`
     }
     // --------------------------------------------------------
 
