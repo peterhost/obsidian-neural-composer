@@ -52,7 +52,7 @@ const TABS: TabDef[] = [
   { id: 'advanced', label: 'Advanced', Icon: Settings2 },
   { id: 'help', label: 'Help', Icon: CircleHelp },
 ]
-/* eslint-enable @typescript-eslint/no-unsafe-assignment */
+/* eslint-enable @typescript-eslint/no-unsafe-assignment -- lucide-react ESM icon paths lack precise TS declarations */
 
 
 // ---------------------------------------------------------------------------

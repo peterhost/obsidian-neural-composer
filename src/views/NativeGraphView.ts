@@ -91,19 +91,9 @@ interface DocNameMap {
   [key: string]: unknown
 }
 
-interface GraphMLAttribute {
-  id: string
-  'attr.name'?: string
-}
-
 interface GraphMLNodeData {
   key: string
   value: string | number
-}
-
-interface GraphMLRawNode {
-  id: string
-  data?: GraphMLNodeData[] | GraphMLNodeData
 }
 
 interface GraphMLRawEdge {
@@ -864,6 +854,7 @@ export class NativeGraphView extends ItemView {
       })),
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- 3d-force-graph lacks TypeScript declarations
     const { default: ForceGraph3D } = await import('3d-force-graph')
     this.graph3D = (ForceGraph3D as unknown as ForceGraph3DConstructor)()(
       container,
@@ -1226,6 +1217,7 @@ export class NativeGraphView extends ItemView {
       })
     new ButtonComponent(actionButtons)
       .setButtonText('Delete')
+      // eslint-disable-next-line obsidianmd/prefer-destructive-button -- setDestructive not available in obsidian@1.11.4
       .setWarning()
       .onClick(() => {
         void this.deleteSelectedNodes()
@@ -1610,6 +1602,7 @@ class ConfirmationModal extends Modal {
 
     new ButtonComponent(btnContainer)
       .setButtonText('Confirm')
+      // eslint-disable-next-line obsidianmd/prefer-destructive-button -- setDestructive not available in obsidian@1.11.4
       .setWarning()
       .onClick(() => {
         void (async () => {
