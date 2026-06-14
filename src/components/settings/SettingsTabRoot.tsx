@@ -211,8 +211,8 @@ function CommandBar({ onModelsClick }: { onModelsClick: () => void }) {
         setIsOpen(false)
       }
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    activeDocument.addEventListener('mousedown', handler)
+    return () => activeDocument.removeEventListener('mousedown', handler)
   }, [])
 
   const handleSlotClick = () => {

@@ -22,7 +22,7 @@ export function DarkModeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const handleDarkMode = () => {
-      setIsDarkMode(document.body.classList.contains('theme-dark'))
+      setIsDarkMode(activeDocument.body.classList.contains('theme-dark'))
     }
     handleDarkMode()
     app.workspace.on('css-change', handleDarkMode)

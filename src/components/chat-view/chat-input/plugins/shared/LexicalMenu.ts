@@ -79,7 +79,7 @@ export type MenuRenderFn<TOption extends MenuOption> = (
 ) => ReactPortal | React.JSX.Element | null // CORRECCIÓN: React.JSX.Element
 
 const scrollIntoViewIfNeeded = (target: HTMLElement) => {
-  const typeaheadContainerNode = document.getElementById('typeahead-menu')
+  const typeaheadContainerNode = activeDocument.getElementById('typeahead-menu')
   if (!typeaheadContainerNode) {
     return
   }
@@ -168,7 +168,7 @@ export function getScrollParent(
   const excludeStaticParent = style.position === 'absolute'
   const overflowRegex = includeHidden ? /(auto|scroll|hidden)/ : /(auto|scroll)/
   if (style.position === 'fixed') {
-    return document.body
+    return activeDocument.body
   }
   for (
     let parent: HTMLElement | null = element;
@@ -184,7 +184,7 @@ export function getScrollParent(
       return parent
     }
   }
-  return document.body
+  return activeDocument.body
 }
 
 function isTriggerVisibleInNearestScrollContainer(
@@ -210,7 +210,7 @@ export function useDynamicPositioning(
       const rootScrollParent =
         rootElement != null
           ? getScrollParent(rootElement, false)
-          : document.body
+          : activeDocument.body
       let ticking = false
       let previousIsInView = isTriggerVisibleInNearestScrollContainer(
         targetElement,
@@ -237,7 +237,7 @@ export function useDynamicPositioning(
       }
       const resizeObserver = new ResizeObserver(onReposition)
       window.addEventListener('resize', onReposition)
-      document.addEventListener('scroll', handleScroll, {
+      activeDocument.addEventListener('scroll', handleScroll, {
         capture: true,
         passive: true,
       })
@@ -245,7 +245,7 @@ export function useDynamicPositioning(
       return () => {
         resizeObserver.unobserve(targetElement)
         window.removeEventListener('resize', onReposition)
-        document.removeEventListener('scroll', handleScroll, true)
+        activeDocument.removeEventListener('scroll', handleScroll, true)
       }
     }
   }, [targetElement, editor, onVisibilityChange, onReposition, resolution])
@@ -484,11 +484,11 @@ export function useMenuAnchorRef(
   resolution: MenuResolution | null,
   setResolution: (r: MenuResolution | null) => void,
   className?: string,
-  parent: HTMLElement = document.body,
+  parent: HTMLElement = activeDocument.body,
   shouldIncludePageYOffset__EXPERIMENTAL = true,
 ): MutableRefObject<HTMLElement> {
   const [editor] = useLexicalComposerContext()
-  const anchorElementRef = useRef<HTMLElement>(document.createElement('div'))
+  const anchorElementRef = useRef<HTMLElement>(activeDocument.createElement('div'))
 
   const positionMenu = useCallback(() => {
     // Limpieza de estilo inicial
@@ -506,9 +506,9 @@ export function useMenuAnchorRef(
       // COORDENADAS DINÁMICAS (Esto es inevitable en JS, pero el layout base es CSS)
       containerDiv.style.setProperty(
         'top',
-        `${top + anchorHeight + 3 + (shouldIncludePageYOffset__EXPERIMENTAL ? window.pageYOffset : 0)}px`,
+        `${top + anchorHeight + 3 + (shouldIncludePageYOffset__EXPERIMENTAL ? window.scrollY : 0)}px`,
       )
-      containerDiv.style.setProperty('left', `${left + window.pageXOffset}px`)
+      containerDiv.style.setProperty('left', `${left + window.scrollX}px`)
       containerDiv.style.setProperty('height', `${height}px`)
       containerDiv.style.setProperty('width', `${width}px`)
 
@@ -523,14 +523,14 @@ export function useMenuAnchorRef(
         if (left + menuWidth > rootElementRect.right) {
           containerDiv.style.setProperty(
             'left',
-            `${rootElementRect.right - menuWidth + window.pageXOffset}px`,
+            `${rootElementRect.right - menuWidth + window.scrollX}px`,
           )
         }
 
         if (top + menuHeight > window.innerHeight) {
           containerDiv.style.setProperty(
             'top',
-            `${top - menuHeight - height + (shouldIncludePageYOffset__EXPERIMENTAL ? window.pageYOffset : 0)}px`,
+            `${top - menuHeight - height + (shouldIncludePageYOffset__EXPERIMENTAL ? window.scrollY : 0)}px`,
           )
         }
       }

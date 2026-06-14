@@ -32,8 +32,8 @@ interface LRDoc {
  */
 export class DocIndexService {
   private index: Record<string, DocRecord> = {}
-  private saveTimer: ReturnType<typeof setTimeout> | null = null
-  private pipelineTimer: ReturnType<typeof setTimeout> | null = null
+  private saveTimer: number | null = null
+  private pipelineTimer: number | null = null
   private onUpdate: (() => void) | null = null
   private readonly statusFilePath: string
 
@@ -75,8 +75,8 @@ export class DocIndexService {
   }
 
   private scheduleSave(): void {
-    if (this.saveTimer) clearTimeout(this.saveTimer)
-    this.saveTimer = setTimeout(() => {
+    if (this.saveTimer) window.clearTimeout(this.saveTimer)
+    this.saveTimer = window.setTimeout(() => {
       this.saveTimer = null
       void this.persist()
     }, 2000)
@@ -441,7 +441,7 @@ export class DocIndexService {
   }
 
   private schedulePipelinePoll(intervalMs: number): void {
-    this.pipelineTimer = setTimeout(() => {
+    this.pipelineTimer = window.setTimeout(() => {
       this.pipelineTimer = null
       void this.doPipelinePoll(intervalMs)
     }, intervalMs)
@@ -478,7 +478,7 @@ export class DocIndexService {
 
   stopPipelineWatch(): void {
     if (this.pipelineTimer) {
-      clearTimeout(this.pipelineTimer)
+      window.clearTimeout(this.pipelineTimer)
       this.pipelineTimer = null
     }
   }
@@ -488,7 +488,7 @@ export class DocIndexService {
   destroy(): void {
     this.stopPipelineWatch()
     if (this.saveTimer) {
-      clearTimeout(this.saveTimer)
+      window.clearTimeout(this.saveTimer)
       this.saveTimer = null
       void this.persist()
     }

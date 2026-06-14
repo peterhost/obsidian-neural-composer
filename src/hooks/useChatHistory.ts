@@ -19,17 +19,17 @@ function debounce<TArgs extends unknown[], R>(
   wait: number,
   options?: { maxWait?: number },
 ): (...args: TArgs) => R | undefined {
-  let timer: ReturnType<typeof setTimeout> | null = null
-  let maxTimer: ReturnType<typeof setTimeout> | null = null
+  let timer: number | null = null
+  let maxTimer: number | null = null
   let lastArgs: TArgs | null = null
 
   const flush = (): R | undefined => {
     if (timer !== null) {
-      clearTimeout(timer)
+      window.clearTimeout(timer)
       timer = null
     }
     if (maxTimer !== null) {
-      clearTimeout(maxTimer)
+      window.clearTimeout(maxTimer)
       maxTimer = null
     }
     if (lastArgs !== null) {
@@ -42,10 +42,10 @@ function debounce<TArgs extends unknown[], R>(
 
   return (...args: TArgs): R | undefined => {
     lastArgs = args
-    if (timer !== null) clearTimeout(timer)
-    timer = setTimeout(flush, wait)
+    if (timer !== null) window.clearTimeout(timer)
+    timer = window.setTimeout(flush, wait)
     if (options?.maxWait !== undefined && maxTimer === null) {
-      maxTimer = setTimeout(flush, options.maxWait)
+      maxTimer = window.setTimeout(flush, options.maxWait)
     }
     return undefined
   }

@@ -11,7 +11,6 @@ import {
   App,
   Platform,
 } from 'obsidian'
-import { XMLParser } from 'fast-xml-parser'
 import Graph from 'graphology'
 import Sigma from 'sigma'
 import forceAtlas2 from 'graphology-layout-forceatlas2'
@@ -231,9 +230,9 @@ export class NativeGraphView extends ItemView {
     // Load Node.js modules — desktop only, used by loadReferenceMaps for source file resolution.
     // Use require() (not import()) because the bundle is CJS and dynamic ESM
     // import() is not resolved correctly in Obsidian's plugin loader.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
     this._nodeFs = require('fs') as typeof import('fs')
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
     this._nodePath = require('path') as typeof import('path')
     this.workDir = this.plugin.settings.lightRagWorkDir
 
@@ -518,7 +517,7 @@ export class NativeGraphView extends ItemView {
 
     const mode = this.plugin.settings.graphViewMode
     if (mode === '3d') {
-      this.render3D(container, data.nodes, data.edges)
+      void this.render3D(container, data.nodes, data.edges)
     } else {
       this.render2D(container, data.nodes, data.edges)
     }
@@ -529,7 +528,7 @@ export class NativeGraphView extends ItemView {
       const targetId = this.pendingDetailNode
       this.pendingDetailNode = null
       // Small delay so sigma/forcegraph finishes initial setup
-      setTimeout(() => {
+      window.setTimeout(() => {
         const enriched = this.allNodes.find((n) => n.id === targetId)
         if (!enriched) return
         if (mode === '2d') {
@@ -631,7 +630,7 @@ export class NativeGraphView extends ItemView {
     })
 
     // Highlight target
-    const isDark = document.body.classList.contains('theme-dark')
+    const isDark = activeDocument.body.classList.contains('theme-dark')
     this.graph.setNodeAttribute(nodeId, 'color', isDark ? '#ffffff' : '#00d4ff')
     this.graph.setNodeAttribute(nodeId, 'label', nodeId)
     this.graph.setNodeAttribute(
@@ -691,15 +690,15 @@ export class NativeGraphView extends ItemView {
 
     const initSigma = () => {
       if (container.clientWidth === 0) {
-        requestAnimationFrame(initSigma)
+        window.requestAnimationFrame(initSigma)
         return
       }
       if (!this.graph) return
       if (this.sigmaInstance) this.sigmaInstance.kill()
 
-      const isDark = document.body.classList.contains('theme-dark')
+      const isDark = activeDocument.body.classList.contains('theme-dark')
       const labelTextColor = isDark ? '#e8e8e8' : '#111111'
-      container.style.backgroundColor = isDark ? '#111111' : '#f0f0f0'
+      container.setCssStyles({ backgroundColor: isDark ? '#111111' : '#f0f0f0' })
 
       // Stamp label color onto every node so the custom hover renderer can read it
       this.graph.forEachNode((n) => {
@@ -784,8 +783,7 @@ export class NativeGraphView extends ItemView {
         labelWeight: 'bold',
         allowInvalidContainer: true,
         zIndex: true,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        defaultDrawNodeHover: drawHover as any,
+        defaultDrawNodeHover: drawHover as unknown as NonNullable<ConstructorParameters<typeof Sigma>[2]>['defaultDrawNodeHover'],
       })
 
       const settings = forceAtlas2.inferSettings(this.graph)
@@ -842,7 +840,7 @@ export class NativeGraphView extends ItemView {
         if (this.detailsPanel) this.detailsPanel.removeClass('nrlcmp-visible')
       })
     }
-    requestAnimationFrame(initSigma)
+    window.requestAnimationFrame(initSigma)
   }
 
   // --- ENGINE 3D ---
@@ -1090,7 +1088,7 @@ export class NativeGraphView extends ItemView {
 
       if (response.status === 200) {
         new Notice('Node updated!')
-        setTimeout(() => {
+        window.setTimeout(() => {
           const container = this.contentEl.querySelector('#sigma-container')
           if (container instanceof HTMLElement) void this.render(container)
         }, 1500)
@@ -1280,8 +1278,6 @@ export class NativeGraphView extends ItemView {
       const graphLabels: string[] = Array.isArray(listResp.json)
         ? listResp.json
         : []
-      const graphLabelSet = new Set(graphLabels)
-
       // Step 2: get all labels sorted by degree — "popular" with a high limit.
       // Any label NOT returned here (after requesting up to 1000) that IS in
       // graphLabels has degree 0 in the stored graph → true orphan node.
@@ -1425,7 +1421,7 @@ export class NativeGraphView extends ItemView {
           if (response.status === 200) {
             new Notice('Merged!')
             this.selectedNodes.clear()
-            setTimeout(() => {
+            window.setTimeout(() => {
               const container = this.contentEl.querySelector('#sigma-container')
               if (container instanceof HTMLElement) void this.render(container)
             }, 1000)
@@ -1466,7 +1462,7 @@ export class NativeGraphView extends ItemView {
           }
           new Notice('Deleted!')
           this.selectedNodes.clear()
-          setTimeout(() => {
+          window.setTimeout(() => {
             const container = this.contentEl.querySelector('#sigma-container')
             if (container instanceof HTMLElement) void this.render(container)
           }, 1000)
@@ -1568,7 +1564,7 @@ export class NativeGraphView extends ItemView {
         new Notice(`Created ${data.targets.length} relationships.`)
         this.selectedNodes.clear()
         // Recargar grafo para ver las nuevas líneas
-        setTimeout(() => {
+        window.setTimeout(() => {
           void this.render(
             this.contentEl.querySelector('#sigma-container') as HTMLElement,
           )

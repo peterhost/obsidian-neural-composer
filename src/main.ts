@@ -139,8 +139,8 @@ export default class NeuralComposerPlugin extends Plugin {
   private dbManagerInitPromise: Promise<DatabaseManager> | null = null
   private ragEngineInitPromise: Promise<RAGEngine> | null = null
 
-  private timeoutIds: ReturnType<typeof setTimeout>[] = []
-  private modifyDebounceMap: Map<string, ReturnType<typeof setTimeout>> =
+  private timeoutIds: number[] = []
+  private modifyDebounceMap: Map<string, number> =
     new Map()
   private serverProcess: ChildProcess | null = null
   private lastErrorTime: number = 0
@@ -224,14 +224,14 @@ export default class NeuralComposerPlugin extends Plugin {
     // Use require() (not import()) because the bundle is CJS and dynamic ESM
     // import() is not resolved correctly in Obsidian's plugin loader.
     if (Platform.isDesktop) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
       this._nodeFs = require('fs') as typeof import('fs')
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
       this._nodePath = require('path') as typeof import('path')
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
       this._nodeChildProcess =
         require('child_process') as typeof import('child_process')
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
       this._nodeNet = require('net') as typeof import('net')
     }
 
@@ -427,12 +427,12 @@ export default class NeuralComposerPlugin extends Plugin {
               await this.monitorPipeline(notice)
             } else {
               notice.setMessage(`Upload failed.`)
-              setTimeout(() => notice.hide(), 5000)
+              window.setTimeout(() => notice.hide(), 5000)
             }
           } catch (error) {
             console.error(error)
             notice.setMessage(`Critical error connecting to backend.`)
-            setTimeout(() => notice.hide(), 5000)
+            window.setTimeout(() => notice.hide(), 5000)
           }
         })()
       },
@@ -462,7 +462,7 @@ export default class NeuralComposerPlugin extends Plugin {
         // guard inside the async callback would be bypassed on every startup file.
         if (!this.docIndexReady) return
         // Wait 2 s so the file content is available (especially for moves/imports)
-        setTimeout(() => {
+        window.setTimeout(() => {
           void (async () => {
             // Skip if already processed and not modified
             if (
@@ -489,7 +489,7 @@ export default class NeuralComposerPlugin extends Plugin {
                 ? `Graph sync: "${file.name}" sent — processing in background.`
                 : `Graph sync: failed to send "${file.name}".`,
             )
-            setTimeout(() => notice.hide(), 6000)
+            window.setTimeout(() => notice.hide(), 6000)
           })()
         }, 2000)
       }),
@@ -515,7 +515,7 @@ export default class NeuralComposerPlugin extends Plugin {
               ? `Graph sync: "${file.name}" removed from graph.`
               : `Graph sync: "${file.name}" was not in the graph.`,
           )
-          setTimeout(() => notice.hide(), 6000)
+          window.setTimeout(() => notice.hide(), 6000)
         })()
       }),
     )
@@ -551,7 +551,7 @@ export default class NeuralComposerPlugin extends Plugin {
                 ? `Graph sync: graph updated for "${file.name}".`
                 : `Graph sync: failed to update "${file.name}".`,
             )
-            setTimeout(() => notice.hide(), 6000)
+            window.setTimeout(() => notice.hide(), 6000)
           } else if (wasInFolder) {
             // Moved OUT of the watched folder
             const notice = new Notice(
@@ -568,7 +568,7 @@ export default class NeuralComposerPlugin extends Plugin {
                 ? `Graph sync: "${file.name}" removed from graph.`
                 : `Graph sync: "${file.name}" was not in the graph.`,
             )
-            setTimeout(() => notice.hide(), 6000)
+            window.setTimeout(() => notice.hide(), 6000)
           } else {
             // Moved INTO the watched folder
             if (this.isPathExcludedFromGraph(file.path)) return
@@ -588,7 +588,7 @@ export default class NeuralComposerPlugin extends Plugin {
                 ? `Graph sync: "${file.name}" sent — processing in background.`
                 : `Graph sync: failed to send "${file.name}".`,
             )
-            setTimeout(() => notice.hide(), 6000)
+            window.setTimeout(() => notice.hide(), 6000)
           }
         })()
       }),
@@ -603,8 +603,8 @@ export default class NeuralComposerPlugin extends Plugin {
 
         // Debounce: wait 5 s of inactivity before re-indexing
         const existing = this.modifyDebounceMap.get(file.path)
-        if (existing) clearTimeout(existing)
-        const id = setTimeout(() => {
+        if (existing) window.clearTimeout(existing)
+        const id = window.setTimeout(() => {
           this.modifyDebounceMap.delete(file.path)
           void (async () => {
             if (!this.docIndexReady) return
@@ -632,7 +632,7 @@ export default class NeuralComposerPlugin extends Plugin {
                 ? `Graph sync: "${file.name}" sent — processing in background.`
                 : `Graph sync: failed to re-index "${file.name}".`,
             )
-            setTimeout(() => notice.hide(), 6000)
+            window.setTimeout(() => notice.hide(), 6000)
           })()
         }, 5000)
         this.modifyDebounceMap.set(file.path, id)
@@ -800,7 +800,7 @@ export default class NeuralComposerPlugin extends Plugin {
         // Give a short delay for the server to be reachable, then sync.
         // We check health first so we don't clobber the cached index when
         // the server is simply offline.
-        setTimeout(() => {
+        window.setTimeout(() => {
           void (async () => {
             const online = await this.docIndexService?.isServerOnline()
             if (online) {
@@ -823,7 +823,7 @@ export default class NeuralComposerPlugin extends Plugin {
     let isBusy = true
     let errors = 0
     // Wait for server to register task
-    await new Promise((r) => setTimeout(r, 1000))
+    await new Promise((r) => window.setTimeout(r, 1000))
 
     while (isBusy) {
       try {
@@ -850,18 +850,18 @@ export default class NeuralComposerPlugin extends Plugin {
 
         if (!isBusy) break
 
-        await new Promise((r) => setTimeout(r, 1500)) // Polling 1.5s
+        await new Promise((r) => window.setTimeout(r, 1500)) // Polling 1.5s
       } catch {
         // Fix: Use empty catch block to avoid unused variable '_' warning
         errors++
         if (errors > 3) isBusy = false
-        await new Promise((r) => setTimeout(r, 2000))
+        await new Promise((r) => window.setTimeout(r, 2000))
       }
     }
 
     this.updateStatusUI('online')
     notice.setMessage('Integrated knowledge!\nThe graph is up to date.')
-    setTimeout(() => notice.hide(), 5000)
+    window.setTimeout(() => notice.hide(), 5000)
   }
 
   // --- BATCH LOGIC ---
@@ -917,7 +917,7 @@ export default class NeuralComposerPlugin extends Plugin {
           }
 
           if (result) successCount++
-          await new Promise((resolve) => setTimeout(resolve, 200))
+          await new Promise((resolve) => window.setTimeout(resolve, 200))
         } catch (err) {
           console.error(`Error processing ${file.name}:`, err)
         }
@@ -931,7 +931,7 @@ export default class NeuralComposerPlugin extends Plugin {
     } catch (error) {
       console.error('Batch error:', error)
       notice.setMessage('Error starting upload.')
-      setTimeout(() => notice.hide(), 5000)
+      window.setTimeout(() => notice.hide(), 5000)
     }
   }
 
@@ -1046,7 +1046,7 @@ export default class NeuralComposerPlugin extends Plugin {
       console.error('Error removing excluded files from graph:', error)
       notice.setMessage('Excluded from graph sync (failed to update graph)')
     } finally {
-      setTimeout(() => notice.hide(), 4000)
+      window.setTimeout(() => notice.hide(), 4000)
     }
   }
 
@@ -1127,12 +1127,12 @@ export default class NeuralComposerPlugin extends Plugin {
         `Removed ${removed} from "${folder.path}"` +
           (missing > 0 ? ` (${missing} not in graph)` : ''),
       )
-      setTimeout(() => notice.hide(), 4000)
+      window.setTimeout(() => notice.hide(), 4000)
       this.decorateFileExplorer()
     } catch (error) {
       console.error('Batch remove error:', error)
       notice.setMessage('Error removing files from graph.')
-      setTimeout(() => notice.hide(), 5000)
+      window.setTimeout(() => notice.hide(), 5000)
     }
   }
 
@@ -1140,9 +1140,9 @@ export default class NeuralComposerPlugin extends Plugin {
 
   onunload() {
     window.clearInterval(this.heartbeatInterval)
-    this.timeoutIds.forEach((id) => clearTimeout(id))
+    this.timeoutIds.forEach((id) => window.clearTimeout(id))
     this.timeoutIds = []
-    this.modifyDebounceMap.forEach((id) => clearTimeout(id))
+    this.modifyDebounceMap.forEach((id) => window.clearTimeout(id))
     this.modifyDebounceMap.clear()
 
     if (this.ragEngine) {
@@ -1240,7 +1240,7 @@ export default class NeuralComposerPlugin extends Plugin {
     this.stopLightRagServer()
     // Use timeout to allow process to fully die
     this.timeoutIds.push(
-      setTimeout(() => {
+      window.setTimeout(() => {
         if (!skipEnvUpdate) this.updateEnvFile()
         void this.startLightRagServer()
       }, 2000),
@@ -1688,7 +1688,7 @@ export default class NeuralComposerPlugin extends Plugin {
       // --- DETECCIÓN REACTIVA (LINTER SAFE) ---
       void (async () => {
         for (let i = 0; i < 15; i++) {
-          await new Promise((r) => setTimeout(r, 1000))
+          await new Promise((r) => window.setTimeout(r, 1000))
           const alive = await this.isPortInUse(this.getServerPort())
           if (alive) {
             this.updateStatusUI('online')

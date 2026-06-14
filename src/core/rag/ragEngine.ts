@@ -458,7 +458,7 @@ export class RAGEngine {
           onQueryProgressChange?.({ type: 'querying' })
           new Notice('Waking up the system...')
           await this.restartServerCallback()
-          await new Promise((resolve) => setTimeout(resolve, 4000))
+          await new Promise((resolve) => window.setTimeout(resolve, 4000))
           data = await performQuery()
         } else {
           throw firstError
