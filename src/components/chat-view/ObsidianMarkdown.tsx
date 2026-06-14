@@ -10,29 +10,6 @@ type ObsidianMarkdownProps = {
 }
 
 /**
- * Normalize LaTeX delimiters emitted by LLMs to the Obsidian/MathJax format.
- * LLMs commonly output \(...\) and \[...\]; Obsidian only renders $...$ and $$...$$
- * Content inside fenced code blocks and inline code spans is left untouched.
- */
-function normalizeLatexDelimiters(content: string): string {
-  const codeBlocks: string[] = []
-  const withPlaceholders = content.replace(
-    /```[\s\S]*?```|`[^`\n]*`/g,
-    (match) => {
-      codeBlocks.push(match)
-      return `\x00CODE${codeBlocks.length - 1}\x00`
-    },
-  )
-  const normalized = withPlaceholders
-    .replace(/\\\[([\s\S]*?)\\\]/g, (_m, inner: string) => `$$${inner}$$`)
-    .replace(/\\\(([\s\S]*?)\\\)/g, (_m, inner: string) => `$${inner}$`)
-  return normalized.replace(
-    /\x00CODE(\d+)\x00/g,
-    (_m, idx: string) => codeBlocks[parseInt(idx)],
-  )
-}
-
-/**
  * Renders Obsidian Markdown content using the Obsidian MarkdownRenderer.
  *
  * @param content - The Obsidian Markdown content to render.
@@ -52,7 +29,7 @@ const ObsidianMarkdown = memo(function ObsidianMarkdown({
       containerRef.current.innerHTML = ''
       await MarkdownRenderer.render(
         app,
-        normalizeLatexDelimiters(content),
+        content,
         containerRef.current,
         app.workspace.getActiveFile()?.path ?? '',
         chatView,
