@@ -30,3 +30,4 @@ data.json
 # Local Graph Data
 .neural_memory/
 graph_data/
+.claude/
