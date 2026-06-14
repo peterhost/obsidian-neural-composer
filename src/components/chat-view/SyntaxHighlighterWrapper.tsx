@@ -1,5 +1,10 @@
 import { memo } from 'react'
-import SyntaxHighlighter from 'react-syntax-highlighter/dist/esm/prism-light'
+import SyntaxHighlighterBase from 'react-syntax-highlighter/dist/esm/prism-light'
+
+type SyntaxHighlighterWithRegister = typeof SyntaxHighlighterBase & {
+  registerLanguage: (name: string, lang: unknown) => void
+}
+const SyntaxHighlighter = SyntaxHighlighterBase as unknown as SyntaxHighlighterWithRegister
 import {
   oneDark,
   oneLight,

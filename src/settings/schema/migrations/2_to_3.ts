@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return -- migration operates on legacy data whose shape is not statically known; Array.isArray narrows to any[] */
 import { PROVIDER_TYPES_INFO } from '../../../constants'
 import { ChatModel } from '../../../types/chat-model.types'
 import { LLMProvider } from '../../../types/provider.types'

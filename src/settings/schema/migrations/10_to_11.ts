@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return -- migration operates on legacy data whose shape is not statically known; Array.isArray narrows to any[] */
 import { SettingMigration } from '../setting.types'
 
 import { getMigratedChatModels } from './migrationUtils'

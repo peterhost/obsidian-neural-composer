@@ -4,6 +4,7 @@ import { deepEqual } from '../../utils/deep-equal'
 
 import { NeuralComposerSettings } from '../../settings/schema/setting.types'
 import {
+  McpClient,
   McpServerConfig,
   McpServerState,
   McpServerStatus,
@@ -76,7 +77,7 @@ export class McpManager {
     // Disconnect all clients
     void Promise.all(
       this.servers
-        .filter((s) => s.status === McpServerStatus.Connected)
+        .filter((s): s is Extract<McpServerState, { status: McpServerStatus.Connected }> => s.status === McpServerStatus.Connected)
         .map((s) => s.client.close()),
     )
 
@@ -159,8 +160,8 @@ export class McpManager {
         : (newServersOrUpdater ?? currentServers)
 
     // Find clients that need to be disconnected
-    const clientsToDisconnect = currentServers
-      .filter((server) => server.status === McpServerStatus.Connected)
+    const clientsToDisconnect: McpClient[] = currentServers
+      .filter((server): server is Extract<McpServerState, { status: McpServerStatus.Connected }> => server.status === McpServerStatus.Connected)
       .map((server) => server.client)
       .filter(
         (client) =>
@@ -392,7 +393,7 @@ export class McpManager {
       const { client } = server
 
       const parsedArgs: Record<string, unknown> | undefined =
-        typeof args === 'string' ? (args === '' ? {} : JSON.parse(args)) : args
+        typeof args === 'string' ? (args === '' ? {} : JSON.parse(args) as Record<string, unknown>) : args
 
       const result = (await client.callTool(
         {
@@ -427,7 +428,7 @@ export class McpManager {
         },
       }
     } catch (error) {
-      if (error.name === 'AbortError') {
+      if (error instanceof Error && error.name === 'AbortError') {
         return {
           status: ToolCallResponseStatus.Aborted,
         }
@@ -436,7 +437,7 @@ export class McpManager {
       // Handle other errors
       return {
         status: ToolCallResponseStatus.Error,
-        error: error.message || 'Unknown error occurred',
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       }
     } finally {
       if (id !== undefined) {

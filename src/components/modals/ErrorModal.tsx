@@ -71,8 +71,10 @@ function ErrorModalComponent({
             onClick={() => {
               onClose()
               // @ts-expect-error: setting property exists in Obsidian's App but is not typed
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- Obsidian's App.setting is untyped
               app.setting.open()
               // @ts-expect-error: setting property exists in Obsidian's App but is not typed
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- Obsidian's App.setting is untyped
               app.setting.openTabById('smart-composer')
             }}
           >

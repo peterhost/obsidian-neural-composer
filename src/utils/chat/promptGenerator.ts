@@ -14,6 +14,7 @@ import {
 import { ContentPart, RequestMessage } from '../../types/llm/request'
 import {
   MentionableBlock,
+  MentionableCurrentFile,
   MentionableFile,
   MentionableFolder,
   MentionableImage,
@@ -90,7 +91,7 @@ export class PromptGenerator {
     const customInstructionMessage = this.getCustomInstructionMessage()
 
     const currentFile = lastUserMessage.mentionables.find(
-      (m) => m.type === 'current-file',
+      (m): m is MentionableCurrentFile => m.type === 'current-file',
     )?.file
     const currentFileMessage =
       currentFile && this.settings.chatOptions.includeCurrentFileContent

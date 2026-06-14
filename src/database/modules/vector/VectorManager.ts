@@ -157,8 +157,8 @@ export class VectorManager {
                   mtime: file.stat.mtime,
                   content: chunk.pageContent,
                   metadata: {
-                    startLine: chunk.metadata.loc.lines.from as number,
-                    endLine: chunk.metadata.loc.lines.to as number,
+                    startLine: chunk.metadata.loc.lines.from,
+                    endLine: chunk.metadata.loc.lines.to,
                   },
                 }
               },
@@ -255,10 +255,10 @@ export class VectorManager {
                   startingDelay: 2000,
                   timeMultiple: 2,
                   maxDelay: 60000,
-                  retry: (error) => {
+                  retry: (error: unknown) => {
                     if (
                       error instanceof LLMRateLimitExceededException ||
-                      error.status === 429
+                      (error as { status?: number }).status === 429
                     ) {
                       updateProgress?.({
                         completedChunks,

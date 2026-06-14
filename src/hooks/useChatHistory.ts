@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { editorStateToPlainText } from '../components/chat-view/chat-input/utils/editor-state-to-plain-text'
 import { useApp } from '../contexts/app-context'
 import { ChatConversationMetadata } from '../database/json/chat/types'
-import { ChatMessage, SerializedChatMessage } from '../types/chat'
+import { ChatMessage, ChatUserMessage, SerializedChatMessage } from '../types/chat'
 import { Mentionable } from '../types/mentionable'
 import {
   deserializeMentionable,
@@ -91,7 +91,7 @@ export function useChatHistory(): UseChatHistory {
               messages: serializedMessages,
             })
           } else {
-            const firstUserMessage = messages.find((v) => v.role === 'user')
+            const firstUserMessage = messages.find((v): v is ChatUserMessage => v.role === 'user')
 
             await chatManager.createChat({
               id,

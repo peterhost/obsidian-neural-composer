@@ -144,9 +144,10 @@ export class GeminiProvider extends BaseLLMProvider<
         messageId,
       )
     } catch (error) {
+      const msg = error instanceof Error ? error.message : ''
       const isInvalidApiKey =
-        error.message?.includes('API_KEY_INVALID') ||
-        error.message?.includes('API key not valid')
+        msg.includes('API_KEY_INVALID') ||
+        msg.includes('API key not valid')
 
       if (isInvalidApiKey) {
         throw new LLMAPIKeyInvalidException(
@@ -216,9 +217,10 @@ export class GeminiProvider extends BaseLLMProvider<
       const messageId = crypto.randomUUID() // Gemini does not return a message id
       return this.streamResponseGenerator(stream, request.model, messageId)
     } catch (error) {
+      const msg = error instanceof Error ? error.message : ''
       const isInvalidApiKey =
-        error.message?.includes('API_KEY_INVALID') ||
-        error.message?.includes('API key not valid')
+        msg.includes('API_KEY_INVALID') ||
+        msg.includes('API key not valid')
 
       if (isInvalidApiKey) {
         throw new LLMAPIKeyInvalidException(
@@ -279,7 +281,7 @@ export class GeminiProvider extends BaseLLMProvider<
           ...(message.content === '' ? [] : [{ text: message.content }]),
           ...(message.tool_calls?.map((toolCall): FunctionCallPart => {
             try {
-              const args = JSON.parse(toolCall.arguments ?? '{}')
+              const args = JSON.parse(toolCall.arguments ?? '{}') as Record<string, unknown>
               const part: FunctionCallPartWithThinking = { functionCall: { name: toolCall.name, args } }
               if (toolCall.thought_signature) {
                 part.thoughtSignature = toolCall.thought_signature
@@ -491,7 +493,7 @@ export class GeminiProvider extends BaseLLMProvider<
         .embedContent(text)
       return response.embedding.values
     } catch (error) {
-      if (error.status === 429) {
+      if ((error as { status?: number }).status === 429) {
         throw new LLMRateLimitExceededException(
           'Gemini API rate limit exceeded. Please try again later.',
         )

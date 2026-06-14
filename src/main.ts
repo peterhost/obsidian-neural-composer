@@ -229,8 +229,7 @@ export default class NeuralComposerPlugin extends Plugin {
       // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
       this._nodePath = require('path') as typeof import('path')
       // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
-      this._nodeChildProcess =
-        require('child_process') as typeof import('child_process')
+      this._nodeChildProcess = require('child_process') as typeof import('child_process')
       // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
       this._nodeNet = require('net') as typeof import('net')
     }
@@ -833,7 +832,13 @@ export default class NeuralComposerPlugin extends Plugin {
           headers: this.getLightRagHeaders(),
         })
 
-        const status = response.json
+        interface PipelineStatus {
+          busy: boolean
+          batchs?: number
+          cur_batch?: number
+          latest_message?: string
+        }
+        const status = response.json as PipelineStatus
         isBusy = status.busy
 
         if (isBusy) {
@@ -1638,8 +1643,8 @@ export default class NeuralComposerPlugin extends Plugin {
         },
       )
 
-      this.serverProcess.stderr?.on('data', (data) => {
-        const msg = data.toString()
+      this.serverProcess.stderr?.on('data', (data: Buffer | string) => {
+        const msg = String(data)
         const now = Date.now()
 
         if (!this.lastErrorTime || now - this.lastErrorTime > 5000) {
@@ -1951,7 +1956,7 @@ export default class NeuralComposerPlugin extends Plugin {
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
       })
 
-      const data = response.json
+      const data = response.json as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
       return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
     }
 
@@ -1976,7 +1981,7 @@ export default class NeuralComposerPlugin extends Plugin {
       }),
     })
 
-    const data = response.json
+    const data = response.json as { choices?: { message?: { content?: string } }[] }
     return data.choices?.[0]?.message?.content || ''
   }
 
@@ -2010,11 +2015,11 @@ export default class NeuralComposerPlugin extends Plugin {
       })
 
       if (response.status === 200) {
-        const data: {
+        const data = response.json as {
           pipeline_busy?: boolean
           core_version?: string
           api_version?: string
-        } = response.json
+        }
         const isBusy = data?.pipeline_busy ?? false
         // Store the server version (core_version is canonical; api_version as fallback)
         this.setServerVersion(data?.core_version ?? data?.api_version ?? null)

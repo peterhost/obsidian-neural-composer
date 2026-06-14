@@ -165,7 +165,8 @@ export class DatabaseManager {
       // This method uses an undocumented API to perform migrations
       // See: https://github.com/drizzle-team/drizzle-orm/discussions/2532#discussioncomment-10780523
 
-      // @ts-expect-error
+      // @ts-expect-error -- undocumented Drizzle API, no types available
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- undocumented Drizzle ORM internal API
       await this.db.dialect.migrate(migrations, this.db.session, {
         migrationsTable: 'drizzle_migrations',
       })

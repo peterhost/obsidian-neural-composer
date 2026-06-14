@@ -47,6 +47,20 @@ interface ApiKnowledgeGraph {
 export const NATIVE_GRAPH_VIEW_TYPE = 'neural-native-graph'
 
 // --- Interfaces for Strict Typing ---
+interface NodeGraphAttrs {
+  x?: number
+  y?: number
+  size?: number
+  color?: string
+  label?: string
+  zIndex?: number
+  node_type?: string
+  type?: string
+  forceLabel?: boolean
+  labelColor?: string
+  val?: number
+}
+
 interface GraphNode {
   id: string
   type: string
@@ -99,16 +113,6 @@ interface GraphMLRawEdge {
   '@_target'?: string
   normalizedSource?: string
   normalizedTarget?: string
-}
-
-interface GraphMLParsed {
-  graphml?: {
-    key?: GraphMLAttribute | GraphMLAttribute[]
-    graph?: {
-      node?: GraphMLRawNode | GraphMLRawNode[]
-      edge?: GraphMLRawEdge | GraphMLRawEdge[]
-    }
-  }
 }
 
 // Interfaces for external untyped libraries
@@ -355,7 +359,7 @@ export class NativeGraphView extends ItemView {
         throw: false,
       })
       if (response.status !== 200) return null
-      const labels: string[] = response.json
+      const labels: string[] = (Array.isArray(response.json) ? response.json as unknown[] : []).map(String)
       return labels.length > 0 ? labels[0] : null
     } catch (e) {
       console.error('Failed to fetch popular labels:', e)
@@ -378,7 +382,7 @@ export class NativeGraphView extends ItemView {
       })
       if (response.status !== 200) return null
 
-      const data: ApiKnowledgeGraph = response.json
+      const data = response.json as ApiKnowledgeGraph
 
       const nodeDegrees = new Map<string, number>()
       data.edges.forEach((e) => {
@@ -388,7 +392,7 @@ export class NativeGraphView extends ItemView {
 
       const nodes: GraphNode[] = data.nodes.map((n) => ({
         id: n.id,
-        type: (n.labels[0] as string) || 'Concept',
+        type: n.labels[0] || 'Concept',
         desc: String(n.properties.description ?? ''),
         source_id: String(n.properties.source_id ?? ''),
         val: (nodeDegrees.get(n.id) || 0) + 1,
@@ -425,7 +429,7 @@ export class NativeGraphView extends ItemView {
       if (!docData) return
 
       // Try every plausible field/path where LightRAG stores the filename
-      const meta = docData.metadata as Record<string, unknown> | undefined
+      const meta = docData.metadata
       const rawName =
         docData.file_name || // direct field (older versions)
         docData.file_path || // alternative direct field
@@ -585,7 +589,7 @@ export class NativeGraphView extends ItemView {
       this.fa2Layout.stop()
     }
 
-    const attrs = this.graph.getNodeAttributes(nodeId)
+    const attrs = this.graph.getNodeAttributes(nodeId) as NodeGraphAttrs
     const visualData = this.sigmaInstance.getNodeDisplayData(nodeId)
     if (!attrs) return
 
@@ -786,8 +790,11 @@ export class NativeGraphView extends ItemView {
         defaultDrawNodeHover: drawHover as unknown as NonNullable<ConstructorParameters<typeof Sigma>[2]>['defaultDrawNodeHover'],
       })
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment -- graphology-layout-forceatlas2 types not resolved by ESLint's TypeScript program
       const settings = forceAtlas2.inferSettings(this.graph)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment -- FA2Layout constructor not resolved by ESLint's TypeScript program
       this.fa2Layout = new FA2Layout(this.graph, {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- settings spread from untyped forceAtlas2 result
         settings: { ...settings, gravity: 1, slowDown: 5 },
       })
       // FIXED: Optional chaining to prevent "Object is possibly null"
@@ -803,7 +810,7 @@ export class NativeGraphView extends ItemView {
       })
 
       this.sigmaInstance.on('enterNode', (event) => {
-        const attrs = this.graph?.getNodeAttributes(event.node)
+        const attrs = this.graph?.getNodeAttributes(event.node) as NodeGraphAttrs | undefined
         if (!attrs) return
         if (attrs.color !== '#ffffff') {
           this.graph?.setNodeAttribute(event.node, 'label', event.node)
@@ -813,7 +820,7 @@ export class NativeGraphView extends ItemView {
       })
 
       this.sigmaInstance.on('leaveNode', (event) => {
-        const attrs = this.graph?.getNodeAttributes(event.node)
+        const attrs = this.graph?.getNodeAttributes(event.node) as NodeGraphAttrs | undefined
         if (!attrs) return
         if (attrs.color === '#ff0055') {
           this.graph?.setNodeAttribute(event.node, 'color', '#00d4ff')
@@ -1275,9 +1282,7 @@ export class NativeGraphView extends ItemView {
         loadingRow.setText(`Failed to load entities (HTTP ${listResp.status}).`)
         return
       }
-      const graphLabels: string[] = Array.isArray(listResp.json)
-        ? listResp.json
-        : []
+      const graphLabels: string[] = (Array.isArray(listResp.json) ? listResp.json as unknown[] : []).map(String)
       // Step 2: get all labels sorted by degree — "popular" with a high limit.
       // Any label NOT returned here (after requesting up to 1000) that IS in
       // graphLabels has degree 0 in the stored graph → true orphan node.
@@ -1287,10 +1292,7 @@ export class NativeGraphView extends ItemView {
         headers: this.getLightRagHeaders(),
         throw: false,
       })
-      const popularLabels: string[] =
-        popularResp.status === 200 && Array.isArray(popularResp.json)
-          ? popularResp.json
-          : []
+      const popularLabels: string[] = (popularResp.status === 200 && Array.isArray(popularResp.json) ? popularResp.json as unknown[] : []).map(String)
       const popularSet = new Set(popularLabels)
 
       // True orphans: in graph (have a node) but NOT in popular list (degree 0)
