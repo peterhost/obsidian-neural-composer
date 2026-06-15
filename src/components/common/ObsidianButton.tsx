@@ -65,7 +65,7 @@ export function ObsidianButton({
     if (icon) buttonComponent.setIcon(icon)
     if (tooltip) buttonComponent.setTooltip(tooltip)
     if (cta) buttonComponent.setCta()
-    if (warning) buttonComponent.setWarning()
+    if (warning) buttonComponent.buttonEl.addClass('mod-destructive')
     buttonComponent.setDisabled(!!disabled)
   }, [buttonComponent, text, icon, tooltip, cta, warning, disabled])
 

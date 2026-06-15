@@ -114,7 +114,7 @@ export function getScrollParent(
   const excludeStaticParent = style.position === 'absolute'
   const overflowRegex = includeHidden ? /(auto|scroll|hidden)/ : /(auto|scroll)/
   if (style.position === 'fixed') {
-    return document.body
+    return activeDocument.body
   }
   for (
     let parent: HTMLElement | null = element;
@@ -130,7 +130,7 @@ export function getScrollParent(
       return parent
     }
   }
-  return document.body
+  return activeDocument.body
 }
 
 export const SCROLL_TYPEAHEAD_OPTION_INTO_VIEW_COMMAND: LexicalCommand<{

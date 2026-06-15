@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 
 import NeuralComposerPlugin from '../../../main'
 import { EnvEditorModal } from '../../modals/EnvEditorModal'
+
 import { ADV_SETTINGS, BACKEND_NAME } from './NeuralSection'
 
 type ServerActionsSectionProps = {
@@ -44,7 +45,7 @@ export function ServerActionsSection({
 
     // Debounce timer for the env textarea — declared here so the cleanup
     // function can cancel any pending save when the effect tears down.
-    let saveTimer: ReturnType<typeof setTimeout> | null = null
+    let saveTimer: number | null = null
 
     // ── 1. Advanced configuration ─────────────────────────────────────────
     container.createEl('h4', {
@@ -79,8 +80,8 @@ export function ServerActionsSection({
             // inactivity.  This avoids calling setSettings() on every single
             // keystroke, which would broadcast a settings-change event,
             // cause parent components to re-render, and destroy this textarea.
-            if (saveTimer) clearTimeout(saveTimer)
-            saveTimer = setTimeout(() => {
+            if (saveTimer) window.clearTimeout(saveTimer)
+            saveTimer = window.setTimeout(() => {
               saveTimer = null
               void plugin.setSettings({
                 ...plugin.settings,
@@ -131,14 +132,13 @@ export function ServerActionsSection({
 
     // Cleanup: cancel any pending save when the component unmounts.
     return () => {
-      if (saveTimer) clearTimeout(saveTimer)
+      if (saveTimer) window.clearTimeout(saveTimer)
     }
     // Intentionally excludes `settings` from deps.
     // Adding it would cause the effect to re-run on every save, which clears
     // the DOM (container.empty()), destroys the textarea, and loses focus.
     // The textarea value is read once at mount; subsequent persistence is
     // handled by the debounced onChange above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plugin, app])
 
   return (

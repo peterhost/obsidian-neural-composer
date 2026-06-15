@@ -1,6 +1,6 @@
-import { AbstractInputSuggest, App, Setting, Notice, TFolder } from 'obsidian'
-import { EnvEditorModal } from '../../modals/EnvEditorModal'
+import { AbstractInputSuggest, App, Notice, Setting, TFolder } from 'obsidian'
 import { useEffect, useRef, useState } from 'react'
+
 import NeuralComposerPlugin from '../../../main'
 
 class FolderSuggest extends AbstractInputSuggest<TFolder> {
@@ -101,7 +101,7 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
         versionBadge.textContent = `v${plugin.lightRagServerVersion}`
         versionBadge.addClass('nc-version-badge--online')
       } else {
-        versionBadge.textContent = 'offline'
+        versionBadge.textContent = 'Offline'
         versionBadge.addClass('nc-version-badge--offline')
       }
     }
@@ -173,10 +173,10 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
 
       new Setting(container)
         .setName(`${BACKEND_NAME} command path`)
-        .setDesc('Path to the lightrag-server executable.')
+        .setDesc('Path to the LightRAG server executable.')
         .addText((text) =>
           text
-            .setPlaceholder('Lightrag server')
+            .setPlaceholder('LightRAG server')
             .setValue(plugin.settings.lightRagCommand)
             .onChange((value) => {
               void plugin.setSettings({
@@ -314,6 +314,49 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
             })
           })
         new FolderSuggest(plugin.app, text.inputEl)
+      })
+
+    new Setting(container)
+      .setName('Exclude hidden files and folders')
+      .setDesc(
+        'When enabled, files and folders whose name starts with a dot ' +
+          '(e.g. ".trash", ".git") are never ingested into the graph.',
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(plugin.settings.lightRagExcludeHiddenFiles)
+          .onChange((value) => {
+            void plugin.setSettings({
+              ...plugin.settings,
+              lightRagExcludeHiddenFiles: value,
+            })
+          }),
+      )
+
+    new Setting(container)
+      .setName('Exclude patterns')
+      .setDesc(
+        'Glob patterns (one per line) for vault paths that should never be ' +
+          'ingested into the graph. Patterns are vault-relative ' +
+          '(e.g. "Main/Templates/**"). ' +
+          'You can also right-click a file or folder and choose "Exclude from graph sync".',
+      )
+      .addTextArea((textArea) => {
+        textArea
+          .setPlaceholder('Main/Templates/**\nMain/Inbox/scratch.md')
+          .setValue(plugin.settings.lightRagExcludePatterns.join('\n'))
+          .onChange((value) => {
+            const patterns = value
+              .split('\n')
+              .map((p) => p.trim())
+              .filter((p) => p.length > 0)
+            void plugin.setSettings({
+              ...plugin.settings,
+              lightRagExcludePatterns: patterns,
+            })
+          })
+        textArea.inputEl.rows = 4
+        textArea.inputEl.setCssStyles({ width: '100%' })
       })
 
     // --- ONTOLOGY SECTION ---
@@ -578,7 +621,7 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
           })
         })
       })
-  }, [settings, currentRerankBinding, useCustomOntology, useRemote])
+  }, [settings, currentRerankBinding, useCustomOntology, useRemote, plugin])
 
   // Reactively update the version badge on every server info change
   // without rebuilding the entire DOM (no focus loss, no flicker).
@@ -604,7 +647,7 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
       badge.classList.add('nc-version-badge--online')
     } else {
       // Checked and server is offline
-      badge.textContent = 'offline'
+      badge.textContent = 'Offline'
       badge.classList.add('nc-version-badge--offline')
     }
   }, [serverInfo])

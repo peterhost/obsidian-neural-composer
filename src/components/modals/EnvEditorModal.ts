@@ -1,4 +1,5 @@
-import { App, Modal, ButtonComponent, Notice } from 'obsidian' // Eliminado 'Setting'
+import { App, ButtonComponent, Modal, Notice } from 'obsidian' // Eliminado 'Setting'
+
 import NeuralComposerPlugin from '../../main'
 
 export class EnvEditorModal extends Modal {

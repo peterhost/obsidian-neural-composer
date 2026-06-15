@@ -390,18 +390,18 @@ https://github.com/glowingjade/obsidian-smart-composer/issues/286`,
     response: Anthropic.Message,
   ): LLMResponseNonStreaming {
     const textContent = response.content
-      .filter((c) => c.type === 'text')
+      .filter((c): c is Anthropic.TextBlock => c.type === 'text')
       .map((c) => c.text)
       .join('')
 
     const reasoningContent =
       response.content
-        .filter((c) => c.type === 'thinking')
+        .filter((c): c is Anthropic.ThinkingBlock => c.type === 'thinking')
         .map((c) => c.thinking)
         .join('') || undefined
 
     const toolCalls: ToolCall[] = response.content
-      .filter((c) => c.type === 'tool_use')
+      .filter((c): c is Anthropic.ToolUseBlock => c.type === 'tool_use')
       .map((c): ToolCall => {
         return {
           id: c.id,

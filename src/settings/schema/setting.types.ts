@@ -121,6 +121,10 @@ export const NeuralComposerSettingsSchema = z.object({
 
   // --- INCREMENTAL SYNC ---
   lightRagSyncFolder: z.string().catch(''),
+
+  // --- GRAPH SYNC EXCLUSIONS ---
+  lightRagExcludePatterns: z.array(z.string()).catch([]),
+  lightRagExcludeHiddenFiles: z.boolean().catch(true),
   // ----------------------------------
 })
 
@@ -202,6 +206,9 @@ export const DEFAULT_SETTINGS: NeuralComposerSettings = {
   // DEFAULT NUEVO
   lightRagCustomEnv: '',
   lightRagSyncFolder: '',
+
+  lightRagExcludePatterns: [],
+  lightRagExcludeHiddenFiles: true,
 }
 
 export type SettingMigration = {

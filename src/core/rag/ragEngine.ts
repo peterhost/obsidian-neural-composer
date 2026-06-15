@@ -1,10 +1,11 @@
-import { App, TFile, Notice, requestUrl } from 'obsidian'
+import { App, Notice, TFile, requestUrl } from 'obsidian'
 
 import { QueryProgressState } from '../../components/chat-view/QueryProgress'
 import { VectorManager } from '../../database/modules/vector/VectorManager'
 import { SelectEmbedding } from '../../database/schema'
 import { NeuralComposerSettings } from '../../settings/schema/setting.types'
 import { EmbeddingModelClient } from '../../types/embedding'
+import { isExcludedFromGraphSync } from '../../utils/glob-utils'
 
 import { getEmbeddingModelClient } from './embedding'
 
@@ -14,7 +15,7 @@ type RagQueryResult = (Omit<SelectEmbedding, 'embedding'> & {
 })[]
 
 // Interface for internal results
-interface RagResult extends Partial<SelectEmbedding> {
+type RagResult = {
   id: number
   model?: string
   path: string
@@ -27,10 +28,10 @@ interface RagResult extends Partial<SelectEmbedding> {
     fileName?: string
     content?: string
   }
-}
+} & Partial<SelectEmbedding>
 
 // FIX: New interface to type the API response and avoid 'any'
-interface LightRagAPIResponse {
+type LightRagAPIResponse = {
   response?: string
   references?: {
     reference_id?: string
@@ -100,8 +101,8 @@ export class RAGEngine {
 
   // Correct: Returns Promise<void> directly without async/await overhead
   updateVaultIndex(
-    options: { reindexAll: boolean } = { reindexAll: false },
-    onQueryProgressChange?: (queryProgress: QueryProgressState) => void,
+    _options: { reindexAll: boolean } = { reindexAll: false },
+    _onQueryProgressChange?: (queryProgress: QueryProgressState) => void,
   ): Promise<void> {
     if (!this.embeddingModel)
       return Promise.reject(new Error('Embedding model is not set'))
@@ -183,12 +184,21 @@ export class RAGEngine {
 
   // --- 2b. INCREMENTAL SYNC HELPERS ---
 
-  async listAllDocumentPaths(): Promise<string[]> {
+  /**
+   * Paginates through ALL pages of /documents/paginated and returns every
+   * document's id + file_path. The API caps page_size at 200, so large vaults
+   * span multiple pages. `onPage` lets callers short-circuit the walk (return
+   * true to stop) — used by findDocIdByFilePath to stop as soon as it finds
+   * its target without fetching the remaining pages.
+   */
+  private async listAllDocuments(
+    onPage?: (docs: { id: string; file_path?: string | null }[]) => boolean,
+  ): Promise<{ id: string; file_path: string }[]> {
     const pageSize = 200
-    const paths: string[] = []
+    const out: { id: string; file_path: string }[] = []
     let page = 1
     try {
-      while (page <= 200) {
+      while (page <= 1000) {
         const response = await requestUrl({
           url: `${this.settings.lightRagServerUrl}/documents/paginated`,
           method: 'POST',
@@ -206,19 +216,64 @@ export class RAGEngine {
           documents?: { id: string; file_path?: string | null }[]
           pagination?: { has_next?: boolean }
         }
-        for (const doc of data.documents ?? []) {
+        const docs = data.documents ?? []
+        for (const doc of docs) {
           if (typeof doc.file_path === 'string' && doc.file_path.length > 0) {
-            paths.push(doc.file_path)
+            out.push({ id: doc.id, file_path: doc.file_path })
           }
         }
+        if (onPage && onPage(docs)) break
         if (!data.pagination?.has_next) break
         page++
       }
     } catch (e) {
-      console.error('listAllDocumentPaths failed:', e)
-      return []
+      console.error('listAllDocuments failed:', e)
     }
-    return paths
+    return out
+  }
+
+  async listAllDocumentPaths(): Promise<string[]> {
+    return (await this.listAllDocuments()).map((d) => d.file_path)
+  }
+
+  /**
+   * Returns a map of vault file_path → LightRAG doc_id, built in a single
+   * pagination pass. Both the full path and the bare filename are indexed so
+   * callers can match either (pre-v1.2 entries stored only the filename).
+   */
+  async getDocIdMap(): Promise<Map<string, string>> {
+    const map = new Map<string, string>()
+    for (const d of await this.listAllDocuments()) {
+      map.set(d.file_path, d.id)
+      const base = d.file_path.replace(/\\/g, '/').split('/').pop()
+      if (base && !map.has(base)) map.set(base, d.id)
+    }
+    return map
+  }
+
+  /**
+   * Deletes multiple documents in one request. /documents/delete_document
+   * accepts a doc_ids array, so bulk operations send all ids at once instead
+   * of one request per file.
+   */
+  async deleteDocumentsByIds(docIds: string[]): Promise<boolean> {
+    if (docIds.length === 0) return true
+    try {
+      const response = await requestUrl({
+        url: `${this.settings.lightRagServerUrl}/documents/delete_document`,
+        method: 'DELETE',
+        headers: this.getLightRagHeaders(),
+        body: JSON.stringify({
+          doc_ids: docIds,
+          delete_file: false,
+          delete_llm_cache: true,
+        }),
+        throw: false,
+      })
+      return response.status < 400
+    } catch {
+      return false
+    }
   }
 
   // Finds a LightRAG doc_id matching the given file.
@@ -289,6 +344,17 @@ export class RAGEngine {
 
   // Inserts a file into the index without deleting first.
   async ingestFile(file: TFile): Promise<boolean> {
+    // Defense-in-depth: callers already gate excluded files, but this
+    // prevents any future call site from bypassing exclusion settings.
+    if (
+      isExcludedFromGraphSync(file.path, {
+        excludePatterns: this.settings.lightRagExcludePatterns,
+        excludeHiddenFiles: this.settings.lightRagExcludeHiddenFiles,
+      })
+    ) {
+      return false
+    }
+
     const ext = file.extension.toLowerCase()
     const textExts = ['md', 'txt', 'csv', 'json', 'html', 'htm', 'xml']
     if (textExts.includes(ext)) {
@@ -392,7 +458,7 @@ export class RAGEngine {
           onQueryProgressChange?.({ type: 'querying' })
           new Notice('Waking up the system...')
           await this.restartServerCallback()
-          await new Promise((resolve) => setTimeout(resolve, 4000))
+          await new Promise((resolve) => window.setTimeout(resolve, 4000))
           data = await performQuery()
         } else {
           throw firstError

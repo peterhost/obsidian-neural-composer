@@ -1,9 +1,9 @@
 import {
   App,
-  Modal,
   ButtonComponent,
-  TextAreaComponent,
+  Modal,
   Notice,
+  TextAreaComponent,
 } from 'obsidian'
 
 export class CreateRelationModal extends Modal {
@@ -52,7 +52,7 @@ export class CreateRelationModal extends Modal {
     })
     const sourceSelect = contentEl.createEl('select', { cls: 'dropdown' })
     // Fix: Use setCssProps instead of style.width
-    sourceSelect.setCssProps({ width: '100%' })
+    sourceSelect.setCssStyles({ width: '100%' })
 
     this.sources.forEach((node) => {
       const opt = sourceSelect.createEl('option', { text: node, value: node })
@@ -71,7 +71,7 @@ export class CreateRelationModal extends Modal {
       cls: 'nrlcmp-modal-input-container',
     })
     // Fix: Use setCssProps
-    targetList.setCssProps({ 'font-size': '0.85em' })
+    targetList.setCssStyles({ fontSize: '0.85em' })
     targetList.setText('All other selected nodes will be linked to the source.')
 
     // --- DESCRIPCIÓN ---
@@ -83,13 +83,13 @@ export class CreateRelationModal extends Modal {
       .setPlaceholder('Describe how these concepts are connected...')
       .onChange((val) => (this.description = val))
     // Fix: Use setCssProps
-    descArea.inputEl.setCssProps({ width: '100%' })
+    descArea.inputEl.setCssStyles({ width: '100%' })
     descArea.inputEl.rows = 4
 
     // --- BOTÓN SUGERENCIA AI ---
     const aiBtnContainer = contentEl.createDiv()
     // Fix: Use setCssProps
-    aiBtnContainer.setCssProps({ 'margin-top': '10px' })
+    aiBtnContainer.setCssStyles({ marginTop: '10px' })
 
     const aiBtn = new ButtonComponent(aiBtnContainer)
       .setButtonText('Suggest with AI')
@@ -118,7 +118,7 @@ export class CreateRelationModal extends Modal {
       value: this.keywords,
     })
     // Fix: Use setCssProps
-    kwInput.setCssProps({ width: '100%' })
+    kwInput.setCssStyles({ width: '100%' })
     kwInput.onchange = () => {
       this.keywords = kwInput.value
     }
@@ -126,7 +126,7 @@ export class CreateRelationModal extends Modal {
     // --- BOTONERA FINAL ---
     const buttonDiv = contentEl.createDiv({ cls: 'nrlcmp-edit-actions' })
     // Fix: Use setCssProps
-    buttonDiv.setCssProps({ 'margin-top': '20px' })
+    buttonDiv.setCssStyles({ marginTop: '20px' })
 
     new ButtonComponent(buttonDiv)
       .setButtonText('Cancel')
