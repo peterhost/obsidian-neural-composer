@@ -47,6 +47,7 @@ export const BACKEND_NAME = 'LightRAG'
 export const TERM_API = 'API'
 export const TERM_LLM = 'LLM'
 export const TERM_LLM_EMBED = 'LLM/Embed'
+export const CMD_INGEST_FOLDER = 'Ingest folder into graph'
 export const VAR_MAX_ASYNC = 'MAX_ASYNC' // Nombre de variable de entorno/configuración
 
 // --- MASTER EXTENSION LIST ---
@@ -353,7 +354,7 @@ export default class NeuralComposerPlugin extends Plugin {
           if (showIngest) {
             menu.addItem((item) => {
               item
-                .setTitle('Ingest folder into graph')
+                .setTitle(CMD_INGEST_FOLDER)
                 .setIcon('layers')
                 .onClick(() => {
                   void this.batchIngestFolder(file)
@@ -1069,8 +1070,7 @@ export default class NeuralComposerPlugin extends Plugin {
       lightRagExcludePatterns: remaining,
     })
     new Notice(
-      // eslint-disable-next-line obsidianmd/ui/sentence-case -- "Ingest folder into graph" is the exact command name shown in Obsidian's command palette
-      'Re-included in graph sync. Edit the file to re-ingest it, or use "Ingest folder into graph".',
+      `Re-included in graph sync. Edit the file to re-ingest it, or use "${CMD_INGEST_FOLDER}".`,
     )
   }
 
