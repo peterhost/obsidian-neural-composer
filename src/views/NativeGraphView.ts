@@ -1212,10 +1212,10 @@ export class NativeGraphView extends ItemView {
       })
     new ButtonComponent(actionButtons)
       .setButtonText('Delete')
-      .setDestructive()
       .onClick(() => {
         void this.deleteSelectedNodes()
       })
+      .buttonEl.addClass('mod-destructive')
 
     const filterBar = header.createDiv({ cls: 'nrlcmp-sidebar-filters' })
     this.sortBtnEl = filterBar.createEl('span', {
@@ -1596,13 +1596,13 @@ class ConfirmationModal extends Modal {
 
     new ButtonComponent(btnContainer)
       .setButtonText('Confirm')
-      .setDestructive()
       .onClick(() => {
         void (async () => {
           await this.onConfirm()
           this.close()
         })()
       })
+      .buttonEl.addClass('mod-destructive')
   }
 
   onClose() {
