@@ -10,9 +10,9 @@ import {
   useState,
 } from 'react'
 
-import { useSettings } from '../../../contexts/settings-context'
-
 import { useApp } from '../../../contexts/app-context'
+import { useSettings } from '../../../contexts/settings-context'
+import { NeuralComposerSettings } from '../../../settings/schema/setting.types'
 import {
   Mentionable,
   MentionableImage,
@@ -36,8 +36,8 @@ import { NodeMutations } from './plugins/on-mutation/OnMutationPlugin'
 import { SubmitButton } from './SubmitButton'
 import ToolBadge from './ToolBadge'
 import { VaultChatButton } from './VaultChatButton'
+
 // Import type for safe casting
-import { NeuralComposerSettings } from '../../../settings/schema/setting.types'
 
 export type ChatUserInputRef = {
   focus: () => void

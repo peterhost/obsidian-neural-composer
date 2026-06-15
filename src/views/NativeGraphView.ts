@@ -1,36 +1,36 @@
-import {
-  ItemView,
-  WorkspaceLeaf,
-  Notice,
-  setIcon,
-  TextComponent,
-  ButtonComponent,
-  setTooltip,
-  requestUrl,
-  Modal,
-  App,
-  Platform,
-} from 'obsidian'
 import Graph from 'graphology'
-import Sigma from 'sigma'
 import forceAtlas2 from 'graphology-layout-forceatlas2'
 import FA2Layout from 'graphology-layout-forceatlas2/worker'
+import {
+  App,
+  ButtonComponent,
+  ItemView,
+  Modal,
+  Notice,
+  Platform,
+  TextComponent,
+  WorkspaceLeaf,
+  requestUrl,
+  setIcon,
+  setTooltip,
+} from 'obsidian'
+import Sigma from 'sigma'
+
 // ForceGraph3D (~4MB with three.js) is lazy-loaded on first 3D render
 type ForceGraph3DConstructor = () => ForceGraph3DInstance
+import { CreateRelationModal } from '../components/modals/CreateRelationModal'
 import { MergeSelectionModal } from '../components/modals/MergeSelectionModal'
 // Use type import to avoid circular dependency values but get the type
 import type NeuralComposerPlugin from '../main'
 
-import { CreateRelationModal } from '../components/modals/CreateRelationModal'
-
 // LightRAG /graphs API response types
-interface ApiKgNode {
+type ApiKgNode = {
   id: string
   labels: string[]
   properties: Record<string, unknown>
 }
 
-interface ApiKgEdge {
+type ApiKgEdge = {
   id: string
   type?: string
   source: string
@@ -38,7 +38,7 @@ interface ApiKgEdge {
   properties: Record<string, unknown>
 }
 
-interface ApiKnowledgeGraph {
+type ApiKnowledgeGraph = {
   nodes: ApiKgNode[]
   edges: ApiKgEdge[]
   is_truncated: boolean
@@ -47,7 +47,7 @@ interface ApiKnowledgeGraph {
 export const NATIVE_GRAPH_VIEW_TYPE = 'neural-native-graph'
 
 // --- Interfaces for Strict Typing ---
-interface NodeGraphAttrs {
+type NodeGraphAttrs = {
   x?: number
   y?: number
   size?: number
@@ -61,7 +61,7 @@ interface NodeGraphAttrs {
   val?: number
 }
 
-interface GraphNode {
+type GraphNode = {
   id: string
   type: string
   desc: string
@@ -77,13 +77,13 @@ interface GraphNode {
   node_type?: string
 }
 
-interface ChunkDocMap {
+type ChunkDocMap = {
   full_doc_id?: string
   doc_id?: string
   [key: string]: unknown
 }
 
-interface DocNameMap {
+type DocNameMap = {
   file_name?: string
   file_path?: string
   id?: string
@@ -91,7 +91,7 @@ interface DocNameMap {
   [key: string]: unknown
 }
 
-interface GraphMLRawEdge {
+type GraphMLRawEdge = {
   source: string
   target: string
   '@_source'?: string
@@ -101,7 +101,7 @@ interface GraphMLRawEdge {
 }
 
 // Interfaces for external untyped libraries
-interface FA2LayoutInstance {
+type FA2LayoutInstance = {
   start: () => void
   stop: () => void
   isRunning: () => boolean
@@ -109,13 +109,13 @@ interface FA2LayoutInstance {
 }
 
 // Helper interface for links inside the 3D graph
-interface GraphLink {
+type GraphLink = {
   source: string
   target: string
 }
 
 // Fix 1: Improved typing for 3d-force-graph replacing 'any' with GraphNode/GraphLink
-interface ForceGraph3DInstance {
+type ForceGraph3DInstance = {
   (element: HTMLElement): ForceGraph3DInstance
   // Fix [8, 9]: Typed nodes and links instead of any[]
   graphData(data: {
@@ -146,7 +146,7 @@ interface ForceGraph3DInstance {
 }
 
 // Fix [12]: Interface for Getter usage ensuring strict return types
-interface ForceGraph3DGetter {
+type ForceGraph3DGetter = {
   graphData(): { nodes: GraphNode[]; links: GraphLink[] }
 }
 
@@ -344,7 +344,9 @@ export class NativeGraphView extends ItemView {
         throw: false,
       })
       if (response.status !== 200) return null
-      const labels: string[] = (Array.isArray(response.json) ? response.json as unknown[] : []).map(String)
+      const labels: string[] = (
+        Array.isArray(response.json) ? (response.json as unknown[]) : []
+      ).map(String)
       return labels.length > 0 ? labels[0] : null
     } catch (e) {
       console.error('Failed to fetch popular labels:', e)
@@ -375,13 +377,15 @@ export class NativeGraphView extends ItemView {
         nodeDegrees.set(e.target, (nodeDegrees.get(e.target) || 0) + 1)
       })
 
+      const strProp = (v: unknown): string =>
+        typeof v === 'string' ? v : typeof v === 'number' ? String(v) : ''
       const nodes: GraphNode[] = data.nodes.map((n) => ({
         id: n.id,
         type: n.labels[0] || 'Concept',
-        desc: String(n.properties.description ?? ''),
-        source_id: String(n.properties.source_id ?? ''),
+        desc: strProp(n.properties.description),
+        source_id: strProp(n.properties.source_id),
         val: (nodeDegrees.get(n.id) || 0) + 1,
-        file_paths: this.getFilenames(String(n.properties.source_id ?? '')),
+        file_paths: this.getFilenames(strProp(n.properties.source_id)),
       }))
 
       const edges: GraphMLRawEdge[] = data.edges.map((e) => ({
@@ -415,18 +419,16 @@ export class NativeGraphView extends ItemView {
 
       // Try every plausible field/path where LightRAG stores the filename
       const meta = docData.metadata
-      const rawName =
+      const rawName: string | undefined =
         docData.file_name || // direct field (older versions)
         docData.file_path || // alternative direct field
-        meta?.file_name || // nested in metadata
-        meta?.file_path || // nested alternative
+        (meta?.file_name as string | undefined) || // nested in metadata
+        (meta?.file_path as string | undefined) || // nested alternative
         (docData._rawKey as string) || // the raw JSON key (often is the file path)
         docData.id // doc ID as last-resort display name
       if (rawName) {
         // Show only the basename so long paths stay readable
-        const name =
-          String(rawName).replace(/\\/g, '/').split('/').pop() ||
-          String(rawName)
+        const name = rawName.replace(/\\/g, '/').split('/').pop() || rawName
         fileNames.add(name)
       }
     })
@@ -687,7 +689,9 @@ export class NativeGraphView extends ItemView {
 
       const isDark = activeDocument.body.classList.contains('theme-dark')
       const labelTextColor = isDark ? '#e8e8e8' : '#111111'
-      container.setCssStyles({ backgroundColor: isDark ? '#111111' : '#f0f0f0' })
+      container.setCssStyles({
+        backgroundColor: isDark ? '#111111' : '#f0f0f0',
+      })
 
       // Stamp label color onto every node so the custom hover renderer can read it
       this.graph.forEachNode((n) => {
@@ -772,7 +776,9 @@ export class NativeGraphView extends ItemView {
         labelWeight: 'bold',
         allowInvalidContainer: true,
         zIndex: true,
-        defaultDrawNodeHover: drawHover as unknown as NonNullable<ConstructorParameters<typeof Sigma>[2]>['defaultDrawNodeHover'],
+        defaultDrawNodeHover: drawHover as unknown as NonNullable<
+          ConstructorParameters<typeof Sigma>[2]
+        >['defaultDrawNodeHover'],
       })
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment -- graphology-layout-forceatlas2 types not resolved by ESLint's TypeScript program
@@ -795,7 +801,9 @@ export class NativeGraphView extends ItemView {
       })
 
       this.sigmaInstance.on('enterNode', (event) => {
-        const attrs = this.graph?.getNodeAttributes(event.node) as NodeGraphAttrs | undefined
+        const attrs = this.graph?.getNodeAttributes(event.node) as
+          | NodeGraphAttrs
+          | undefined
         if (!attrs) return
         if (attrs.color !== '#ffffff') {
           this.graph?.setNodeAttribute(event.node, 'label', event.node)
@@ -805,7 +813,9 @@ export class NativeGraphView extends ItemView {
       })
 
       this.sigmaInstance.on('leaveNode', (event) => {
-        const attrs = this.graph?.getNodeAttributes(event.node) as NodeGraphAttrs | undefined
+        const attrs = this.graph?.getNodeAttributes(event.node) as
+          | NodeGraphAttrs
+          | undefined
         if (!attrs) return
         if (attrs.color === '#ff0055') {
           this.graph?.setNodeAttribute(event.node, 'color', '#00d4ff')
@@ -1268,7 +1278,9 @@ export class NativeGraphView extends ItemView {
         loadingRow.setText(`Failed to load entities (HTTP ${listResp.status}).`)
         return
       }
-      const graphLabels: string[] = (Array.isArray(listResp.json) ? listResp.json as unknown[] : []).map(String)
+      const graphLabels: string[] = (
+        Array.isArray(listResp.json) ? (listResp.json as unknown[]) : []
+      ).map(String)
       // Step 2: get all labels sorted by degree — "popular" with a high limit.
       // Any label NOT returned here (after requesting up to 1000) that IS in
       // graphLabels has degree 0 in the stored graph → true orphan node.
@@ -1278,7 +1290,11 @@ export class NativeGraphView extends ItemView {
         headers: this.getLightRagHeaders(),
         throw: false,
       })
-      const popularLabels: string[] = (popularResp.status === 200 && Array.isArray(popularResp.json) ? popularResp.json as unknown[] : []).map(String)
+      const popularLabels: string[] = (
+        popularResp.status === 200 && Array.isArray(popularResp.json)
+          ? (popularResp.json as unknown[])
+          : []
+      ).map(String)
       const popularSet = new Set(popularLabels)
 
       // True orphans: in graph (have a node) but NOT in popular list (degree 0)

@@ -13,12 +13,12 @@ const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36,gzip(gfe)'
 const RE_XML_TRANSCRIPT = /<text start="([^"]*)" dur="([^"]*)">([^<]*)<\/text>/g
 
-interface YoutubeCaptionTrack {
+type YoutubeCaptionTrack = {
   languageCode: string
   baseUrl: string
 }
 
-interface YoutubePlayerResponse {
+type YoutubePlayerResponse = {
   playerCaptionsTracklistRenderer?: {
     captionTracks?: YoutubeCaptionTrack[]
   }
@@ -128,9 +128,9 @@ export class YoutubeTranscript {
 
     const captions = (() => {
       try {
-        return (JSON.parse(
+        return JSON.parse(
           splittedHTML[1].split(',"videoDetails')[0].replace('\n', ''),
-        ) as YoutubePlayerResponse)
+        ) as YoutubePlayerResponse
       } catch {
         return undefined
       }

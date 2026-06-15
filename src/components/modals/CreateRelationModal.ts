@@ -1,9 +1,9 @@
 import {
   App,
-  Modal,
   ButtonComponent,
-  TextAreaComponent,
+  Modal,
   Notice,
+  TextAreaComponent,
 } from 'obsidian'
 
 export class CreateRelationModal extends Modal {

@@ -1,6 +1,5 @@
 import { PgliteDatabase } from 'drizzle-orm/pglite'
 import { backOff } from 'exponential-backoff'
-import { RecursiveMarkdownTextSplitter } from '../../../utils/text-splitter'
 import { minimatch } from 'minimatch'
 import { App, TFile } from 'obsidian'
 
@@ -22,6 +21,7 @@ import {
   EmbeddingModelClient,
 } from '../../../types/embedding'
 import { chunkArray } from '../../../utils/common/chunk-array'
+import { RecursiveMarkdownTextSplitter } from '../../../utils/text-splitter'
 
 import { VectorRepository } from './VectorRepository'
 

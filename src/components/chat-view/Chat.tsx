@@ -449,6 +449,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 
   useEffect(() => {
     setFocusedMessageId(inputMessage.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- focus the initial input message only on mount
   }, [])
 
   useEffect(() => {

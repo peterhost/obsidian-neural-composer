@@ -2,10 +2,10 @@ import {
   Content,
   EnhancedGenerateContentResponse,
   FunctionCallPart,
-  GenerationConfig,
   Tool as GeminiTool,
   GenerateContentResult,
   GenerateContentStreamResult,
+  GenerationConfig,
   GoogleGenerativeAI,
   Part,
   Schema,
@@ -15,16 +15,16 @@ import { v4 as uuidv4 } from 'uuid'
 
 // Gemini's SDK does not export a type for raw candidate parts that include
 // thoughtSignature (used for extended thinking). We define a minimal shape here.
-interface GeminiRawPart {
+type GeminiRawPart = {
   functionCall?: { name: string; args: Record<string, unknown> }
   thoughtSignature?: string
   text?: string
 }
 
 // Extends FunctionCallPart to carry thoughtSignature when present
-interface FunctionCallPartWithThinking extends FunctionCallPart {
+type FunctionCallPartWithThinking = {
   thoughtSignature?: string
-}
+} & FunctionCallPart
 
 import { ChatModel } from '../../types/chat-model.types'
 import {
@@ -146,8 +146,7 @@ export class GeminiProvider extends BaseLLMProvider<
     } catch (error) {
       const msg = error instanceof Error ? error.message : ''
       const isInvalidApiKey =
-        msg.includes('API_KEY_INVALID') ||
-        msg.includes('API key not valid')
+        msg.includes('API_KEY_INVALID') || msg.includes('API key not valid')
 
       if (isInvalidApiKey) {
         throw new LLMAPIKeyInvalidException(
@@ -219,8 +218,7 @@ export class GeminiProvider extends BaseLLMProvider<
     } catch (error) {
       const msg = error instanceof Error ? error.message : ''
       const isInvalidApiKey =
-        msg.includes('API_KEY_INVALID') ||
-        msg.includes('API key not valid')
+        msg.includes('API_KEY_INVALID') || msg.includes('API key not valid')
 
       if (isInvalidApiKey) {
         throw new LLMAPIKeyInvalidException(
@@ -281,8 +279,13 @@ export class GeminiProvider extends BaseLLMProvider<
           ...(message.content === '' ? [] : [{ text: message.content }]),
           ...(message.tool_calls?.map((toolCall): FunctionCallPart => {
             try {
-              const args = JSON.parse(toolCall.arguments ?? '{}') as Record<string, unknown>
-              const part: FunctionCallPartWithThinking = { functionCall: { name: toolCall.name, args } }
+              const args = JSON.parse(toolCall.arguments ?? '{}') as Record<
+                string,
+                unknown
+              >
+              const part: FunctionCallPartWithThinking = {
+                functionCall: { name: toolCall.name, args },
+              }
               if (toolCall.thought_signature) {
                 part.thoughtSignature = toolCall.thought_signature
               }

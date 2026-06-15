@@ -20,7 +20,12 @@ function concatenateMessageContent(
   const merged = [...prevParts, ...currParts].filter(
     (part) => !(part.type === 'text' && part.text.trim().length === 0),
   )
-  if (merged.every((part): part is Extract<ContentPart, { type: 'text' }> => part.type === 'text')) {
+  if (
+    merged.every(
+      (part): part is Extract<ContentPart, { type: 'text' }> =>
+        part.type === 'text',
+    )
+  ) {
     return merged.map((part) => part.text).join('\n\n')
   }
   return merged

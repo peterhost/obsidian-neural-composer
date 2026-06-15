@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react'
-import React, { useCallback, useMemo, useState, useEffect } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { ChatAssistantMessage, ChatMessage } from '../../types/chat'
 import { formatAssistantMarkdown } from '../../utils/chat/format-assistant-markdown'

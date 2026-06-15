@@ -1,7 +1,5 @@
 import { Platform } from 'obsidian'
 
-import { deepEqual } from '../../utils/deep-equal'
-
 import { NeuralComposerSettings } from '../../settings/schema/setting.types'
 import {
   McpClient,
@@ -15,6 +13,7 @@ import {
   ToolCallResponse,
   ToolCallResponseStatus,
 } from '../../types/tool-call.types'
+import { deepEqual } from '../../utils/deep-equal'
 
 import { InvalidToolNameException, McpNotAvailableException } from './exception'
 import {
@@ -77,7 +76,14 @@ export class McpManager {
     // Disconnect all clients
     void Promise.all(
       this.servers
-        .filter((s): s is Extract<McpServerState, { status: McpServerStatus.Connected }> => s.status === McpServerStatus.Connected)
+        .filter(
+          (
+            s,
+          ): s is Extract<
+            McpServerState,
+            { status: McpServerStatus.Connected }
+          > => s.status === McpServerStatus.Connected,
+        )
         .map((s) => s.client.close()),
     )
 
@@ -161,7 +167,14 @@ export class McpManager {
 
     // Find clients that need to be disconnected
     const clientsToDisconnect: McpClient[] = currentServers
-      .filter((server): server is Extract<McpServerState, { status: McpServerStatus.Connected }> => server.status === McpServerStatus.Connected)
+      .filter(
+        (
+          server,
+        ): server is Extract<
+          McpServerState,
+          { status: McpServerStatus.Connected }
+        > => server.status === McpServerStatus.Connected,
+      )
       .map((server) => server.client)
       .filter(
         (client) =>
@@ -393,7 +406,11 @@ export class McpManager {
       const { client } = server
 
       const parsedArgs: Record<string, unknown> | undefined =
-        typeof args === 'string' ? (args === '' ? {} : JSON.parse(args) as Record<string, unknown>) : args
+        typeof args === 'string'
+          ? args === ''
+            ? {}
+            : (JSON.parse(args) as Record<string, unknown>)
+          : args
 
       const result = (await client.callTool(
         {
@@ -437,7 +454,8 @@ export class McpManager {
       // Handle other errors
       return {
         status: ToolCallResponseStatus.Error,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error:
+          error instanceof Error ? error.message : 'Unknown error occurred',
       }
     } finally {
       if (id !== undefined) {

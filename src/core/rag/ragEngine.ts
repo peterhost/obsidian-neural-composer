@@ -1,4 +1,4 @@
-import { App, TFile, Notice, requestUrl } from 'obsidian'
+import { App, Notice, TFile, requestUrl } from 'obsidian'
 
 import { QueryProgressState } from '../../components/chat-view/QueryProgress'
 import { VectorManager } from '../../database/modules/vector/VectorManager'
@@ -15,7 +15,7 @@ type RagQueryResult = (Omit<SelectEmbedding, 'embedding'> & {
 })[]
 
 // Interface for internal results
-interface RagResult extends Partial<SelectEmbedding> {
+type RagResult = {
   id: number
   model?: string
   path: string
@@ -28,10 +28,10 @@ interface RagResult extends Partial<SelectEmbedding> {
     fileName?: string
     content?: string
   }
-}
+} & Partial<SelectEmbedding>
 
 // FIX: New interface to type the API response and avoid 'any'
-interface LightRagAPIResponse {
+type LightRagAPIResponse = {
   response?: string
   references?: {
     reference_id?: string
@@ -101,8 +101,8 @@ export class RAGEngine {
 
   // Correct: Returns Promise<void> directly without async/await overhead
   updateVaultIndex(
-    options: { reindexAll: boolean } = { reindexAll: false },
-    onQueryProgressChange?: (queryProgress: QueryProgressState) => void,
+    _options: { reindexAll: boolean } = { reindexAll: false },
+    _onQueryProgressChange?: (queryProgress: QueryProgressState) => void,
   ): Promise<void> {
     if (!this.embeddingModel)
       return Promise.reject(new Error('Embedding model is not set'))

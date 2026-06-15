@@ -4,7 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { editorStateToPlainText } from '../components/chat-view/chat-input/utils/editor-state-to-plain-text'
 import { useApp } from '../contexts/app-context'
 import { ChatConversationMetadata } from '../database/json/chat/types'
-import { ChatMessage, ChatUserMessage, SerializedChatMessage } from '../types/chat'
+import {
+  ChatMessage,
+  ChatUserMessage,
+  SerializedChatMessage,
+} from '../types/chat'
 import { Mentionable } from '../types/mentionable'
 import {
   deserializeMentionable,
@@ -74,6 +78,7 @@ export function useChatHistory(): UseChatHistory {
 
   useEffect(() => {
     void fetchChatList()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchChatList is called once on mount to initialize
   }, [])
 
   const createOrUpdateConversation = useMemo(
@@ -91,7 +96,9 @@ export function useChatHistory(): UseChatHistory {
               messages: serializedMessages,
             })
           } else {
-            const firstUserMessage = messages.find((v): v is ChatUserMessage => v.role === 'user')
+            const firstUserMessage = messages.find(
+              (v): v is ChatUserMessage => v.role === 'user',
+            )
 
             await chatManager.createChat({
               id,

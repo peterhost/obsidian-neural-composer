@@ -36,7 +36,7 @@ type TabId =
   | 'advanced'
   | 'help'
 
-interface TabDef {
+type TabDef = {
   id: TabId
   label: string
   Icon: React.FC<{ size?: number; strokeWidth?: number }>
@@ -53,7 +53,6 @@ const TABS: TabDef[] = [
   { id: 'help', label: 'Help', Icon: CircleHelp },
 ]
 /* eslint-enable @typescript-eslint/no-unsafe-assignment -- lucide-react ESM icon paths lack precise TS declarations */
-
 
 // ---------------------------------------------------------------------------
 // Brand logo tile — violet rounded square with brain-circuit glyph inside

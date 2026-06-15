@@ -1,22 +1,19 @@
+import type { ChildProcess } from 'child_process'
+
 import {
-  Plugin,
-  Notice,
-  requestUrl,
   Editor,
   MarkdownView,
+  Menu,
+  Notice,
+  Platform,
+  Plugin,
+  TAbstractFile,
   TFile,
   TFolder,
   WorkspaceLeaf,
+  requestUrl,
   setTooltip,
-  Platform,
-  Menu,
-  TAbstractFile,
 } from 'obsidian'
-import type { ChildProcess } from 'child_process'
-import {
-  NativeGraphView,
-  NATIVE_GRAPH_VIEW_TYPE,
-} from './views/NativeGraphView'
 
 import { ApplyView } from './ApplyView'
 import { ChatView } from './ChatView'
@@ -24,10 +21,11 @@ import { ChatProps } from './components/chat-view/Chat'
 import { ConfirmModal } from './components/modals/ConfirmModal'
 import { APPLY_VIEW_TYPE, CHAT_VIEW_TYPE } from './constants'
 import { McpManager } from './core/mcp/mcpManager'
-import { RAGEngine } from './core/rag/ragEngine'
 import { DocIndexService } from './core/rag/docIndexService'
 import { FileExplorerDecorator } from './core/rag/fileExplorerDecorator'
+import { RAGEngine } from './core/rag/ragEngine'
 import { DatabaseManager } from './database/DatabaseManager'
+import { VectorManager } from './database/modules/vector/VectorManager'
 import {
   NeuralComposerSettings,
   NeuralComposerSettingsSchema,
@@ -39,7 +37,10 @@ import {
   isExcludedFromGraphSync,
 } from './utils/glob-utils'
 import { getMentionableBlockData } from './utils/obsidian'
-import { VectorManager } from './database/modules/vector/VectorManager'
+import {
+  NATIVE_GRAPH_VIEW_TYPE,
+  NativeGraphView,
+} from './views/NativeGraphView'
 
 export const PLUGIN_NAME = 'Neural Composer'
 export const BACKEND_NAME = 'LightRAG'
@@ -123,7 +124,7 @@ const TEXT_BASED_EXTENSIONS = [
 ]
 
 // Definition for internal use, as 'Adapter' is not exported directly
-interface FileSystemAdapterWithBasePath {
+type FileSystemAdapterWithBasePath = {
   getBasePath: () => string
 }
 
@@ -140,8 +141,7 @@ export default class NeuralComposerPlugin extends Plugin {
   private ragEngineInitPromise: Promise<RAGEngine> | null = null
 
   private timeoutIds: number[] = []
-  private modifyDebounceMap: Map<string, number> =
-    new Map()
+  private modifyDebounceMap: Map<string, number> = new Map()
   private serverProcess: ChildProcess | null = null
   private lastErrorTime: number = 0
   public docIndexService: DocIndexService | null = null
@@ -228,8 +228,9 @@ export default class NeuralComposerPlugin extends Plugin {
       this._nodeFs = require('fs') as typeof import('fs')
       // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
       this._nodePath = require('path') as typeof import('path')
-      // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
-      this._nodeChildProcess = require('child_process') as typeof import('child_process')
+      this._nodeChildProcess =
+        // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
+        require('child_process') as typeof import('child_process')
       // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
       this._nodeNet = require('net') as typeof import('net')
     }
@@ -832,7 +833,7 @@ export default class NeuralComposerPlugin extends Plugin {
           headers: this.getLightRagHeaders(),
         })
 
-        interface PipelineStatus {
+        type PipelineStatus = {
           busy: boolean
           batchs?: number
           cur_batch?: number
@@ -1003,7 +1004,10 @@ export default class NeuralComposerPlugin extends Plugin {
     const merged = Array.from(
       new Set([...this.settings.lightRagExcludePatterns, ...patterns]),
     )
-    await this.setSettings({ ...this.settings, lightRagExcludePatterns: merged })
+    await this.setSettings({
+      ...this.settings,
+      lightRagExcludePatterns: merged,
+    })
 
     // Collect all TFile instances (expanding folders)
     const targetFiles: TFile[] = []
@@ -1065,6 +1069,7 @@ export default class NeuralComposerPlugin extends Plugin {
       lightRagExcludePatterns: remaining,
     })
     new Notice(
+      // eslint-disable-next-line obsidianmd/ui/sentence-case -- "Ingest folder into graph" is the exact command name shown in Obsidian's command palette
       'Re-included in graph sync. Edit the file to re-ingest it, or use "Ingest folder into graph".',
     )
   }
@@ -1685,7 +1690,7 @@ export default class NeuralComposerPlugin extends Plugin {
         }
       })
 
-      this.serverProcess.on('close', (code) => {
+      this.serverProcess.on('close', (_code) => {
         this.serverProcess = null
         this.updateStatusUI('offline')
       })
@@ -1956,7 +1961,9 @@ export default class NeuralComposerPlugin extends Plugin {
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
       })
 
-      const data = response.json as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
+      const data = response.json as {
+        candidates?: { content?: { parts?: { text?: string }[] } }[]
+      }
       return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
     }
 
@@ -1981,7 +1988,9 @@ export default class NeuralComposerPlugin extends Plugin {
       }),
     })
 
-    const data = response.json as { choices?: { message?: { content?: string } }[] }
+    const data = response.json as {
+      choices?: { message?: { content?: string } }[]
+    }
     return data.choices?.[0]?.message?.content || ''
   }
 

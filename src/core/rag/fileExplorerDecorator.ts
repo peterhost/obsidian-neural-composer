@@ -32,7 +32,10 @@ export class FileExplorerDecorator {
     })
     // childList-only: fires when Obsidian adds/removes file-title elements.
     // Does NOT fire on setAttribute → no loop.
-    this.observer.observe(activeDocument.body, { childList: true, subtree: true })
+    this.observer.observe(activeDocument.body, {
+      childList: true,
+      subtree: true,
+    })
   }
 
   /**

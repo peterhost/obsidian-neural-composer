@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 
 import NeuralComposerPlugin from '../../../main'
 import { EnvEditorModal } from '../../modals/EnvEditorModal'
+
 import { ADV_SETTINGS, BACKEND_NAME } from './NeuralSection'
 
 type ServerActionsSectionProps = {
@@ -138,7 +139,6 @@ export function ServerActionsSection({
     // the DOM (container.empty()), destroys the textarea, and loses focus.
     // The textarea value is read once at mount; subsequent persistence is
     // handled by the debounced onChange above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- settings intentionally excluded to avoid resetting textarea on every save
   }, [plugin, app])
 
   return (
