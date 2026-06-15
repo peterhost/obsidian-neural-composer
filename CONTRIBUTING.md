@@ -110,11 +110,45 @@ The core team is monitoring for pull requests. We will review your pull request 
 
 1. Fork the repository and create your branch from `main`.
 2. Run `npm install` in the repository root.
-3. If you've fixed a bug or added code that should be tested, add tests!
+3. If you've fixed a bug or added code that should be tested, add tests.
 4. Ensure the test suite passes (`npm test`).
 5. Check for type errors (`npm run type:check`).
-6. Check for linting errors (`npm run lint:check`).
-7. You can fix linting errors automatically with `npm run lint:fix`.
+6. Auto-fix linting and formatting issues:
+```
+   npx eslint --fix .
+   npx prettier --write .
+```
+7. Verify zero remaining lint warnings (CI enforces this):
+```
+	npx eslint . --max-warnings 0
+```
+
+### Linting rules you cannot disable
+
+This project uses `eslint-plugin-obsidianmd`. Two rules are enforced by the
+Obsidian plugin review bot and **cannot be bypassed with `eslint-disable`**:
+
+- **`obsidianmd/ui/sentence-case`**: All user-visible strings must be sentence
+case. Brand names (`LightRAG`, `Neural Composer`, `NeuralComposer`, `Obsidian`,
+`OpenAI`, etc.) are pre-approved and do not need escaping. If a string
+containing a brand name still triggers the rule, extract it to a named
+constant and pass it through a template literal.
+
+```ts
+// Wrong
+new Notice('Re-ingest via "Ingest folder into graph".')
+
+// Correct
+const CMD_INGEST_FOLDER = 'Ingest folder into graph'
+new Notice(`Re-ingest via "${CMD_INGEST_FOLDER}".`)
+- obsidianmd/prefer-destructive-button: Destructive action buttons must
+use .addClass('mod-destructive') instead of .setDestructive() (which
+requires Obsidian ≥1.13.0 and is not supported by this plugin's minimum
+version).
+- no-console: Only console.debug, console.warn, and console.error
+are allowed. Replace console.log with console.debug
+```
+
 
 ## Development Issues and Solutions
 
