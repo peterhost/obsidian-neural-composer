@@ -1,7 +1,15 @@
-import { AbstractInputSuggest, App, Notice, Setting, TFolder } from 'obsidian'
+import {
+  AbstractInputSuggest,
+  App,
+  Notice,
+  Platform,
+  Setting,
+  TFolder,
+} from 'obsidian'
 import { useEffect, useRef, useState } from 'react'
 
 import NeuralComposerPlugin from '../../../main'
+import { NeuralComposerSettings } from '../../../settings/schema/setting.types'
 
 class FolderSuggest extends AbstractInputSuggest<TFolder> {
   private readonly input: HTMLInputElement
@@ -85,6 +93,32 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
     settingsRef.current.empty()
     const container = settingsRef.current
 
+    // Text inputs persist via `plugin.setSettings`, which fires the settings-
+    // change listener, which sets `settings` (a dep of this effect), which
+    // empties the container and rebuilds the DOM — destroying the focused
+    // input on every keystroke. Debouncing the persistence side-steps that:
+    // the user can keep typing freely; we save (and let the rebuild happen)
+    // only after they pause. Especially bad on mobile, where the server URL
+    // is the very first thing a user has to type.
+    const saveTimers = new Map<string, number>()
+    const debouncedSet = <K extends keyof NeuralComposerSettings>(
+      key: K,
+      value: NeuralComposerSettings[K],
+      delay = 500,
+      onSaved?: () => void,
+    ) => {
+      const existing = saveTimers.get(key as string)
+      if (existing) window.clearTimeout(existing)
+      const t = window.setTimeout(() => {
+        saveTimers.delete(key as string)
+        void (async () => {
+          await plugin.setSettings({ ...plugin.settings, [key]: value })
+          onSaved?.()
+        })()
+      }, delay)
+      saveTimers.set(key as string, t)
+    }
+
     // Header row: title + version badge side by side
     const headerRow = container.createDiv({ cls: 'nc-server-header-row' })
     headerRow.createEl('h3', { text: `Neural backend (${BACKEND_NAME})` })
@@ -107,22 +141,30 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
     }
 
     // --- SERVER CONNECTION MODE ---
-    new Setting(container)
-      .setName('Use remote server')
-      .setDesc(
-        'Connect to a remote ${BACKEND_NAME} server instead of running one locally.',
-      )
-      .addToggle((toggle) =>
-        toggle.setValue(useRemote).onChange((value) => {
-          setUseRemote(value)
-          void plugin.setSettings({
-            ...plugin.settings,
-            lightRagUseRemote: value,
-          })
-        }),
-      )
+    if (Platform.isDesktop) {
+      new Setting(container)
+        .setName('Use remote server')
+        .setDesc(
+          `Connect to a remote ${BACKEND_NAME} server instead of running one locally.`,
+        )
+        .addToggle((toggle) =>
+          toggle.setValue(useRemote).onChange((value) => {
+            setUseRemote(value)
+            void plugin.setSettings({
+              ...plugin.settings,
+              lightRagUseRemote: value,
+            })
+          }),
+        )
+    } else {
+      // Mobile: local server is not possible — remote mode is the only option.
+      container.createEl('p', {
+        text: `Mobile uses your remote ${BACKEND_NAME} server. Local server management is desktop-only.`,
+        cls: 'setting-item-description',
+      })
+    }
 
-    if (useRemote) {
+    if (useRemote || !Platform.isDesktop) {
       // --- REMOTE MODE ---
       new Setting(container)
         .setName('Server URL')
@@ -134,10 +176,7 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
             .setPlaceholder(`${YOUR_SERVER}`)
             .setValue(plugin.settings.lightRagServerUrl)
             .onChange((value) => {
-              void plugin.setSettings({
-                ...plugin.settings,
-                lightRagServerUrl: value,
-              })
+              debouncedSet('lightRagServerUrl', value)
             }),
         )
 
@@ -149,10 +188,7 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
             .setPlaceholder('Leave empty if not required')
             .setValue(plugin.settings.lightRagApiKey)
             .onChange((value) => {
-              void plugin.setSettings({
-                ...plugin.settings,
-                lightRagApiKey: value,
-              })
+              debouncedSet('lightRagApiKey', value)
             }),
         )
     } else {
@@ -179,10 +215,7 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
             .setPlaceholder('LightRAG server')
             .setValue(plugin.settings.lightRagCommand)
             .onChange((value) => {
-              void plugin.setSettings({
-                ...plugin.settings,
-                lightRagCommand: value,
-              })
+              debouncedSet('lightRagCommand', value)
             }),
         )
 
@@ -194,13 +227,9 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
             .setPlaceholder('.neural_memory')
             .setValue(plugin.settings.lightRagWorkDir)
             .onChange((value) => {
-              void (async () => {
-                await plugin.setSettings({
-                  ...plugin.settings,
-                  lightRagWorkDir: value,
-                })
-                plugin.updateEnvFile()
-              })()
+              debouncedSet('lightRagWorkDir', value, 500, () =>
+                plugin.updateEnvFile(),
+              )
             }),
         )
     }
@@ -265,13 +294,9 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
           .setPlaceholder('English')
           .setValue(plugin.settings.lightRagSummaryLanguage)
           .onChange((value) => {
-            void (async () => {
-              await plugin.setSettings({
-                ...plugin.settings,
-                lightRagSummaryLanguage: value,
-              })
-              plugin.updateEnvFile()
-            })()
+            debouncedSet('lightRagSummaryLanguage', value, 500, () =>
+              plugin.updateEnvFile(),
+            )
           }),
       )
 
@@ -308,10 +333,7 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
           .setPlaceholder('e.g. Main/Knowledge')
           .setValue(plugin.settings.lightRagSyncFolder)
           .onChange((value) => {
-            void plugin.setSettings({
-              ...plugin.settings,
-              lightRagSyncFolder: value,
-            })
+            debouncedSet('lightRagSyncFolder', value)
           })
         new FolderSuggest(plugin.app, text.inputEl)
       })
@@ -409,10 +431,7 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
             .setPlaceholder(`${FOLDER_DIR}`)
             .setValue(plugin.settings.lightRagOntologyFolder)
             .onChange((value) => {
-              void plugin.setSettings({
-                ...plugin.settings,
-                lightRagOntologyFolder: value,
-              })
+              debouncedSet('lightRagOntologyFolder', value)
             })
           new FolderSuggest(plugin.app, text.inputEl)
         })
@@ -510,13 +529,9 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
             .setPlaceholder('Model name')
             .setValue(plugin.settings.lightRagRerankModel)
             .onChange((value) => {
-              void (async () => {
-                await plugin.setSettings({
-                  ...plugin.settings,
-                  lightRagRerankModel: value,
-                })
-                plugin.updateEnvFile()
-              })()
+              debouncedSet('lightRagRerankModel', value, 500, () =>
+                plugin.updateEnvFile(),
+              )
             }),
         )
 
@@ -529,13 +544,9 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
             .setPlaceholder('Your key here')
             .setValue(plugin.settings.lightRagRerankApiKey)
             .onChange((value) => {
-              void (async () => {
-                await plugin.setSettings({
-                  ...plugin.settings,
-                  lightRagRerankApiKey: value,
-                })
-                plugin.updateEnvFile()
-              })()
+              debouncedSet('lightRagRerankApiKey', value, 500, () =>
+                plugin.updateEnvFile(),
+              )
             }),
         )
 
@@ -551,13 +562,9 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
               .setPlaceholder(`${RERANK_ENDPOINT}`)
               .setValue(plugin.settings.lightRagRerankHost || '')
               .onChange((value) => {
-                void (async () => {
-                  await plugin.setSettings({
-                    ...plugin.settings,
-                    lightRagRerankHost: value,
-                  })
-                  plugin.updateEnvFile()
-                })()
+                debouncedSet('lightRagRerankHost', value, 500, () =>
+                  plugin.updateEnvFile(),
+                )
               }),
           )
 
@@ -572,13 +579,9 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
               .setPlaceholder(`${COHERE}`)
               .setValue(plugin.settings.lightRagRerankBindingType || 'cohere')
               .onChange((value) => {
-                void (async () => {
-                  await plugin.setSettings({
-                    ...plugin.settings,
-                    lightRagRerankBindingType: value,
-                  })
-                  plugin.updateEnvFile()
-                })()
+                debouncedSet('lightRagRerankBindingType', value, 500, () =>
+                  plugin.updateEnvFile(),
+                )
               }),
           )
       }
@@ -621,6 +624,16 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
           })
         })
       })
+
+    // Cancel any pending debounced save when the effect re-runs (e.g. because
+    // another setting just changed and the DOM is about to rebuild). The save
+    // is intentionally lost in that case — the user typed something but didn't
+    // pause long enough for it to persist, and the input is about to be
+    // recreated with the current setting value anyway.
+    return () => {
+      saveTimers.forEach((t) => window.clearTimeout(t))
+      saveTimers.clear()
+    }
   }, [settings, currentRerankBinding, useCustomOntology, useRemote, plugin])
 
   // Reactively update the version badge on every server info change

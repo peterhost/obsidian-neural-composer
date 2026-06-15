@@ -160,6 +160,11 @@ Neural Composer is designed with privacy as a core principle.
 <details>
 <summary>📋 Changelog</summary>
 
+### v1.4.0 — 2026-05-27
+- **Mobile support (iOS / Android)** — plugin loads on Obsidian mobile and chats against a remote LightRAG server over HTTP. `lightRagUseRemote` is forced on, local-server management settings are hidden, and the bundle ships an `events` polyfill plus a `require` shim so node-only deps don't abort module evaluation on a non-Electron webview.
+- **Graph view on mobile** — the "desktop-only" notice is gone; the view renders via the same `/graphs` HTTP endpoints. A right-anchored sidebar slides in/out via a new toolbar button and an `x` next to the "Node manager" title. Node sizes shrunk for narrow viewports. Newer LightRAG versions (≥1.4) now use the `file_path` property sent on each node, so the local `kv_store_*.json` reads aren't needed for citation filenames on either platform.
+- **Fix:** `AbstractJsonRepository.ensureDirectory()` was fire-and-forget — on Android `adapter.list()` raced ahead of `mkdir` and crashed the template list. Every public method now awaits a shared directory-ready promise.
+
 ### v1.3.1 — 2026-05-25
 - Fix: removed all `!important` CSS declarations — replaced with higher-specificity selectors to comply with the Obsidian plugin linter.
 
@@ -199,3 +204,4 @@ Built on the shoulders of giants:
 - Forked from **[Smart Composer](https://github.com/glowingjade/obsidian-smart-composer)** by glowingjade
 - Powered by **[LightRAG](https://github.com/HKUDS/LightRAG)**
 - Developed by **Oscar Campo** & **Cora** (AI)
+- Mobile support (iOS / Android, remote LightRAG) by **[Arseniy Seroka (jagajaga)](https://github.com/jagajaga)**

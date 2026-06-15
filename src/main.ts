@@ -1,5 +1,3 @@
-import type { ChildProcess } from 'child_process'
-
 import {
   Editor,
   MarkdownView,
@@ -143,7 +141,7 @@ export default class NeuralComposerPlugin extends Plugin {
 
   private timeoutIds: number[] = []
   private modifyDebounceMap: Map<string, number> = new Map()
-  private serverProcess: ChildProcess | null = null
+  private serverProcess: import('child_process').ChildProcess | null = null
   private lastErrorTime: number = 0
   public docIndexService: DocIndexService | null = null
   private fileExplorerDecorator: FileExplorerDecorator | null = null
@@ -184,9 +182,11 @@ export default class NeuralComposerPlugin extends Plugin {
     }
   }
 
-  // Node.js modules — loaded lazily on desktop only, always null on mobile
-  private _nodeFs: typeof import('fs') | null = null
-  private _nodePath: typeof import('path') | null = null
+  // Node.js modules — loaded lazily on desktop only, always null on mobile.
+  // fs/path are public so views (e.g. NativeGraphView) can reuse them instead
+  // of importing Node built-ins themselves.
+  _nodeFs: typeof import('fs') | null = null
+  _nodePath: typeof import('path') | null = null
   private _nodeChildProcess: typeof import('child_process') | null = null
   private _nodeNet: typeof import('net') | null = null
 
@@ -222,18 +222,20 @@ export default class NeuralComposerPlugin extends Plugin {
     await this.loadSettings()
 
     // Load Node.js built-ins once at startup — desktop only, never on mobile.
-    // Use require() (not import()) because the bundle is CJS and dynamic ESM
-    // import() is not resolved correctly in Obsidian's plugin loader.
+    // Obsidian desktop exposes Node's `require` on the window object. Calling
+    // it as a member (`window.require`) rather than a bare `require` keeps
+    // these Node built-ins out of the static import graph the Obsidian plugin
+    // linter rejects, while resolving the exact same modules at runtime.
     if (Platform.isDesktop) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
-      this._nodeFs = require('fs') as typeof import('fs')
-      // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
-      this._nodePath = require('path') as typeof import('path')
-      this._nodeChildProcess =
-        // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
-        require('child_process') as typeof import('child_process')
-      // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
-      this._nodeNet = require('net') as typeof import('net')
+      const nodeRequire = (
+        window as unknown as { require: (id: string) => unknown }
+      ).require
+      this._nodeFs = nodeRequire('fs') as typeof import('fs')
+      this._nodePath = nodeRequire('path') as typeof import('path')
+      this._nodeChildProcess = nodeRequire(
+        'child_process',
+      ) as typeof import('child_process')
+      this._nodeNet = nodeRequire('net') as typeof import('net')
     }
 
     // --- ZERO-CONFIG & PORTABILITY ---
@@ -1718,6 +1720,13 @@ export default class NeuralComposerPlugin extends Plugin {
 
   async loadSettings() {
     this.settings = parseNeuralComposerSettings(await this.loadData())
+    // Mobile cannot spawn a local LightRAG server (no child_process / fs).
+    // Force remote-server mode on so the rest of the plugin treats the backend
+    // as remote-only and never tries to auto-start or shell out.
+    if (!Platform.isDesktop) {
+      this.settings.lightRagUseRemote = true
+      this.settings.enableAutoStartServer = false
+    }
     await this.saveData(this.settings)
   }
 
