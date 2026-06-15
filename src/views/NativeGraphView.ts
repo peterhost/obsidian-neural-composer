@@ -1210,9 +1210,8 @@ export class NativeGraphView extends ItemView {
       .onClick(() => {
         this.createRelationBetweenSelected()
       })
-    // setDestructive exists at runtime but not yet in obsidian@1.11.4 type declarations
-    ;(new ButtonComponent(actionButtons)
-      .setButtonText('Delete') as ButtonComponent & { setDestructive: () => ButtonComponent })
+    new ButtonComponent(actionButtons)
+      .setButtonText('Delete')
       .setDestructive()
       .onClick(() => {
         void this.deleteSelectedNodes()
@@ -1595,9 +1594,8 @@ class ConfirmationModal extends Modal {
       .setButtonText('Cancel')
       .onClick(() => this.close())
 
-    // setDestructive exists at runtime but not yet in obsidian@1.11.4 type declarations
-    ;(new ButtonComponent(btnContainer)
-      .setButtonText('Confirm') as ButtonComponent & { setDestructive: () => ButtonComponent })
+    new ButtonComponent(btnContainer)
+      .setButtonText('Confirm')
       .setDestructive()
       .onClick(() => {
         void (async () => {
