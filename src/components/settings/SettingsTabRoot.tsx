@@ -1,4 +1,4 @@
-import { App } from 'obsidian'
+import { App, Platform } from 'obsidian'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useSettings } from '../../contexts/settings-context'
@@ -502,7 +502,9 @@ export function SettingsTabRoot({ app, plugin }: SettingsTabRootProps) {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          padding: '12px 0',
+          // On mobile, Obsidian's modal back button (←) overlays the top of the
+          // settings content area. Extra top padding pushes the nav items below it.
+          padding: Platform.isDesktop ? '12px 0' : '56px 0 12px',
           gap: 2,
         }}
       >
