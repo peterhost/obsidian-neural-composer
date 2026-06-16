@@ -10,6 +10,28 @@ import MarkdownReferenceBlock from './MarkdownReferenceBlock'
 import { ObsidianMarkdown } from './ObsidianMarkdown'
 import { MemoizedSyntaxHighlighterWrapper } from './SyntaxHighlighterWrapper'
 
+function sanitizeSvg(svg: string): string {
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(svg, 'image/svg+xml')
+  doc.querySelectorAll('script').forEach((el) => el.remove())
+  doc.querySelectorAll('*').forEach((el) => {
+    Array.from(el.attributes)
+      .filter((attr) => attr.name.startsWith('on'))
+      .forEach((attr) => el.removeAttribute(attr.name))
+  })
+  return doc.documentElement.outerHTML
+}
+
+function SvgPreview({ content }: { content: string }) {
+  return (
+    <div
+      className="nrlcmp-svg-preview"
+      // sanitizeSvg strips <script> tags and on* event handlers before render
+      dangerouslySetInnerHTML={{ __html: sanitizeSvg(content) }}
+    />
+  )
+}
+
 /**
  * Renders markdown content that may contain nested <nrlcmp_block> reference
  * tags (e.g. when citations-on mode inserts inline block references).
@@ -163,7 +185,9 @@ export default function MarkdownCodeComponent({
       </div>
       {isPreviewMode ? (
         <div className="nrlcmp-code-block-obsidian-markdown">
-          {language === 'markdown' ? (
+          {language === 'svg' ? (
+            <SvgPreview content={codeContent} />
+          ) : language === 'markdown' ? (
             <MarkdownPreviewRenderer content={codeContent} />
           ) : (
             <ObsidianMarkdown content={codeContent} scale="sm" />
