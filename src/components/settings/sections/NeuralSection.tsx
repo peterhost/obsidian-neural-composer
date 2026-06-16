@@ -243,6 +243,11 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
         )
     }
 
+    // Graph Logic Model, Embedding Model, Summary Language, Ontology, and
+    // Reranking are all written to the local server's .env by updateEnvFile().
+    // On remote mode (or mobile) the server runs elsewhere and has its own
+    // .env — the plugin can't reach it, so showing these settings is misleading.
+    if (!useRemote && Platform.isDesktop) {
     // 3. Graph Logic Model
     new Setting(container)
       .setName(`Graph logic model (${TERM_LLM})`)
@@ -308,6 +313,7 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
             )
           }),
       )
+    } // end !useRemote && Platform.isDesktop (model / language block)
 
     // 5. Citations
     new Setting(container)
@@ -390,6 +396,7 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
         textArea.inputEl.setCssStyles({ width: '100%' })
       })
 
+    if (!useRemote && Platform.isDesktop) {
     // --- ONTOLOGY SECTION ---
     container.createEl('h4', { text: 'Ontology (categories)' })
 
@@ -612,6 +619,7 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
             plugin.restartLightRagServer()
           }),
       )
+    } // end !useRemote && Platform.isDesktop (ontology / reranking / restart block)
 
     // VISUALIZATION — Advanced env config moved to Advanced tab
     container.createEl('h4', { text: 'Visualization' })
