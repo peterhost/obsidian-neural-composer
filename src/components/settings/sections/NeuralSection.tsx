@@ -143,42 +143,51 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
       })
     }
 
+    // On non-desktop the Setting layout is horizontal (info left, control right),
+    // which leaves text inputs too narrow. stacked() flips to column so the
+    // control sits below the description at full width.
+    const stacked = (s: Setting) => {
+      if (!Platform.isDesktop) s.settingEl.addClass('nrlcmp-setting-stacked')
+      return s
+    }
+
     if (useRemote || !Platform.isDesktop) {
       // --- REMOTE MODE ---
-      new Setting(container)
-        .setName('Server URL')
-        .setDesc(
-          'Base URL of the remote LightRAG server (e.g., http://192.168.1.100:9621).',
-        )
-        .addText((text) => {
-          text
-            .setPlaceholder(`${YOUR_SERVER}`)
-            .setValue(plugin.settings.lightRagServerUrl)
-          // Save on blur instead of onChange so the DOM is never rebuilt while
-          // the user is still typing — especially important on mobile where a
-          // 500 ms pause between keystrokes is common and caused focus loss.
-          text.inputEl.addEventListener('blur', () => {
-            void plugin.setSettings({
-              ...plugin.settings,
-              lightRagServerUrl: text.getValue(),
+      stacked(
+        new Setting(container)
+          .setName('Server URL')
+          .setDesc(
+            'Base URL of the remote LightRAG server (e.g., http://192.168.1.100:9621).',
+          )
+          .addText((text) => {
+            text
+              .setPlaceholder(`${YOUR_SERVER}`)
+              .setValue(plugin.settings.lightRagServerUrl)
+            text.inputEl.addEventListener('blur', () => {
+              void plugin.setSettings({
+                ...plugin.settings,
+                lightRagServerUrl: text.getValue(),
+              })
             })
-          })
-        })
+          }),
+      )
 
-      new Setting(container)
-        .setName('API key')
-        .setDesc('Optional authentication key for the remote server.')
-        .addText((text) => {
-          text
-            .setPlaceholder('Leave empty if not required')
-            .setValue(plugin.settings.lightRagApiKey)
-          text.inputEl.addEventListener('blur', () => {
-            void plugin.setSettings({
-              ...plugin.settings,
-              lightRagApiKey: text.getValue(),
+      stacked(
+        new Setting(container)
+          .setName('API key')
+          .setDesc('Optional authentication key for the remote server.')
+          .addText((text) => {
+            text
+              .setPlaceholder('Leave empty if not required')
+              .setValue(plugin.settings.lightRagApiKey)
+            text.inputEl.addEventListener('blur', () => {
+              void plugin.setSettings({
+                ...plugin.settings,
+                lightRagApiKey: text.getValue(),
+              })
             })
-          })
-        })
+          }),
+      )
     } else {
       // --- LOCAL MODE ---
       new Setting(container)
@@ -325,26 +334,28 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
     // --- INCREMENTAL SYNC ---
     container.createEl('h4', { text: 'Vault sync' })
 
-    new Setting(container)
-      .setName('Watched folder')
-      .setDesc(
-        'Vault-relative folder to watch for changes. ' +
-          'When set, deleting or renaming a note removes it from the graph automatically, ' +
-          'and saving a note re-indexes it after 5 s of inactivity. ' +
-          'Leave empty to disable. Only files you have previously ingested are affected.',
-      )
-      .addText((text) => {
-        text
-          .setPlaceholder('e.g. Main/Knowledge')
-          .setValue(plugin.settings.lightRagSyncFolder)
-        text.inputEl.addEventListener('blur', () => {
-          void plugin.setSettings({
-            ...plugin.settings,
-            lightRagSyncFolder: text.getValue(),
+    stacked(
+      new Setting(container)
+        .setName('Watched folder')
+        .setDesc(
+          'Vault-relative folder to watch for changes. ' +
+            'When set, deleting or renaming a note removes it from the graph automatically, ' +
+            'and saving a note re-indexes it after 5 s of inactivity. ' +
+            'Leave empty to disable. Only files you have previously ingested are affected.',
+        )
+        .addText((text) => {
+          text
+            .setPlaceholder('e.g. Main/Knowledge')
+            .setValue(plugin.settings.lightRagSyncFolder)
+          text.inputEl.addEventListener('blur', () => {
+            void plugin.setSettings({
+              ...plugin.settings,
+              lightRagSyncFolder: text.getValue(),
+            })
           })
-        })
-        new FolderSuggest(plugin.app, text.inputEl)
-      })
+          new FolderSuggest(plugin.app, text.inputEl)
+        }),
+    )
 
     new Setting(container)
       .setName('Exclude hidden files and folders')
@@ -363,32 +374,34 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
           }),
       )
 
-    new Setting(container)
-      .setName('Exclude patterns')
-      .setDesc(
-        'Glob patterns (one per line) for vault paths that should never be ' +
-          'ingested into the graph. Patterns are vault-relative ' +
-          '(e.g. "Main/Templates/**"). ' +
-          'You can also right-click a file or folder and choose "Exclude from graph sync".',
-      )
-      .addTextArea((textArea) => {
-        textArea
-          .setPlaceholder('Main/Templates/**\nMain/Inbox/scratch.md')
-          .setValue(plugin.settings.lightRagExcludePatterns.join('\n'))
-        textArea.inputEl.addEventListener('blur', () => {
-          const patterns = textArea
-            .getValue()
-            .split('\n')
-            .map((p) => p.trim())
-            .filter((p) => p.length > 0)
-          void plugin.setSettings({
-            ...plugin.settings,
-            lightRagExcludePatterns: patterns,
+    stacked(
+      new Setting(container)
+        .setName('Exclude patterns')
+        .setDesc(
+          'Glob patterns (one per line) for vault paths that should never be ' +
+            'ingested into the graph. Patterns are vault-relative ' +
+            '(e.g. "Main/Templates/**"). ' +
+            'You can also right-click a file or folder and choose "Exclude from graph sync".',
+        )
+        .addTextArea((textArea) => {
+          textArea
+            .setPlaceholder('Main/Templates/**\nMain/Inbox/scratch.md')
+            .setValue(plugin.settings.lightRagExcludePatterns.join('\n'))
+          textArea.inputEl.addEventListener('blur', () => {
+            const patterns = textArea
+              .getValue()
+              .split('\n')
+              .map((p) => p.trim())
+              .filter((p) => p.length > 0)
+            void plugin.setSettings({
+              ...plugin.settings,
+              lightRagExcludePatterns: patterns,
+            })
           })
-        })
-        textArea.inputEl.rows = 4
-        textArea.inputEl.setCssStyles({ width: '100%' })
-      })
+          textArea.inputEl.rows = 4
+          textArea.inputEl.setCssStyles({ width: '100%' })
+        }),
+    )
 
     if (!useRemote && Platform.isDesktop) {
       // --- ONTOLOGY SECTION ---

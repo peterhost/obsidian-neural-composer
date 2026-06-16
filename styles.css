@@ -3111,3 +3111,28 @@ button.nrlcmp-chat-input-model-select {
   color: var(--text-normal);
   background: var(--background-modifier-hover);
 }
+
+/* Stacked setting: places the control below the name/description instead of
+   beside it. Used on non-desktop for text inputs and textareas that need the
+   full width to be usable (folder paths, glob-pattern textareas, etc.). */
+.nrlcmp-setting-stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.nrlcmp-setting-stacked .setting-item-info {
+  width: 100%;
+  padding-right: 0;
+}
+
+.nrlcmp-setting-stacked .setting-item-control {
+  width: 100%;
+  justify-content: stretch;
+  padding-top: 6px;
+}
+
+.nrlcmp-setting-stacked .setting-item-control input[type='text'],
+.nrlcmp-setting-stacked .setting-item-control textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
