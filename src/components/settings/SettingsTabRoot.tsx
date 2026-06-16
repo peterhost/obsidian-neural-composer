@@ -556,6 +556,9 @@ export function SettingsTabRoot({ app, plugin }: SettingsTabRootProps) {
           flexDirection: 'column',
           minWidth: 0,
           overflow: 'hidden',
+          // Match the nav rail offset so CommandBar clears the Obsidian modal
+          // back button that overlays the top of the content area on mobile.
+          paddingTop: Platform.isDesktop ? 0 : 56,
         }}
       >
         <CommandBar onModelsClick={() => switchTab('models')} />
