@@ -171,26 +171,35 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
         .setDesc(
           'Base URL of the remote LightRAG server (e.g., http://192.168.1.100:9621).',
         )
-        .addText((text) =>
+        .addText((text) => {
           text
             .setPlaceholder(`${YOUR_SERVER}`)
             .setValue(plugin.settings.lightRagServerUrl)
-            .onChange((value) => {
-              debouncedSet('lightRagServerUrl', value)
-            }),
-        )
+          // Save on blur instead of onChange so the DOM is never rebuilt while
+          // the user is still typing — especially important on mobile where a
+          // 500 ms pause between keystrokes is common and caused focus loss.
+          text.inputEl.addEventListener('blur', () => {
+            void plugin.setSettings({
+              ...plugin.settings,
+              lightRagServerUrl: text.getValue(),
+            })
+          })
+        })
 
       new Setting(container)
         .setName('API key')
         .setDesc('Optional authentication key for the remote server.')
-        .addText((text) =>
+        .addText((text) => {
           text
             .setPlaceholder('Leave empty if not required')
             .setValue(plugin.settings.lightRagApiKey)
-            .onChange((value) => {
-              debouncedSet('lightRagApiKey', value)
-            }),
-        )
+          text.inputEl.addEventListener('blur', () => {
+            void plugin.setSettings({
+              ...plugin.settings,
+              lightRagApiKey: text.getValue(),
+            })
+          })
+        })
     } else {
       // --- LOCAL MODE ---
       new Setting(container)

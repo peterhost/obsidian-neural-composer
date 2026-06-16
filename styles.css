@@ -2026,6 +2026,14 @@ button.nrlcmp-chat-input-model-select {
   color: var(--text-normal);
 }
 
+.nrlcmp-graph-view .nrlcmp-toolbar-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  stroke: currentColor;
+  fill: none;
+}
+
 .nrlcmp-toolbar-sep {
   width: 1px;
   height: 20px;
