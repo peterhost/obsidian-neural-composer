@@ -1,4 +1,3 @@
-// eslint-disable-next-line import/no-nodejs-modules -- type-only import of a Node built-in, used for desktop server management
 import type { ChildProcess } from 'child_process'
 
 import {
@@ -226,14 +225,14 @@ export default class NeuralComposerPlugin extends Plugin {
     // Use require() (not import()) because the bundle is CJS and dynamic ESM
     // import() is not resolved correctly in Obsidian's plugin loader.
     if (Platform.isDesktop) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports, import/no-nodejs-modules -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
       this._nodeFs = require('fs') as typeof import('fs')
-      // eslint-disable-next-line @typescript-eslint/no-require-imports, import/no-nodejs-modules -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
       this._nodePath = require('path') as typeof import('path')
       this._nodeChildProcess =
-        // eslint-disable-next-line @typescript-eslint/no-require-imports, import/no-nodejs-modules -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
+        // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
         require('child_process') as typeof import('child_process')
-      // eslint-disable-next-line @typescript-eslint/no-require-imports, import/no-nodejs-modules -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- Node built-ins are not resolvable as ESM in Obsidian's CJS bundle loader
       this._nodeNet = require('net') as typeof import('net')
     }
 
@@ -1719,13 +1718,6 @@ export default class NeuralComposerPlugin extends Plugin {
 
   async loadSettings() {
     this.settings = parseNeuralComposerSettings(await this.loadData())
-    // Mobile cannot spawn a local LightRAG server (no child_process / fs).
-    // Force remote-server mode on so the rest of the plugin treats the backend
-    // as remote-only and never tries to auto-start or shell out.
-    if (!Platform.isDesktop) {
-      this.settings.lightRagUseRemote = true
-      this.settings.enableAutoStartServer = false
-    }
     await this.saveData(this.settings)
   }
 
