@@ -5,12 +5,26 @@ import {
   Tool as GeminiTool,
   GenerateContentResult,
   GenerateContentStreamResult,
+  GenerationConfig,
   GoogleGenerativeAI,
   Part,
   Schema,
   SchemaType,
 } from '@google/generative-ai'
 import { v4 as uuidv4 } from 'uuid'
+
+// Gemini's SDK does not export a type for raw candidate parts that include
+// thoughtSignature (used for extended thinking). We define a minimal shape here.
+type GeminiRawPart = {
+  functionCall?: { name: string; args: Record<string, unknown> }
+  thoughtSignature?: string
+  text?: string
+}
+
+// Extends FunctionCallPart to carry thoughtSignature when present
+type FunctionCallPartWithThinking = {
+  thoughtSignature?: string
+} & FunctionCallPart
 
 import { ChatModel } from '../../types/chat-model.types'
 import {
@@ -104,8 +118,7 @@ export class GeminiProvider extends BaseLLMProvider<
 
       const model = this.client.getGenerativeModel({
         model: request.model,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        generationConfig: generationConfig as any,
+        generationConfig: generationConfig as GenerationConfig,
         systemInstruction: systemInstruction,
       })
 
@@ -131,9 +144,9 @@ export class GeminiProvider extends BaseLLMProvider<
         messageId,
       )
     } catch (error) {
+      const msg = error instanceof Error ? error.message : ''
       const isInvalidApiKey =
-        error.message?.includes('API_KEY_INVALID') ||
-        error.message?.includes('API key not valid')
+        msg.includes('API_KEY_INVALID') || msg.includes('API key not valid')
 
       if (isInvalidApiKey) {
         throw new LLMAPIKeyInvalidException(
@@ -181,8 +194,7 @@ export class GeminiProvider extends BaseLLMProvider<
 
       const model = this.client.getGenerativeModel({
         model: request.model,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        generationConfig: generationConfig as any,
+        generationConfig: generationConfig as GenerationConfig,
         systemInstruction: systemInstruction,
       })
 
@@ -204,9 +216,9 @@ export class GeminiProvider extends BaseLLMProvider<
       const messageId = crypto.randomUUID() // Gemini does not return a message id
       return this.streamResponseGenerator(stream, request.model, messageId)
     } catch (error) {
+      const msg = error instanceof Error ? error.message : ''
       const isInvalidApiKey =
-        error.message?.includes('API_KEY_INVALID') ||
-        error.message?.includes('API key not valid')
+        msg.includes('API_KEY_INVALID') || msg.includes('API key not valid')
 
       if (isInvalidApiKey) {
         throw new LLMAPIKeyInvalidException(
@@ -267,17 +279,20 @@ export class GeminiProvider extends BaseLLMProvider<
           ...(message.content === '' ? [] : [{ text: message.content }]),
           ...(message.tool_calls?.map((toolCall): FunctionCallPart => {
             try {
-              const args = JSON.parse(toolCall.arguments ?? '{}')
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const part: any = { functionCall: { name: toolCall.name, args } }
+              const args = JSON.parse(toolCall.arguments ?? '{}') as Record<
+                string,
+                unknown
+              >
+              const part: FunctionCallPartWithThinking = {
+                functionCall: { name: toolCall.name, args },
+              }
               if (toolCall.thought_signature) {
                 part.thoughtSignature = toolCall.thought_signature
               }
               return part as FunctionCallPart
             } catch {
               // If the arguments are not valid JSON, return an empty object
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const part: any = {
+              const part: FunctionCallPartWithThinking = {
                 functionCall: { name: toolCall.name, args: {} },
               }
               if (toolCall.thought_signature) {
@@ -330,17 +345,16 @@ export class GeminiProvider extends BaseLLMProvider<
             tool_calls: (() => {
               // Use raw candidates parts so we can capture thoughtSignature.
               // response.response.functionCalls() discards that field.
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const parts = (response.response.candidates?.[0]?.content
-                ?.parts ?? []) as any[]
+                ?.parts ?? []) as GeminiRawPart[]
               const fnParts = parts.filter((p) => p.functionCall)
               if (fnParts.length === 0) return undefined
               return fnParts.map((part) => ({
                 id: uuidv4(),
                 type: 'function' as const,
                 function: {
-                  name: part.functionCall.name,
-                  arguments: JSON.stringify(part.functionCall.args),
+                  name: part.functionCall!.name,
+                  arguments: JSON.stringify(part.functionCall!.args),
                 },
                 thought_signature: part.thoughtSignature ?? undefined,
               }))
@@ -377,9 +391,8 @@ export class GeminiProvider extends BaseLLMProvider<
             tool_calls: (() => {
               // Use raw candidates parts so we can capture thoughtSignature.
               // chunk.functionCalls() discards that field.
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const parts = (chunk.candidates?.[0]?.content?.parts ??
-                []) as any[]
+                []) as GeminiRawPart[]
               const fnParts = parts.filter((p) => p.functionCall)
               if (fnParts.length === 0) return undefined
               return fnParts.map((part, index) => ({
@@ -387,8 +400,8 @@ export class GeminiProvider extends BaseLLMProvider<
                 id: uuidv4(),
                 type: 'function' as const,
                 function: {
-                  name: part.functionCall.name,
-                  arguments: JSON.stringify(part.functionCall.args),
+                  name: part.functionCall!.name,
+                  arguments: JSON.stringify(part.functionCall!.args),
                 },
                 thought_signature: part.thoughtSignature ?? undefined,
               }))
@@ -483,7 +496,7 @@ export class GeminiProvider extends BaseLLMProvider<
         .embedContent(text)
       return response.embedding.values
     } catch (error) {
-      if (error.status === 429) {
+      if ((error as { status?: number }).status === 429) {
         throw new LLMRateLimitExceededException(
           'Gemini API rate limit exceeded. Please try again later.',
         )

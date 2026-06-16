@@ -30,7 +30,7 @@ describe('ChatManager', () => {
   describe('filename generation and parsing roundtrip', () => {
     // Definimos una interfaz temporal para exponer los métodos privados que queremos testear
     // Esto evita el uso de 'any' y mantiene al linter feliz.
-    interface TestableChatManager {
+    type TestableChatManager = {
       generateFileName(chat: ChatConversation): string
       parseFileName(fileName: string): {
         id: string

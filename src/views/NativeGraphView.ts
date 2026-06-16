@@ -1,37 +1,36 @@
-import {
-  ItemView,
-  WorkspaceLeaf,
-  Notice,
-  setIcon,
-  TextComponent,
-  ButtonComponent,
-  setTooltip,
-  requestUrl,
-  Modal,
-  App,
-  Platform,
-} from 'obsidian'
-import { XMLParser } from 'fast-xml-parser'
 import Graph from 'graphology'
-import Sigma from 'sigma'
 import forceAtlas2 from 'graphology-layout-forceatlas2'
 import FA2Layout from 'graphology-layout-forceatlas2/worker'
+import {
+  App,
+  ButtonComponent,
+  ItemView,
+  Modal,
+  Notice,
+  Platform,
+  TextComponent,
+  WorkspaceLeaf,
+  requestUrl,
+  setIcon,
+  setTooltip,
+} from 'obsidian'
+import Sigma from 'sigma'
+
 // ForceGraph3D (~4MB with three.js) is lazy-loaded on first 3D render
 type ForceGraph3DConstructor = () => ForceGraph3DInstance
+import { CreateRelationModal } from '../components/modals/CreateRelationModal'
 import { MergeSelectionModal } from '../components/modals/MergeSelectionModal'
 // Use type import to avoid circular dependency values but get the type
 import type NeuralComposerPlugin from '../main'
 
-import { CreateRelationModal } from '../components/modals/CreateRelationModal'
-
 // LightRAG /graphs API response types
-interface ApiKgNode {
+type ApiKgNode = {
   id: string
   labels: string[]
   properties: Record<string, unknown>
 }
 
-interface ApiKgEdge {
+type ApiKgEdge = {
   id: string
   type?: string
   source: string
@@ -39,7 +38,7 @@ interface ApiKgEdge {
   properties: Record<string, unknown>
 }
 
-interface ApiKnowledgeGraph {
+type ApiKnowledgeGraph = {
   nodes: ApiKgNode[]
   edges: ApiKgEdge[]
   is_truncated: boolean
@@ -48,7 +47,21 @@ interface ApiKnowledgeGraph {
 export const NATIVE_GRAPH_VIEW_TYPE = 'neural-native-graph'
 
 // --- Interfaces for Strict Typing ---
-interface GraphNode {
+type NodeGraphAttrs = {
+  x?: number
+  y?: number
+  size?: number
+  color?: string
+  label?: string
+  zIndex?: number
+  node_type?: string
+  type?: string
+  forceLabel?: boolean
+  labelColor?: string
+  val?: number
+}
+
+type GraphNode = {
   id: string
   type: string
   desc: string
@@ -64,13 +77,13 @@ interface GraphNode {
   node_type?: string
 }
 
-interface ChunkDocMap {
+type ChunkDocMap = {
   full_doc_id?: string
   doc_id?: string
   [key: string]: unknown
 }
 
-interface DocNameMap {
+type DocNameMap = {
   file_name?: string
   file_path?: string
   id?: string
@@ -78,22 +91,7 @@ interface DocNameMap {
   [key: string]: unknown
 }
 
-interface GraphMLAttribute {
-  id: string
-  'attr.name'?: string
-}
-
-interface GraphMLNodeData {
-  key: string
-  value: string | number
-}
-
-interface GraphMLRawNode {
-  id: string
-  data?: GraphMLNodeData[] | GraphMLNodeData
-}
-
-interface GraphMLRawEdge {
+type GraphMLRawEdge = {
   source: string
   target: string
   '@_source'?: string
@@ -102,18 +100,8 @@ interface GraphMLRawEdge {
   normalizedTarget?: string
 }
 
-interface GraphMLParsed {
-  graphml?: {
-    key?: GraphMLAttribute | GraphMLAttribute[]
-    graph?: {
-      node?: GraphMLRawNode | GraphMLRawNode[]
-      edge?: GraphMLRawEdge | GraphMLRawEdge[]
-    }
-  }
-}
-
 // Interfaces for external untyped libraries
-interface FA2LayoutInstance {
+type FA2LayoutInstance = {
   start: () => void
   stop: () => void
   isRunning: () => boolean
@@ -121,13 +109,13 @@ interface FA2LayoutInstance {
 }
 
 // Helper interface for links inside the 3D graph
-interface GraphLink {
+type GraphLink = {
   source: string
   target: string
 }
 
 // Fix 1: Improved typing for 3d-force-graph replacing 'any' with GraphNode/GraphLink
-interface ForceGraph3DInstance {
+type ForceGraph3DInstance = {
   (element: HTMLElement): ForceGraph3DInstance
   // Fix [8, 9]: Typed nodes and links instead of any[]
   graphData(data: {
@@ -158,7 +146,7 @@ interface ForceGraph3DInstance {
 }
 
 // Fix [12]: Interface for Getter usage ensuring strict return types
-interface ForceGraph3DGetter {
+type ForceGraph3DGetter = {
   graphData(): { nodes: GraphNode[]; links: GraphLink[] }
 }
 
@@ -166,9 +154,9 @@ export class NativeGraphView extends ItemView {
   private plugin: NeuralComposerPlugin
   private workDir: string
 
-  // Node.js modules — loaded lazily in onOpen() on desktop only (for loadReferenceMaps)
-  private _nodeFs: typeof import('fs') | null = null
-  private _nodePath: typeof import('path') | null = null
+  // Node.js modules for loadReferenceMaps (desktop-only) are reused from the
+  // plugin (this.plugin._nodeFs / _nodePath) rather than imported here, so the
+  // view doesn't reference Node built-ins directly.
 
   // API-based graph navigation state
   private currentRootLabel: string = '' // '' = overview mode
@@ -219,25 +207,28 @@ export class NativeGraphView extends ItemView {
     const container = this.contentEl
     container.empty()
 
-    if (!Platform.isDesktop) {
-      container.addClass('nrlcmp-graph-view')
-      const notice = container.createDiv({ cls: 'nrlcmp-mobile-notice' })
-      notice.createEl('p', {
-        text: 'The graph view requires a local LightRAG server and is only available on desktop. On mobile, use remote server mode to access chat features.',
-      })
-      return
+    // Graph data is served over HTTP by LightRAG, so the view works on mobile
+    // when remote-server mode is configured. The only desktop-only piece is
+    // loadReferenceMaps (reads local kv_store_*.json files from the work dir
+    // for citation-source filenames). On mobile we skip that — the graph still
+    // renders, just without filename resolution in the side panel.
+    if (Platform.isDesktop) {
+      this.workDir = this.plugin.settings.lightRagWorkDir
     }
 
-    // Load Node.js modules — desktop only, used by loadReferenceMaps for source file resolution.
-    // Use require() (not import()) because the bundle is CJS and dynamic ESM
-    // import() is not resolved correctly in Obsidian's plugin loader.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    this._nodeFs = require('fs') as typeof import('fs')
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    this._nodePath = require('path') as typeof import('path')
-    this.workDir = this.plugin.settings.lightRagWorkDir
-
     container.addClass('nrlcmp-graph-view')
+
+    // Obsidian quirks on iPad: Platform.isMobile is FALSE there (it's reserved
+    // for phones), even though it's clearly not the electron desktop app. We
+    // gate the "this is not desktop" behaviors on !Platform.isDesktop, and use
+    // Platform.isPhone separately for the things that only make sense on a
+    // really narrow viewport (overlay sidebar that has to slide in).
+    if (!Platform.isDesktop) {
+      container.addClass('nrlcmp-mobile-layout')
+    }
+    if (Platform.isPhone) {
+      container.addClass('nrlcmp-sidebar-hidden')
+    }
 
     const is3D = this.plugin.settings.graphViewMode === '3d'
     container.addClass(is3D ? 'nrlcmp-mode-3d' : 'nrlcmp-mode-2d')
@@ -264,8 +255,48 @@ export class NativeGraphView extends ItemView {
     const sidebar = container.createDiv({ cls: 'nrlcmp-sidebar' })
     this.buildSidebar(sidebar)
 
+    // iOS keyboard mitigation. When an input inside the graph view is
+    // focused, the soft keyboard shrinks the visual viewport, the graph
+    // zone collapses with the flex layout, and sigma's ResizeObserver
+    // redraws the canvas to ~0 height. Pin the graph zone to its current
+    // pixel height while any input is focused so the canvas keeps its
+    // size and stays visible behind / above the keyboard.
+    this.installKeyboardCanvasGuard(graphZone)
+
     // Initial render via API
     void this.render(graphContainer)
+  }
+
+  private installKeyboardCanvasGuard(graphZone: HTMLElement) {
+    if (Platform.isDesktop) return
+    let priorHeight: string | null = null
+    const isTextInput = (el: EventTarget | null): boolean =>
+      el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement
+    const onFocusIn = (ev: FocusEvent) => {
+      if (!isTextInput(ev.target)) return
+      if (priorHeight !== null) return
+      const rect = graphZone.getBoundingClientRect()
+      if (rect.height <= 0) return
+      priorHeight = graphZone.style.height
+      // Pin to the current pixel height — a dynamic value, so it can't live in
+      // a CSS class; setCssStyles is the sanctioned API for inline styles.
+      graphZone.setCssStyles({
+        height: `${rect.height}px`,
+        flexBasis: `${rect.height}px`,
+      })
+    }
+    const onFocusOut = (ev: FocusEvent) => {
+      if (!isTextInput(ev.target)) return
+      if (priorHeight === null) return
+      graphZone.setCssStyles({ height: priorHeight, flexBasis: '' })
+      priorHeight = null
+    }
+    this.contentEl.addEventListener('focusin', onFocusIn)
+    this.contentEl.addEventListener('focusout', onFocusOut)
+    this.register(() => {
+      this.contentEl.removeEventListener('focusin', onFocusIn)
+      this.contentEl.removeEventListener('focusout', onFocusOut)
+    })
   }
 
   // Fix: Removed async (no await). Returns Promise to match interface.
@@ -276,25 +307,25 @@ export class NativeGraphView extends ItemView {
 
   // --- DATA LOGIC ---
   async loadReferenceMaps() {
-    if (!this._nodeFs || !this._nodePath) return
+    // Reuse the plugin's desktop-only Node modules; null on mobile → skip.
+    const nodeFs = this.plugin._nodeFs
+    const nodePath = this.plugin._nodePath
+    if (!nodeFs || !nodePath) return
     try {
-      const chunksPath = this._nodePath.join(
+      const chunksPath = nodePath.join(
         this.workDir,
         'kv_store_text_chunks.json',
       )
-      const docsPath = this._nodePath.join(
-        this.workDir,
-        'kv_store_doc_status.json',
-      )
+      const docsPath = nodePath.join(this.workDir, 'kv_store_doc_status.json')
 
-      if (this._nodeFs.existsSync(chunksPath)) {
-        const content = this._nodeFs.readFileSync(chunksPath, 'utf-8')
+      if (nodeFs.existsSync(chunksPath)) {
+        const content = nodeFs.readFileSync(chunksPath, 'utf-8')
         this.chunkToDocMap = JSON.parse(content) as Record<string, ChunkDocMap>
       }
 
-      if (this._nodeFs.existsSync(docsPath)) {
+      if (nodeFs.existsSync(docsPath)) {
         const raw = JSON.parse(
-          this._nodeFs.readFileSync(docsPath, 'utf-8'),
+          nodeFs.readFileSync(docsPath, 'utf-8'),
         ) as Record<string, Record<string, unknown>>
 
         // kv_store_doc_status.json can use either the file path OR the doc ID as
@@ -322,7 +353,7 @@ export class NativeGraphView extends ItemView {
   private getLightRagHeaders(): Record<string, string> {
     const headers: Record<string, string> = {}
     if (this.plugin.settings.lightRagApiKey) {
-      headers['Authorization'] = `Bearer ${this.plugin.settings.lightRagApiKey}`
+      headers['X-API-Key'] = this.plugin.settings.lightRagApiKey
     }
     return headers
   }
@@ -356,7 +387,9 @@ export class NativeGraphView extends ItemView {
         throw: false,
       })
       if (response.status !== 200) return null
-      const labels: string[] = response.json
+      const labels: string[] = (
+        Array.isArray(response.json) ? (response.json as unknown[]) : []
+      ).map(String)
       return labels.length > 0 ? labels[0] : null
     } catch (e) {
       console.error('Failed to fetch popular labels:', e)
@@ -379,7 +412,7 @@ export class NativeGraphView extends ItemView {
       })
       if (response.status !== 200) return null
 
-      const data: ApiKnowledgeGraph = response.json
+      const data = response.json as ApiKnowledgeGraph
 
       const nodeDegrees = new Map<string, number>()
       data.edges.forEach((e) => {
@@ -387,13 +420,21 @@ export class NativeGraphView extends ItemView {
         nodeDegrees.set(e.target, (nodeDegrees.get(e.target) || 0) + 1)
       })
 
+      const strProp = (v: unknown): string =>
+        typeof v === 'string' ? v : typeof v === 'number' ? String(v) : ''
       const nodes: GraphNode[] = data.nodes.map((n) => ({
         id: n.id,
-        type: (n.labels[0] as string) || 'Concept',
-        desc: String(n.properties.description ?? ''),
-        source_id: String(n.properties.source_id ?? ''),
+        type: n.labels[0] || 'Concept',
+        desc: strProp(n.properties.description),
+        source_id: strProp(n.properties.source_id),
         val: (nodeDegrees.get(n.id) || 0) + 1,
-        file_paths: this.getFilenames(String(n.properties.source_id ?? '')),
+        // LightRAG ≥1.4 sends a `<SEP>`-joined file_path property directly on
+        // the node. Prefer that (works on mobile without local kv_store files);
+        // fall back to chunk-id resolution via the local maps when desktop has
+        // them loaded.
+        file_paths:
+          this.extractFilePathsFromProperty(n.properties.file_path) ??
+          this.getFilenames(strProp(n.properties.source_id)),
       }))
 
       const edges: GraphMLRawEdge[] = data.edges.map((e) => ({
@@ -408,6 +449,34 @@ export class NativeGraphView extends ItemView {
       console.error('Failed to fetch graph data:', e)
       return null
     }
+  }
+
+  // Parse a `<SEP>`-joined `file_path` property from a LightRAG graph node
+  // into a list of basenames. Returns null when the property is missing/empty
+  // so the caller can fall back to chunk-id resolution.
+  //
+  // Split ONLY on `<SEP>` — filenames legitimately contain commas (especially
+  // Cyrillic-language quote / book titles), so a `<SEP>|,` split would shred a
+  // single path into several fake entries. The trim strips wrapping quotes /
+  // brackets only at the edges of each segment.
+  private extractFilePathsFromProperty(raw: unknown): string[] | null {
+    if (typeof raw !== 'string' || !raw.trim()) return null
+    const paths = raw
+      .split('<SEP>')
+      .map((s) =>
+        s
+          .trim()
+          .replace(/^['"[\]]+|['"[\]]+$/g, '')
+          .trim(),
+      )
+      .filter(Boolean)
+    if (paths.length === 0) return null
+    const names = new Set<string>()
+    for (const p of paths) {
+      const name = p.replace(/\\/g, '/').split('/').pop() || p
+      names.add(name)
+    }
+    return Array.from(names)
   }
 
   getFilenames(sourceIds: string): string[] {
@@ -426,19 +495,17 @@ export class NativeGraphView extends ItemView {
       if (!docData) return
 
       // Try every plausible field/path where LightRAG stores the filename
-      const meta = docData.metadata as Record<string, unknown> | undefined
-      const rawName =
+      const meta = docData.metadata
+      const rawName: string | undefined =
         docData.file_name || // direct field (older versions)
         docData.file_path || // alternative direct field
-        meta?.file_name || // nested in metadata
-        meta?.file_path || // nested alternative
+        (meta?.file_name as string | undefined) || // nested in metadata
+        (meta?.file_path as string | undefined) || // nested alternative
         (docData._rawKey as string) || // the raw JSON key (often is the file path)
         docData.id // doc ID as last-resort display name
       if (rawName) {
         // Show only the basename so long paths stay readable
-        const name =
-          String(rawName).replace(/\\/g, '/').split('/').pop() ||
-          String(rawName)
+        const name = rawName.replace(/\\/g, '/').split('/').pop() || rawName
         fileNames.add(name)
       }
     })
@@ -518,7 +585,7 @@ export class NativeGraphView extends ItemView {
 
     const mode = this.plugin.settings.graphViewMode
     if (mode === '3d') {
-      this.render3D(container, data.nodes, data.edges)
+      void this.render3D(container, data.nodes, data.edges)
     } else {
       this.render2D(container, data.nodes, data.edges)
     }
@@ -529,7 +596,7 @@ export class NativeGraphView extends ItemView {
       const targetId = this.pendingDetailNode
       this.pendingDetailNode = null
       // Small delay so sigma/forcegraph finishes initial setup
-      setTimeout(() => {
+      window.setTimeout(() => {
         const enriched = this.allNodes.find((n) => n.id === targetId)
         if (!enriched) return
         if (mode === '2d') {
@@ -586,7 +653,7 @@ export class NativeGraphView extends ItemView {
       this.fa2Layout.stop()
     }
 
-    const attrs = this.graph.getNodeAttributes(nodeId)
+    const attrs = this.graph.getNodeAttributes(nodeId) as NodeGraphAttrs
     const visualData = this.sigmaInstance.getNodeDisplayData(nodeId)
     if (!attrs) return
 
@@ -631,7 +698,7 @@ export class NativeGraphView extends ItemView {
     })
 
     // Highlight target
-    const isDark = document.body.classList.contains('theme-dark')
+    const isDark = activeDocument.body.classList.contains('theme-dark')
     this.graph.setNodeAttribute(nodeId, 'color', isDark ? '#ffffff' : '#00d4ff')
     this.graph.setNodeAttribute(nodeId, 'label', nodeId)
     this.graph.setNodeAttribute(
@@ -655,13 +722,21 @@ export class NativeGraphView extends ItemView {
   ) {
     this.graph = new Graph()
     const LABEL_THRESHOLD = 4
+    const isDarkTheme = activeDocument.body.classList.contains('theme-dark')
+
+    // Tier node sizing by form factor: phones get the tightest values so dense
+    // graphs stay legible, tablets get a middle ground (more screen but still
+    // touch-sized), desktop keeps its original generous sizing.
+    const sizeScale = Platform.isPhone ? 0.175 : Platform.isTablet ? 0.4 : 1
+    const sizeMin = Platform.isPhone ? 0.75 : Platform.isTablet ? 1.5 : 3
+    const sizeMax = Platform.isPhone ? 3 : Platform.isTablet ? 8 : 20
 
     nodes.forEach((n) => {
       if (!this.graph?.hasNode(n.id)) {
         const showLabel = n.val > LABEL_THRESHOLD
         this.graph?.addNode(n.id, {
           label: showLabel ? n.id : '',
-          size: Math.max(3, Math.min(n.val * 1.5, 20)),
+          size: Math.max(sizeMin, Math.min(n.val * 1.5 * sizeScale, sizeMax)),
           color: '#00d4ff',
           type: 'circle',
           node_type: n.type,
@@ -681,8 +756,12 @@ export class NativeGraphView extends ItemView {
       if (this.graph?.hasNode(src) && this.graph?.hasNode(tgt)) {
         if (!this.graph.hasEdge(src, tgt)) {
           this.graph.addEdge(src, tgt, {
-            color: '#333',
-            size: 0.5,
+            // Solid colors avoid the canvas accumulation problem: semi-transparent
+            // edges stack up in dense areas and create a blinding bright mass.
+            // Dark mode: slightly lighter than #111 bg. Light mode: slightly
+            // darker than #f0f0f0 bg.
+            color: isDarkTheme ? '#2e2e2e' : '#c8c8c8',
+            size: 0.3,
             hidden: false,
           })
         }
@@ -691,15 +770,17 @@ export class NativeGraphView extends ItemView {
 
     const initSigma = () => {
       if (container.clientWidth === 0) {
-        requestAnimationFrame(initSigma)
+        window.requestAnimationFrame(initSigma)
         return
       }
       if (!this.graph) return
       if (this.sigmaInstance) this.sigmaInstance.kill()
 
-      const isDark = document.body.classList.contains('theme-dark')
+      const isDark = activeDocument.body.classList.contains('theme-dark')
       const labelTextColor = isDark ? '#e8e8e8' : '#111111'
-      container.style.backgroundColor = isDark ? '#111111' : '#f0f0f0'
+      container.setCssStyles({
+        backgroundColor: isDark ? '#111111' : '#f0f0f0',
+      })
 
       // Stamp label color onto every node so the custom hover renderer can read it
       this.graph.forEachNode((n) => {
@@ -784,12 +865,16 @@ export class NativeGraphView extends ItemView {
         labelWeight: 'bold',
         allowInvalidContainer: true,
         zIndex: true,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        defaultDrawNodeHover: drawHover as any,
+        defaultDrawNodeHover: drawHover as unknown as NonNullable<
+          ConstructorParameters<typeof Sigma>[2]
+        >['defaultDrawNodeHover'],
       })
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment -- graphology-layout-forceatlas2 types not resolved by ESLint's TypeScript program
       const settings = forceAtlas2.inferSettings(this.graph)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment -- FA2Layout constructor not resolved by ESLint's TypeScript program
       this.fa2Layout = new FA2Layout(this.graph, {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- settings spread from untyped forceAtlas2 result
         settings: { ...settings, gravity: 1, slowDown: 5 },
       })
       // FIXED: Optional chaining to prevent "Object is possibly null"
@@ -805,7 +890,9 @@ export class NativeGraphView extends ItemView {
       })
 
       this.sigmaInstance.on('enterNode', (event) => {
-        const attrs = this.graph?.getNodeAttributes(event.node)
+        const attrs = this.graph?.getNodeAttributes(event.node) as
+          | NodeGraphAttrs
+          | undefined
         if (!attrs) return
         if (attrs.color !== '#ffffff') {
           this.graph?.setNodeAttribute(event.node, 'label', event.node)
@@ -815,7 +902,9 @@ export class NativeGraphView extends ItemView {
       })
 
       this.sigmaInstance.on('leaveNode', (event) => {
-        const attrs = this.graph?.getNodeAttributes(event.node)
+        const attrs = this.graph?.getNodeAttributes(event.node) as
+          | NodeGraphAttrs
+          | undefined
         if (!attrs) return
         if (attrs.color === '#ff0055') {
           this.graph?.setNodeAttribute(event.node, 'color', '#00d4ff')
@@ -842,7 +931,7 @@ export class NativeGraphView extends ItemView {
         if (this.detailsPanel) this.detailsPanel.removeClass('nrlcmp-visible')
       })
     }
-    requestAnimationFrame(initSigma)
+    window.requestAnimationFrame(initSigma)
   }
 
   // --- ENGINE 3D ---
@@ -859,6 +948,7 @@ export class NativeGraphView extends ItemView {
       })),
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- 3d-force-graph lacks TypeScript declarations
     const { default: ForceGraph3D } = await import('3d-force-graph')
     this.graph3D = (ForceGraph3D as unknown as ForceGraph3DConstructor)()(
       container,
@@ -867,7 +957,7 @@ export class NativeGraphView extends ItemView {
       .backgroundColor('#000005')
       .nodeAutoColorBy('type')
       .nodeVal('val')
-      .nodeRelSize(4)
+      .nodeRelSize(Platform.isPhone ? 0.75 : Platform.isTablet ? 2 : 4)
       .nodeLabel('id')
       .nodeOpacity(0.9)
       .linkWidth(0.6)
@@ -1077,7 +1167,7 @@ export class NativeGraphView extends ItemView {
         headers: {
           'Content-Type': 'application/json',
           ...(this.plugin.settings.lightRagApiKey
-            ? { Authorization: `Bearer ${this.plugin.settings.lightRagApiKey}` }
+            ? { 'X-API-Key': this.plugin.settings.lightRagApiKey }
             : {}),
         },
         body: JSON.stringify({
@@ -1090,7 +1180,7 @@ export class NativeGraphView extends ItemView {
 
       if (response.status === 200) {
         new Notice('Node updated!')
-        setTimeout(() => {
+        window.setTimeout(() => {
           const container = this.contentEl.querySelector('#sigma-container')
           if (container instanceof HTMLElement) void this.render(container)
         }, 1500)
@@ -1115,11 +1205,50 @@ export class NativeGraphView extends ItemView {
       'Type an entity name and press Enter to center the graph on it',
     )
 
+    // Separator
+    tb.createEl('span', { cls: 'nrlcmp-toolbar-sep' })
+
+    // Depth controls — only meaningful in explore mode (currentRootLabel set).
+    // Created before loadEntity so the closure can enable/disable them.
+    const btnLess = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
+    setIcon(btnLess, 'minus')
+    btnLess.disabled = true
+    setTooltip(btnLess, 'Switch to explore mode first')
+    btnLess.onclick = () => {
+      if (!this.currentRootLabel) return
+      this.currentMaxDepth = Math.max(1, this.currentMaxDepth - 1)
+      void this.render(graphContainer)
+    }
+
+    const btnMore = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
+    setIcon(btnMore, 'plus')
+    btnMore.disabled = true
+    setTooltip(btnMore, 'Switch to explore mode first')
+    btnMore.onclick = () => {
+      if (!this.currentRootLabel) return
+      this.currentMaxDepth = Math.min(10, this.currentMaxDepth + 1)
+      void this.render(graphContainer)
+    }
+
+    const setExploreMode = (active: boolean) => {
+      btnLess.disabled = !active
+      btnMore.disabled = !active
+      setTooltip(
+        btnLess,
+        active ? 'Decrease subgraph depth (−1)' : 'Switch to explore mode first',
+      )
+      setTooltip(
+        btnMore,
+        active ? 'Increase subgraph depth (+1)' : 'Switch to explore mode first',
+      )
+    }
+
     const loadEntity = () => {
       const val = exploreInput.value.trim()
       if (!val) return
       this.currentRootLabel = val
       exploreInput.value = ''
+      setExploreMode(true)
       void this.render(graphContainer)
     }
     exploreInput.addEventListener('keydown', (e) => {
@@ -1134,41 +1263,6 @@ export class NativeGraphView extends ItemView {
     // Separator
     tb.createEl('span', { cls: 'nrlcmp-toolbar-sep' })
 
-    // Depth controls — only meaningful in explore mode (currentRootLabel set)
-    const isExplore = !!this.currentRootLabel
-    const btnLess = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
-    setIcon(btnLess, 'minus')
-    setTooltip(
-      btnLess,
-      isExplore
-        ? 'Decrease subgraph depth (−1)'
-        : 'Switch to explore mode first',
-    )
-    btnLess.disabled = !isExplore
-    btnLess.onclick = () => {
-      if (!this.currentRootLabel) return
-      this.currentMaxDepth = Math.max(1, this.currentMaxDepth - 1)
-      void this.render(graphContainer)
-    }
-
-    const btnMore = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
-    setIcon(btnMore, 'plus')
-    setTooltip(
-      btnMore,
-      isExplore
-        ? 'Increase subgraph depth (+1)'
-        : 'Switch to explore mode first',
-    )
-    btnMore.disabled = !isExplore
-    btnMore.onclick = () => {
-      if (!this.currentRootLabel) return
-      this.currentMaxDepth = Math.min(10, this.currentMaxDepth + 1)
-      void this.render(graphContainer)
-    }
-
-    // Separator
-    tb.createEl('span', { cls: 'nrlcmp-toolbar-sep' })
-
     const btnReload = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
     setIcon(btnReload, 'refresh-cw')
     setTooltip(btnReload, 'Back to full overview (all nodes)')
@@ -1176,6 +1270,7 @@ export class NativeGraphView extends ItemView {
       this.currentRootLabel = ''
       this.currentMaxDepth = 3
       this.currentMaxNodes = 1000
+      setExploreMode(false)
       void this.render(graphContainer)
     }
 
@@ -1190,13 +1285,37 @@ export class NativeGraphView extends ItemView {
           .animate({ x: 0.5, y: 0.5, ratio: 0.1 }, { duration: 500 })
     }
 
+    // Sidebar toggle — only renders on mobile (CSS hides it elsewhere).
+    // Sits right after the "Reset camera" button so it's adjacent to the
+    // other view controls.
+    const btnSidebar = tb.createEl('button', {
+      cls: 'nrlcmp-toolbar-btn nrlcmp-toolbar-btn-mobile',
+    })
+    setIcon(btnSidebar, 'panel-right')
+    setTooltip(btnSidebar, 'Toggle entity panel')
+    btnSidebar.onclick = () => {
+      this.contentEl.classList.toggle('nrlcmp-sidebar-hidden')
+    }
+
     // Stats label — updated after each render
     this.statsLabelEl = tb.createEl('span', { cls: 'nrlcmp-toolbar-stats' })
   }
 
   buildSidebar(container: HTMLElement) {
     const header = container.createDiv({ cls: 'nrlcmp-sidebar-header' })
-    header.createEl('h4', { text: 'Node manager' })
+    const titleRow = header.createDiv({ cls: 'nrlcmp-sidebar-title-row' })
+    titleRow.createEl('h4', { text: 'Node manager' })
+
+    // Mobile-only close button — the sidebar overlays the graph, so users need
+    // a way to dismiss it without reaching past the overlay to the toolbar.
+    const btnClose = titleRow.createEl('button', {
+      cls: 'nrlcmp-sidebar-close nrlcmp-toolbar-btn-mobile',
+    })
+    setIcon(btnClose, 'x')
+    setTooltip(btnClose, 'Close entity panel')
+    btnClose.onclick = () => {
+      this.contentEl.classList.add('nrlcmp-sidebar-hidden')
+    }
 
     const searchInput = new TextComponent(header)
     searchInput.setPlaceholder('Filter list...')
@@ -1221,10 +1340,10 @@ export class NativeGraphView extends ItemView {
       })
     new ButtonComponent(actionButtons)
       .setButtonText('Delete')
-      .setWarning()
       .onClick(() => {
         void this.deleteSelectedNodes()
       })
+      .buttonEl.addClass('mod-destructive')
 
     const filterBar = header.createDiv({ cls: 'nrlcmp-sidebar-filters' })
     this.sortBtnEl = filterBar.createEl('span', {
@@ -1277,11 +1396,9 @@ export class NativeGraphView extends ItemView {
         loadingRow.setText(`Failed to load entities (HTTP ${listResp.status}).`)
         return
       }
-      const graphLabels: string[] = Array.isArray(listResp.json)
-        ? listResp.json
-        : []
-      const graphLabelSet = new Set(graphLabels)
-
+      const graphLabels: string[] = (
+        Array.isArray(listResp.json) ? (listResp.json as unknown[]) : []
+      ).map(String)
       // Step 2: get all labels sorted by degree — "popular" with a high limit.
       // Any label NOT returned here (after requesting up to 1000) that IS in
       // graphLabels has degree 0 in the stored graph → true orphan node.
@@ -1291,10 +1408,11 @@ export class NativeGraphView extends ItemView {
         headers: this.getLightRagHeaders(),
         throw: false,
       })
-      const popularLabels: string[] =
+      const popularLabels: string[] = (
         popularResp.status === 200 && Array.isArray(popularResp.json)
-          ? popularResp.json
+          ? (popularResp.json as unknown[])
           : []
+      ).map(String)
       const popularSet = new Set(popularLabels)
 
       // True orphans: in graph (have a node) but NOT in popular list (degree 0)
@@ -1412,7 +1530,7 @@ export class NativeGraphView extends ItemView {
               'Content-Type': 'application/json',
               ...(this.plugin.settings.lightRagApiKey
                 ? {
-                    Authorization: `Bearer ${this.plugin.settings.lightRagApiKey}`,
+                    'X-API-Key': this.plugin.settings.lightRagApiKey,
                   }
                 : {}),
             },
@@ -1425,7 +1543,7 @@ export class NativeGraphView extends ItemView {
           if (response.status === 200) {
             new Notice('Merged!')
             this.selectedNodes.clear()
-            setTimeout(() => {
+            window.setTimeout(() => {
               const container = this.contentEl.querySelector('#sigma-container')
               if (container instanceof HTMLElement) void this.render(container)
             }, 1000)
@@ -1457,7 +1575,7 @@ export class NativeGraphView extends ItemView {
                 'Content-Type': 'application/json',
                 ...(this.plugin.settings.lightRagApiKey
                   ? {
-                      Authorization: `Bearer ${this.plugin.settings.lightRagApiKey}`,
+                      'X-API-Key': this.plugin.settings.lightRagApiKey,
                     }
                   : {}),
               },
@@ -1466,7 +1584,7 @@ export class NativeGraphView extends ItemView {
           }
           new Notice('Deleted!')
           this.selectedNodes.clear()
-          setTimeout(() => {
+          window.setTimeout(() => {
             const container = this.contentEl.querySelector('#sigma-container')
             if (container instanceof HTMLElement) void this.render(container)
           }, 1000)
@@ -1547,7 +1665,7 @@ export class NativeGraphView extends ItemView {
                 'Content-Type': 'application/json',
                 ...(this.plugin.settings.lightRagApiKey
                   ? {
-                      Authorization: `Bearer ${this.plugin.settings.lightRagApiKey}`,
+                      'X-API-Key': this.plugin.settings.lightRagApiKey,
                     }
                   : {}),
               },
@@ -1568,7 +1686,7 @@ export class NativeGraphView extends ItemView {
         new Notice(`Created ${data.targets.length} relationships.`)
         this.selectedNodes.clear()
         // Recargar grafo para ver las nuevas líneas
-        setTimeout(() => {
+        window.setTimeout(() => {
           void this.render(
             this.contentEl.querySelector('#sigma-container') as HTMLElement,
           )
@@ -1612,13 +1730,13 @@ class ConfirmationModal extends Modal {
 
     new ButtonComponent(btnContainer)
       .setButtonText('Confirm')
-      .setWarning()
       .onClick(() => {
         void (async () => {
           await this.onConfirm()
           this.close()
         })()
       })
+      .buttonEl.addClass('mod-destructive')
   }
 
   onClose() {

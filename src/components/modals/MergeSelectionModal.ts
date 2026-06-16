@@ -1,4 +1,4 @@
-import { App, Modal, ButtonComponent } from 'obsidian'
+import { App, ButtonComponent, Modal } from 'obsidian'
 
 export class MergeSelectionModal extends Modal {
   private selectedNodes: string[]

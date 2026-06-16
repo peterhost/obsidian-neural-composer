@@ -1,8 +1,9 @@
 import { App, Keymap, MarkdownRenderer } from 'obsidian'
-import { memo, useCallback, useEffect, useRef } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { useApp } from '../../contexts/app-context'
 import { useChatView } from '../../contexts/chat-view-context'
+import { splitSvgBlocks } from '../../utils/chat/split-svg-blocks'
 
 type ObsidianMarkdownProps = {
   content: string
@@ -103,6 +104,52 @@ function setupMarkdownLinks(
   })
 }
 
+function sanitizeSvg(svg: string): string {
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(svg, 'image/svg+xml')
+  doc.querySelectorAll('script').forEach((el) => el.remove())
+  doc.querySelectorAll('*').forEach((el) => {
+    Array.from(el.attributes)
+      .filter((attr) => attr.name.startsWith('on'))
+      .forEach((attr) => el.removeAttribute(attr.name))
+  })
+  return doc.documentElement.outerHTML
+}
+
+// Renders markdown that may contain inline <svg>...</svg> elements.
+// MarkdownRenderer.render() strips raw HTML when called from a plugin context,
+// so SVG blocks are extracted and injected directly; text parts go through
+// ObsidianMarkdown as usual.
+function SvgAwareMarkdown({
+  content,
+  scale,
+}: {
+  content: string
+  scale?: 'xs' | 'sm' | 'base'
+}) {
+  const parts = useMemo(() => splitSvgBlocks(content), [content])
+
+  if (parts.length === 1 && parts[0].type === 'text') {
+    return <ObsidianMarkdown content={parts[0].content} scale={scale} />
+  }
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.type === 'svg' ? (
+          <div
+            key={i}
+            className="nrlcmp-svg-preview"
+            dangerouslySetInnerHTML={{ __html: sanitizeSvg(part.content) }}
+          />
+        ) : (
+          <ObsidianMarkdown key={i} content={part.content} scale={scale} />
+        ),
+      )}
+    </>
+  )
+}
+
 function ObsidianCodeBlock({
   content,
   language,
@@ -122,4 +169,4 @@ function ObsidianCodeBlock({
   )
 }
 
-export { ObsidianCodeBlock, ObsidianMarkdown }
+export { ObsidianCodeBlock, ObsidianMarkdown, SvgAwareMarkdown }

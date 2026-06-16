@@ -13,10 +13,15 @@ const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36,gzip(gfe)'
 const RE_XML_TRANSCRIPT = /<text start="([^"]*)" dur="([^"]*)">([^<]*)<\/text>/g
 
-// Interface to avoid 'any' in caption logic
-interface YoutubeCaptionTrack {
+type YoutubeCaptionTrack = {
   languageCode: string
   baseUrl: string
+}
+
+type YoutubePlayerResponse = {
+  playerCaptionsTracklistRenderer?: {
+    captionTracks?: YoutubeCaptionTrack[]
+  }
 }
 
 export function isYoutubeUrl(url: string) {
@@ -125,9 +130,8 @@ export class YoutubeTranscript {
       try {
         return JSON.parse(
           splittedHTML[1].split(',"videoDetails')[0].replace('\n', ''),
-        )
+        ) as YoutubePlayerResponse
       } catch {
-        // Removed unused variable 'e'
         return undefined
       }
     })()?.playerCaptionsTracklistRenderer
@@ -136,11 +140,11 @@ export class YoutubeTranscript {
       throw new YoutubeTranscriptDisabledError(videoId)
     }
 
-    if (!('captionTracks' in captions)) {
+    if (!captions.captionTracks) {
       throw new YoutubeTranscriptNotAvailableError(videoId)
     }
 
-    const tracks = captions.captionTracks as YoutubeCaptionTrack[]
+    const tracks: YoutubeCaptionTrack[] = captions.captionTracks
 
     if (
       config?.lang &&

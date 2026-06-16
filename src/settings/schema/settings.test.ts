@@ -66,6 +66,8 @@ describe('parseNeuralComposerSettings', () => {
       lightRagShowCitations: true,
       lightRagSummaryLanguage: 'English',
       lightRagSyncFolder: '',
+      lightRagExcludePatterns: [],
+      lightRagExcludeHiddenFiles: true,
       lightRagUseRemote: false,
       lightRagWorkDir: '',
       useCustomEntityTypes: false,

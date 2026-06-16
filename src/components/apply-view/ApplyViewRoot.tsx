@@ -63,8 +63,6 @@ export default function ApplyViewRoot({
     scrollToDiffBlock(currentDiffIndex + 1)
   }, [currentDiffIndex, scrollToDiffBlock])
 
-  // FIX: Changed from 'const handleAccept = async () => ...' to sync function with void IIFE
-  // This completely removes the Promise return signature from the handler itself.
   const handleAccept = useCallback(() => {
     void (async () => {
       const newContent = diff
@@ -77,9 +75,12 @@ export default function ApplyViewRoot({
         })
         .join('\n')
       await app.vault.modify(state.file, newContent)
+      // Close the apply view first, then navigate to the modified file so the
+      // user lands on the result rather than whatever was behind this leaf.
       close()
+      await app.workspace.openLinkText(state.file.path, '', false)
     })()
-  }, [diff, app.vault, state.file, close])
+  }, [diff, app.vault, app.workspace, state.file, close])
 
   const handleReject = () => {
     close()
@@ -202,6 +203,7 @@ export default function ApplyViewRoot({
     if (modifiedBlockIndices.length > 0) {
       scrollToDiffBlock(0)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- scroll to first diff only on initial mount
   }, [])
 
   return (

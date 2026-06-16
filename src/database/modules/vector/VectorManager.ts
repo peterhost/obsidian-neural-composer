@@ -1,6 +1,5 @@
 import { PgliteDatabase } from 'drizzle-orm/pglite'
 import { backOff } from 'exponential-backoff'
-import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter'
 import { minimatch } from 'minimatch'
 import { App, TFile } from 'obsidian'
 
@@ -22,6 +21,7 @@ import {
   EmbeddingModelClient,
 } from '../../../types/embedding'
 import { chunkArray } from '../../../utils/common/chunk-array'
+import { RecursiveMarkdownTextSplitter } from '../../../utils/text-splitter'
 
 import { VectorRepository } from './VectorRepository'
 
@@ -129,17 +129,9 @@ export class VectorManager {
       return
     }
 
-    const textSplitter = RecursiveCharacterTextSplitter.fromLanguage(
-      'markdown',
-      {
-        chunkSize: options.chunkSize,
-        // TODO: Use token-based chunking after migrating to WebAssembly-based tiktoken
-        // Current token counting method is too slow for practical use
-        // lengthFunction: async (text) => {
-        //   return await tokenCount(text)
-        // },
-      },
-    )
+    const textSplitter = new RecursiveMarkdownTextSplitter({
+      chunkSize: options.chunkSize,
+    })
 
     const failedFiles: { path: string; error: string }[] = []
     const contentChunks = (
@@ -165,8 +157,8 @@ export class VectorManager {
                   mtime: file.stat.mtime,
                   content: chunk.pageContent,
                   metadata: {
-                    startLine: chunk.metadata.loc.lines.from as number,
-                    endLine: chunk.metadata.loc.lines.to as number,
+                    startLine: chunk.metadata.loc.lines.from,
+                    endLine: chunk.metadata.loc.lines.to,
                   },
                 }
               },
@@ -263,10 +255,10 @@ export class VectorManager {
                   startingDelay: 2000,
                   timeMultiple: 2,
                   maxDelay: 60000,
-                  retry: (error) => {
+                  retry: (error: unknown) => {
                     if (
                       error instanceof LLMRateLimitExceededException ||
-                      error.status === 429
+                      (error as { status?: number }).status === 429
                     ) {
                       updateProgress?.({
                         completedChunks,

@@ -25,14 +25,17 @@ export class FileExplorerDecorator {
     this.observer = new MutationObserver(() => {
       // Debounce via rAF — one repaint per burst of DOM changes.
       if (this.rafId !== null) return
-      this.rafId = requestAnimationFrame(() => {
+      this.rafId = window.requestAnimationFrame(() => {
         this.rafId = null
         this.decorateFn?.()
       })
     })
     // childList-only: fires when Obsidian adds/removes file-title elements.
     // Does NOT fire on setAttribute → no loop.
-    this.observer.observe(document.body, { childList: true, subtree: true })
+    this.observer.observe(activeDocument.body, {
+      childList: true,
+      subtree: true,
+    })
   }
 
   /**
@@ -49,7 +52,7 @@ export class FileExplorerDecorator {
     folderStatus: DocStatus = 'unknown',
   ): void {
     // ── Per-file dots ───────────────────────────────────────────────────────
-    document
+    activeDocument
       .querySelectorAll<HTMLElement>('.nav-file-title[data-path]')
       .forEach((el) => {
         const path = el.getAttribute('data-path') ?? ''
@@ -73,7 +76,7 @@ export class FileExplorerDecorator {
     if (syncFolder) {
       // Escape quotes in path for use inside an attribute selector string.
       const escaped = syncFolder.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-      const folderEl = document.querySelector<HTMLElement>(
+      const folderEl = activeDocument.querySelector<HTMLElement>(
         `.nav-folder-title[data-path="${escaped}"]`,
       )
       if (folderEl) {
@@ -97,7 +100,7 @@ export class FileExplorerDecorator {
       this.rafId = null
     }
     this.decorateFn = null
-    document
+    activeDocument
       .querySelectorAll<HTMLElement>('[data-nc-status]')
       .forEach((el) => el.removeAttribute('data-nc-status'))
   }

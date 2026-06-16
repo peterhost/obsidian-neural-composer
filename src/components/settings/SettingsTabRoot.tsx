@@ -36,12 +36,13 @@ type TabId =
   | 'advanced'
   | 'help'
 
-interface TabDef {
+type TabDef = {
   id: TabId
   label: string
   Icon: React.FC<{ size?: number; strokeWidth?: number }>
 }
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment -- lucide-react ESM icon paths lack precise TS declarations */
 const TABS: TabDef[] = [
   { id: 'providers', label: 'Providers', Icon: KeyRound },
   { id: 'models', label: 'Models', Icon: Cpu },
@@ -51,8 +52,7 @@ const TABS: TabDef[] = [
   { id: 'advanced', label: 'Advanced', Icon: Settings2 },
   { id: 'help', label: 'Help', Icon: CircleHelp },
 ]
-
-const LS_KEY = 'neural-composer-settings-active-tab'
+/* eslint-enable @typescript-eslint/no-unsafe-assignment -- lucide-react ESM icon paths lack precise TS declarations */
 
 // ---------------------------------------------------------------------------
 // Brand logo tile — violet rounded square with brain-circuit glyph inside
@@ -203,15 +203,28 @@ function QuickSlot({
 
 function CommandBar({ onModelsClick }: { onModelsClick: () => void }) {
   const { settings } = useSettings()
+  const [isOpen, setIsOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    activeDocument.addEventListener('mousedown', handler)
+    return () => activeDocument.removeEventListener('mousedown', handler)
+  }, [])
+
+  const handleSlotClick = () => {
+    setIsOpen(false)
+    onModelsClick()
+  }
 
   return (
     <div
+      ref={ref}
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '0 16px',
-        height: 52,
         flexShrink: 0,
         background: 'var(--background-secondary)',
         borderBottom: '1px solid var(--background-modifier-border)',
@@ -219,50 +232,126 @@ function CommandBar({ onModelsClick }: { onModelsClick: () => void }) {
         overflowY: 'hidden',
       }}
     >
-      {/* small fixed spacer — keeps pills away from rail edge */}
-      <div style={{ flex: '0 0 8px' }} />
-
-      <QuickSlot
-        label="Chat"
-        modelId={settings.chatModelId}
-        onClick={onModelsClick}
-      />
-      <QuickSlot
-        label="Apply"
-        modelId={settings.applyModelId}
-        onClick={onModelsClick}
-      />
-      <QuickSlot
-        label="Embed"
-        modelId={settings.embeddingModelId}
-        onClick={onModelsClick}
-      />
-
-      {/* flex spacer so Support button is right-aligned */}
-      <div style={{ flex: 1 }} />
-
-      {/* Ko-fi support button */}
-      <button
-        onClick={() => window.open('https://ko-fi.com/oscampo', '_blank')}
+      {/* Top row: Models toggle + Support */}
+      <div
         style={{
-          display: 'inline-flex',
+          display: 'flex',
           alignItems: 'center',
-          gap: 5,
-          padding: '5px 12px',
-          borderRadius: 999,
-          background: 'rgba(255,94,91,0.12)',
-          color: '#FF5E5B',
-          fontSize: 11.5,
-          fontWeight: 600,
-          border: '1px solid rgba(255,94,91,0.25)',
-          cursor: 'pointer',
-          flexShrink: 0,
-          letterSpacing: '0.01em',
+          gap: 8,
+          padding: '0 16px',
+          height: 52,
         }}
-        title="Support Neural Composer on Ko-fi"
       >
-        ☕ Support
-      </button>
+        {/* Models dropdown trigger */}
+        <button
+          onClick={() => setIsOpen((v) => !v)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '5px 10px 5px 8px',
+            borderRadius: 8,
+            background: 'var(--background-modifier-hover)',
+            border: '1px solid var(--background-modifier-border)',
+            cursor: 'pointer',
+            fontSize: 12,
+            fontWeight: 600,
+            color: 'var(--text-normal)',
+            flexShrink: 0,
+          }}
+          title="Show active models"
+        >
+          <svg
+            width={13}
+            height={13}
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="2" y="2" width="5" height="5" rx="1" />
+            <rect x="9" y="2" width="5" height="5" rx="1" />
+            <rect x="2" y="9" width="5" height="5" rx="1" />
+            <rect x="9" y="9" width="5" height="5" rx="1" />
+          </svg>
+          Models
+          <svg
+            width={11}
+            height={11}
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              color: 'var(--text-faint)',
+              transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 150ms ease',
+            }}
+            aria-hidden="true"
+          >
+            <path d="M4 6l4 4 4-4" />
+          </svg>
+        </button>
+
+        <div style={{ flex: 1 }} />
+
+        {/* Ko-fi support button */}
+        <button
+          onClick={() => window.open('https://ko-fi.com/oscampo', '_blank')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            padding: '5px 12px',
+            borderRadius: 999,
+            background: 'rgba(255,94,91,0.12)',
+            color: '#FF5E5B',
+            fontSize: 11.5,
+            fontWeight: 600,
+            border: '1px solid rgba(255,94,91,0.25)',
+            cursor: 'pointer',
+            flexShrink: 0,
+            letterSpacing: '0.01em',
+          }}
+          title="Support Neural Composer on Ko-fi"
+        >
+          ☕ Support
+        </button>
+      </div>
+
+      {/* Dropdown panel */}
+      {isOpen && (
+        <div
+          style={{
+            padding: '6px 16px 10px',
+            borderTop: '1px solid var(--background-modifier-border)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4,
+          }}
+        >
+          <QuickSlot
+            label="Chat"
+            modelId={settings.chatModelId}
+            onClick={handleSlotClick}
+          />
+          <QuickSlot
+            label="Apply"
+            modelId={settings.applyModelId}
+            onClick={handleSlotClick}
+          />
+          <QuickSlot
+            label="Embed"
+            modelId={settings.embeddingModelId}
+            onClick={handleSlotClick}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -373,13 +462,10 @@ type SettingsTabRootProps = {
 export function SettingsTabRoot({ app, plugin }: SettingsTabRootProps) {
   const rootRef = useRef<HTMLDivElement>(null)
 
-  const [activeTab, setActiveTab] = useState<TabId>(
-    () => (localStorage.getItem(LS_KEY) as TabId | null) ?? 'models',
-  )
+  const [activeTab, setActiveTab] = useState<TabId>('models')
 
   const switchTab = useCallback((tab: TabId) => {
     setActiveTab(tab)
-    localStorage.setItem(LS_KEY, tab)
   }, [])
 
   // Strip Obsidian's default containerEl padding so the layout fills the pane

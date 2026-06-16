@@ -1,10 +1,6 @@
+import type { ComponentType } from 'react'
 import { memo } from 'react'
-import SyntaxHighlighter from 'react-syntax-highlighter/dist/esm/prism-light'
-import {
-  oneDark,
-  oneLight,
-} from 'react-syntax-highlighter/dist/esm/styles/prism'
-
+import type { SyntaxHighlighterProps } from 'react-syntax-highlighter'
 import bash from 'react-syntax-highlighter/dist/esm/languages/prism/bash'
 import css from 'react-syntax-highlighter/dist/esm/languages/prism/css'
 import javascript from 'react-syntax-highlighter/dist/esm/languages/prism/javascript'
@@ -15,6 +11,19 @@ import rust from 'react-syntax-highlighter/dist/esm/languages/prism/rust'
 import sql from 'react-syntax-highlighter/dist/esm/languages/prism/sql'
 import typescript from 'react-syntax-highlighter/dist/esm/languages/prism/typescript'
 import yaml from 'react-syntax-highlighter/dist/esm/languages/prism/yaml'
+import SyntaxHighlighterBase from 'react-syntax-highlighter/dist/esm/prism-light'
+import {
+  oneDark,
+  oneLight,
+} from 'react-syntax-highlighter/dist/esm/styles/prism'
+
+// react-syntax-highlighter ESM dist paths lack type declarations for static members
+// and language modules; cast to a typed interface that matches the actual runtime shape.
+type SyntaxHighlighterWithRegister = ComponentType<SyntaxHighlighterProps> & {
+  registerLanguage: (name: string, lang: unknown) => void
+}
+const SyntaxHighlighter =
+  SyntaxHighlighterBase as unknown as SyntaxHighlighterWithRegister
 
 SyntaxHighlighter.registerLanguage('bash', bash)
 SyntaxHighlighter.registerLanguage('css', css)

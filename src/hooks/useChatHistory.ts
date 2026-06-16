@@ -4,7 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { editorStateToPlainText } from '../components/chat-view/chat-input/utils/editor-state-to-plain-text'
 import { useApp } from '../contexts/app-context'
 import { ChatConversationMetadata } from '../database/json/chat/types'
-import { ChatMessage, SerializedChatMessage } from '../types/chat'
+import {
+  ChatMessage,
+  ChatUserMessage,
+  SerializedChatMessage,
+} from '../types/chat'
 import { Mentionable } from '../types/mentionable'
 import {
   deserializeMentionable,
@@ -19,17 +23,17 @@ function debounce<TArgs extends unknown[], R>(
   wait: number,
   options?: { maxWait?: number },
 ): (...args: TArgs) => R | undefined {
-  let timer: ReturnType<typeof setTimeout> | null = null
-  let maxTimer: ReturnType<typeof setTimeout> | null = null
+  let timer: number | null = null
+  let maxTimer: number | null = null
   let lastArgs: TArgs | null = null
 
   const flush = (): R | undefined => {
     if (timer !== null) {
-      clearTimeout(timer)
+      window.clearTimeout(timer)
       timer = null
     }
     if (maxTimer !== null) {
-      clearTimeout(maxTimer)
+      window.clearTimeout(maxTimer)
       maxTimer = null
     }
     if (lastArgs !== null) {
@@ -42,10 +46,10 @@ function debounce<TArgs extends unknown[], R>(
 
   return (...args: TArgs): R | undefined => {
     lastArgs = args
-    if (timer !== null) clearTimeout(timer)
-    timer = setTimeout(flush, wait)
+    if (timer !== null) window.clearTimeout(timer)
+    timer = window.setTimeout(flush, wait)
     if (options?.maxWait !== undefined && maxTimer === null) {
-      maxTimer = setTimeout(flush, options.maxWait)
+      maxTimer = window.setTimeout(flush, options.maxWait)
     }
     return undefined
   }
@@ -74,6 +78,7 @@ export function useChatHistory(): UseChatHistory {
 
   useEffect(() => {
     void fetchChatList()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchChatList is called once on mount to initialize
   }, [])
 
   const createOrUpdateConversation = useMemo(
@@ -91,7 +96,9 @@ export function useChatHistory(): UseChatHistory {
               messages: serializedMessages,
             })
           } else {
-            const firstUserMessage = messages.find((v) => v.role === 'user')
+            const firstUserMessage = messages.find(
+              (v): v is ChatUserMessage => v.role === 'user',
+            )
 
             await chatManager.createChat({
               id,

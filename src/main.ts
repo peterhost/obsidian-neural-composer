@@ -1,46 +1,51 @@
 import {
-  Plugin,
-  Notice,
-  requestUrl,
   Editor,
   MarkdownView,
+  Menu,
+  Notice,
+  Platform,
+  Plugin,
+  TAbstractFile,
   TFile,
   TFolder,
   WorkspaceLeaf,
+  requestUrl,
   setTooltip,
-  Platform,
-  Menu,
-  TAbstractFile,
 } from 'obsidian'
-import type { ChildProcess } from 'child_process'
-import {
-  NativeGraphView,
-  NATIVE_GRAPH_VIEW_TYPE,
-} from './views/NativeGraphView'
 
 import { ApplyView } from './ApplyView'
 import { ChatView } from './ChatView'
 import { ChatProps } from './components/chat-view/Chat'
+import { ConfirmModal } from './components/modals/ConfirmModal'
 import { APPLY_VIEW_TYPE, CHAT_VIEW_TYPE } from './constants'
 import { McpManager } from './core/mcp/mcpManager'
-import { RAGEngine } from './core/rag/ragEngine'
 import { DocIndexService } from './core/rag/docIndexService'
 import { FileExplorerDecorator } from './core/rag/fileExplorerDecorator'
+import { RAGEngine } from './core/rag/ragEngine'
 import { DatabaseManager } from './database/DatabaseManager'
+import { VectorManager } from './database/modules/vector/VectorManager'
 import {
   NeuralComposerSettings,
   NeuralComposerSettingsSchema,
 } from './settings/schema/setting.types'
 import { parseNeuralComposerSettings } from './settings/schema/settings'
 import { NeuralComposerSettingTab } from './settings/SettingTab'
+import {
+  getExcludePatternForPath,
+  isExcludedFromGraphSync,
+} from './utils/glob-utils'
 import { getMentionableBlockData } from './utils/obsidian'
-import { VectorManager } from './database/modules/vector/VectorManager'
+import {
+  NATIVE_GRAPH_VIEW_TYPE,
+  NativeGraphView,
+} from './views/NativeGraphView'
 
 export const PLUGIN_NAME = 'Neural Composer'
 export const BACKEND_NAME = 'LightRAG'
 export const TERM_API = 'API'
 export const TERM_LLM = 'LLM'
 export const TERM_LLM_EMBED = 'LLM/Embed'
+export const CMD_INGEST_FOLDER = 'Ingest folder into graph'
 export const VAR_MAX_ASYNC = 'MAX_ASYNC' // Nombre de variable de entorno/configuración
 
 // --- MASTER EXTENSION LIST ---
@@ -118,7 +123,7 @@ const TEXT_BASED_EXTENSIONS = [
 ]
 
 // Definition for internal use, as 'Adapter' is not exported directly
-interface FileSystemAdapterWithBasePath {
+type FileSystemAdapterWithBasePath = {
   getBasePath: () => string
 }
 
@@ -134,10 +139,9 @@ export default class NeuralComposerPlugin extends Plugin {
   private dbManagerInitPromise: Promise<DatabaseManager> | null = null
   private ragEngineInitPromise: Promise<RAGEngine> | null = null
 
-  private timeoutIds: ReturnType<typeof setTimeout>[] = []
-  private modifyDebounceMap: Map<string, ReturnType<typeof setTimeout>> =
-    new Map()
-  private serverProcess: ChildProcess | null = null
+  private timeoutIds: number[] = []
+  private modifyDebounceMap: Map<string, number> = new Map()
+  private serverProcess: import('child_process').ChildProcess | null = null
   private lastErrorTime: number = 0
   public docIndexService: DocIndexService | null = null
   private fileExplorerDecorator: FileExplorerDecorator | null = null
@@ -150,6 +154,9 @@ export default class NeuralComposerPlugin extends Plugin {
   public lightRagServerVersion: string | null = null
   /** True once at least one health check has completed (distinguishes "not yet checked" from "offline"). */
   public lightRagServerChecked = false
+
+  private ingestedFolderPaths: Set<string> = new Set()
+  private ingestedFolderPathsLoaded = false
 
   private versionChangeListeners: Set<
     (info: { version: string | null; checked: boolean }) => void
@@ -175,9 +182,11 @@ export default class NeuralComposerPlugin extends Plugin {
     }
   }
 
-  // Node.js modules — loaded lazily on desktop only, always null on mobile
-  private _nodeFs: typeof import('fs') | null = null
-  private _nodePath: typeof import('path') | null = null
+  // Node.js modules — loaded lazily on desktop only, always null on mobile.
+  // fs/path are public so views (e.g. NativeGraphView) can reuse them instead
+  // of importing Node built-ins themselves.
+  _nodeFs: typeof import('fs') | null = null
+  _nodePath: typeof import('path') | null = null
   private _nodeChildProcess: typeof import('child_process') | null = null
   private _nodeNet: typeof import('net') | null = null
 
@@ -204,7 +213,7 @@ export default class NeuralComposerPlugin extends Plugin {
   private getLightRagHeaders(): Record<string, string> {
     const headers: Record<string, string> = {}
     if (this.settings.lightRagApiKey) {
-      headers['Authorization'] = `Bearer ${this.settings.lightRagApiKey}`
+      headers['X-API-Key'] = this.settings.lightRagApiKey
     }
     return headers
   }
@@ -213,18 +222,20 @@ export default class NeuralComposerPlugin extends Plugin {
     await this.loadSettings()
 
     // Load Node.js built-ins once at startup — desktop only, never on mobile.
-    // Use require() (not import()) because the bundle is CJS and dynamic ESM
-    // import() is not resolved correctly in Obsidian's plugin loader.
+    // Obsidian desktop exposes Node's `require` on the window object. Calling
+    // it as a member (`window.require`) rather than a bare `require` keeps
+    // these Node built-ins out of the static import graph the Obsidian plugin
+    // linter rejects, while resolving the exact same modules at runtime.
     if (Platform.isDesktop) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      this._nodeFs = require('fs') as typeof import('fs')
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      this._nodePath = require('path') as typeof import('path')
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      this._nodeChildProcess =
-        require('child_process') as typeof import('child_process')
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      this._nodeNet = require('net') as typeof import('net')
+      const nodeRequire = (
+        window as unknown as { require: (id: string) => unknown }
+      ).require
+      this._nodeFs = nodeRequire('fs') as typeof import('fs')
+      this._nodePath = nodeRequire('path') as typeof import('path')
+      this._nodeChildProcess = nodeRequire(
+        'child_process',
+      ) as typeof import('child_process')
+      this._nodeNet = nodeRequire('net') as typeof import('net')
     }
 
     // --- ZERO-CONFIG & PORTABILITY ---
@@ -338,15 +349,43 @@ export default class NeuralComposerPlugin extends Plugin {
     this.registerEvent(
       this.app.workspace.on('file-menu', (menu, file) => {
         if (file instanceof TFolder) {
-          menu.addItem((item) => {
-            item
-              .setTitle('Ingest folder into graph')
-              .setIcon('layers')
-              .onClick(() => {
-                void this.batchIngestFolder(file)
-              })
-          })
+          const inGraph = this.isFolderInGraph(file.path)
+          const showIngest = !this.ingestedFolderPathsLoaded || !inGraph
+          const showRemove = !this.ingestedFolderPathsLoaded || inGraph
+
+          if (showIngest) {
+            menu.addItem((item) => {
+              item
+                .setTitle(CMD_INGEST_FOLDER)
+                .setIcon('layers')
+                .onClick(() => {
+                  void this.batchIngestFolder(file)
+                })
+            })
+          }
+          if (showRemove) {
+            menu.addItem((item) => {
+              item
+                .setTitle('Remove folder from graph')
+                .setIcon('trash-2')
+                .onClick(() => {
+                  void this.batchRemoveFolderFromGraph(file)
+                })
+            })
+          }
         }
+      }),
+    )
+
+    // --- CONTEXT MENU: exclude / re-include from graph sync ---
+    this.registerEvent(
+      this.app.workspace.on('file-menu', (menu, file) => {
+        this.addGraphExclusionMenuItem(menu, [file])
+      }),
+    )
+    this.registerEvent(
+      this.app.workspace.on('files-menu', (menu, files) => {
+        this.addGraphExclusionMenuItem(menu, files)
       }),
     )
 
@@ -391,12 +430,12 @@ export default class NeuralComposerPlugin extends Plugin {
               await this.monitorPipeline(notice)
             } else {
               notice.setMessage(`Upload failed.`)
-              setTimeout(() => notice.hide(), 5000)
+              window.setTimeout(() => notice.hide(), 5000)
             }
           } catch (error) {
             console.error(error)
             notice.setMessage(`Critical error connecting to backend.`)
-            setTimeout(() => notice.hide(), 5000)
+            window.setTimeout(() => notice.hide(), 5000)
           }
         })()
       },
@@ -419,13 +458,14 @@ export default class NeuralComposerPlugin extends Plugin {
         if (!(file instanceof TFile)) return
         if (!isInSyncFolder(file.path)) return
         if (!SUPPORTED_EXTENSIONS.includes(file.extension.toLowerCase())) return
+        if (this.isPathExcludedFromGraph(file.path)) return
         // Guard here (before setTimeout) so startup create-events are dropped
         // before the 2 s timer is even scheduled. By the time the timer would
         // fire, onLayoutReady has already set docIndexReady = true, so the
         // guard inside the async callback would be bypassed on every startup file.
         if (!this.docIndexReady) return
         // Wait 2 s so the file content is available (especially for moves/imports)
-        setTimeout(() => {
+        window.setTimeout(() => {
           void (async () => {
             // Skip if already processed and not modified
             if (
@@ -452,7 +492,7 @@ export default class NeuralComposerPlugin extends Plugin {
                 ? `Graph sync: "${file.name}" sent — processing in background.`
                 : `Graph sync: failed to send "${file.name}".`,
             )
-            setTimeout(() => notice.hide(), 6000)
+            window.setTimeout(() => notice.hide(), 6000)
           })()
         }, 2000)
       }),
@@ -478,7 +518,7 @@ export default class NeuralComposerPlugin extends Plugin {
               ? `Graph sync: "${file.name}" removed from graph.`
               : `Graph sync: "${file.name}" was not in the graph.`,
           )
-          setTimeout(() => notice.hide(), 6000)
+          window.setTimeout(() => notice.hide(), 6000)
         })()
       }),
     )
@@ -493,7 +533,14 @@ export default class NeuralComposerPlugin extends Plugin {
           const ragEngine = await this.getRAGEngine()
 
           if (wasInFolder && nowInFolder) {
-            // Renamed or moved within the watched folder
+            // Renamed or moved within the watched folder.
+            // If the new path is now excluded, remove the old doc and stop.
+            if (this.isPathExcludedFromGraph(file.path)) {
+              const oldName = oldPath.split('/').pop() ?? oldPath
+              await ragEngine.deleteDocumentByFilePath(oldPath, oldName)
+              this.docIndexService?.removeEntry(oldPath)
+              return
+            }
             const notice = new Notice(
               `Graph sync: updating "${file.name}" in graph...`,
               0,
@@ -507,7 +554,7 @@ export default class NeuralComposerPlugin extends Plugin {
                 ? `Graph sync: graph updated for "${file.name}".`
                 : `Graph sync: failed to update "${file.name}".`,
             )
-            setTimeout(() => notice.hide(), 6000)
+            window.setTimeout(() => notice.hide(), 6000)
           } else if (wasInFolder) {
             // Moved OUT of the watched folder
             const notice = new Notice(
@@ -524,9 +571,10 @@ export default class NeuralComposerPlugin extends Plugin {
                 ? `Graph sync: "${file.name}" removed from graph.`
                 : `Graph sync: "${file.name}" was not in the graph.`,
             )
-            setTimeout(() => notice.hide(), 6000)
+            window.setTimeout(() => notice.hide(), 6000)
           } else {
             // Moved INTO the watched folder
+            if (this.isPathExcludedFromGraph(file.path)) return
             const notice = new Notice(
               `Graph sync: sending "${file.name}"...`,
               0,
@@ -543,7 +591,7 @@ export default class NeuralComposerPlugin extends Plugin {
                 ? `Graph sync: "${file.name}" sent — processing in background.`
                 : `Graph sync: failed to send "${file.name}".`,
             )
-            setTimeout(() => notice.hide(), 6000)
+            window.setTimeout(() => notice.hide(), 6000)
           }
         })()
       }),
@@ -554,11 +602,12 @@ export default class NeuralComposerPlugin extends Plugin {
         if (!(file instanceof TFile)) return
         if (!isInSyncFolder(file.path)) return
         if (!SUPPORTED_EXTENSIONS.includes(file.extension.toLowerCase())) return
+        if (this.isPathExcludedFromGraph(file.path)) return
 
         // Debounce: wait 5 s of inactivity before re-indexing
         const existing = this.modifyDebounceMap.get(file.path)
-        if (existing) clearTimeout(existing)
-        const id = setTimeout(() => {
+        if (existing) window.clearTimeout(existing)
+        const id = window.setTimeout(() => {
           this.modifyDebounceMap.delete(file.path)
           void (async () => {
             if (!this.docIndexReady) return
@@ -586,7 +635,7 @@ export default class NeuralComposerPlugin extends Plugin {
                 ? `Graph sync: "${file.name}" sent — processing in background.`
                 : `Graph sync: failed to re-index "${file.name}".`,
             )
-            setTimeout(() => notice.hide(), 6000)
+            window.setTimeout(() => notice.hide(), 6000)
           })()
         }, 5000)
         this.modifyDebounceMap.set(file.path, id)
@@ -754,7 +803,7 @@ export default class NeuralComposerPlugin extends Plugin {
         // Give a short delay for the server to be reachable, then sync.
         // We check health first so we don't clobber the cached index when
         // the server is simply offline.
-        setTimeout(() => {
+        window.setTimeout(() => {
           void (async () => {
             const online = await this.docIndexService?.isServerOnline()
             if (online) {
@@ -777,7 +826,7 @@ export default class NeuralComposerPlugin extends Plugin {
     let isBusy = true
     let errors = 0
     // Wait for server to register task
-    await new Promise((r) => setTimeout(r, 1000))
+    await new Promise((r) => window.setTimeout(r, 1000))
 
     while (isBusy) {
       try {
@@ -787,7 +836,13 @@ export default class NeuralComposerPlugin extends Plugin {
           headers: this.getLightRagHeaders(),
         })
 
-        const status = response.json
+        type PipelineStatus = {
+          busy: boolean
+          batchs?: number
+          cur_batch?: number
+          latest_message?: string
+        }
+        const status = response.json as PipelineStatus
         isBusy = status.busy
 
         if (isBusy) {
@@ -804,18 +859,18 @@ export default class NeuralComposerPlugin extends Plugin {
 
         if (!isBusy) break
 
-        await new Promise((r) => setTimeout(r, 1500)) // Polling 1.5s
+        await new Promise((r) => window.setTimeout(r, 1500)) // Polling 1.5s
       } catch {
         // Fix: Use empty catch block to avoid unused variable '_' warning
         errors++
         if (errors > 3) isBusy = false
-        await new Promise((r) => setTimeout(r, 2000))
+        await new Promise((r) => window.setTimeout(r, 2000))
       }
     }
 
     this.updateStatusUI('online')
     notice.setMessage('Integrated knowledge!\nThe graph is up to date.')
-    setTimeout(() => notice.hide(), 5000)
+    window.setTimeout(() => notice.hide(), 5000)
   }
 
   // --- BATCH LOGIC ---
@@ -834,7 +889,9 @@ export default class NeuralComposerPlugin extends Plugin {
   }
 
   async batchIngestFolder(folder: TFolder) {
-    const files = this.getAllSupportedFiles(folder)
+    const files = this.getAllSupportedFiles(folder).filter(
+      (file) => !this.isPathExcludedFromGraph(file.path),
+    )
     if (files.length === 0) {
       new Notice('Empty folder or no supported files.')
       return
@@ -869,7 +926,7 @@ export default class NeuralComposerPlugin extends Plugin {
           }
 
           if (result) successCount++
-          await new Promise((resolve) => setTimeout(resolve, 200))
+          await new Promise((resolve) => window.setTimeout(resolve, 200))
         } catch (err) {
           console.error(`Error processing ${file.name}:`, err)
         }
@@ -879,10 +936,215 @@ export default class NeuralComposerPlugin extends Plugin {
         `Uploaded files (${successCount}).\nStart processing...`,
       )
       await this.monitorPipeline(notice)
+      void this.refreshIngestedFolderPaths()
     } catch (error) {
       console.error('Batch error:', error)
       notice.setMessage('Error starting upload.')
-      setTimeout(() => notice.hide(), 5000)
+      window.setTimeout(() => notice.hide(), 5000)
+    }
+  }
+
+  async refreshIngestedFolderPaths(): Promise<void> {
+    try {
+      const ragEngine = await this.getRAGEngine()
+      const paths = await ragEngine.listAllDocumentPaths()
+      const folders = new Set<string>()
+      for (const filePath of paths) {
+        const normalized = filePath.replace(/\\/g, '/')
+        const parts = normalized.split('/')
+        for (let i = parts.length - 1; i > 0; i--) {
+          folders.add(parts.slice(0, i).join('/'))
+        }
+      }
+      this.ingestedFolderPaths = folders
+      this.ingestedFolderPathsLoaded = true
+    } catch (e) {
+      console.error('refreshIngestedFolderPaths failed:', e)
+    }
+  }
+
+  private isFolderInGraph(folderPath: string): boolean {
+    if (!this.ingestedFolderPathsLoaded) return false
+    return this.ingestedFolderPaths.has(folderPath)
+  }
+
+  isPathExcludedFromGraph(path: string): boolean {
+    return isExcludedFromGraphSync(path, {
+      excludePatterns: this.settings.lightRagExcludePatterns,
+      excludeHiddenFiles: this.settings.lightRagExcludeHiddenFiles,
+    })
+  }
+
+  private addGraphExclusionMenuItem(menu: Menu, files: TAbstractFile[]) {
+    if (files.length === 0) return
+
+    const patterns = files.map((file) =>
+      getExcludePatternForPath(file.path, file instanceof TFolder),
+    )
+    const current = this.settings.lightRagExcludePatterns
+    const allExcluded = patterns.every((p) => current.includes(p))
+
+    menu.addItem((item) => {
+      item
+        .setTitle(
+          allExcluded ? 'Re-include in graph sync' : 'Exclude from graph sync',
+        )
+        .setIcon(allExcluded ? 'eye' : 'eye-off')
+        .onClick(() => {
+          if (allExcluded) {
+            void this.removeGraphExcludePatterns(patterns)
+          } else {
+            void this.addGraphExclusionForFiles(files, patterns)
+          }
+        })
+    })
+  }
+
+  private async addGraphExclusionForFiles(
+    files: TAbstractFile[],
+    patterns: string[],
+  ) {
+    const merged = Array.from(
+      new Set([...this.settings.lightRagExcludePatterns, ...patterns]),
+    )
+    await this.setSettings({
+      ...this.settings,
+      lightRagExcludePatterns: merged,
+    })
+
+    // Collect all TFile instances (expanding folders)
+    const targetFiles: TFile[] = []
+    for (const file of files) {
+      if (file instanceof TFolder) {
+        targetFiles.push(...this.getAllSupportedFiles(file))
+      } else if (file instanceof TFile) {
+        targetFiles.push(file)
+      }
+    }
+
+    if (targetFiles.length === 0) {
+      new Notice('Excluded from graph sync')
+      return
+    }
+
+    const notice = new Notice('Removing excluded files from graph...', 0)
+    try {
+      const ragEngine = await this.getRAGEngine()
+
+      // Single pagination pass to build the full id map, then batch-delete.
+      // This avoids O(N) full paginations when excluding a folder with many files.
+      const idMap = await ragEngine.getDocIdMap()
+      const docIds: string[] = []
+      for (const file of targetFiles) {
+        const id = idMap.get(file.path) ?? idMap.get(file.name)
+        if (id) docIds.push(id)
+      }
+
+      if (docIds.length > 0) {
+        await ragEngine.deleteDocumentsByIds(docIds)
+        for (const file of targetFiles) {
+          if (idMap.has(file.path) || idMap.has(file.name)) {
+            this.docIndexService?.setRemoved(file.path)
+          }
+        }
+      }
+
+      notice.setMessage(
+        docIds.length > 0
+          ? `Excluded from graph sync (removed ${docIds.length} file${docIds.length === 1 ? '' : 's'} from graph)`
+          : 'Excluded from graph sync',
+      )
+    } catch (error) {
+      console.error('Error removing excluded files from graph:', error)
+      notice.setMessage('Excluded from graph sync (failed to update graph)')
+    } finally {
+      window.setTimeout(() => notice.hide(), 4000)
+    }
+  }
+
+  private async removeGraphExcludePatterns(patterns: string[]) {
+    const toRemove = new Set(patterns)
+    const remaining = this.settings.lightRagExcludePatterns.filter(
+      (p) => !toRemove.has(p),
+    )
+    await this.setSettings({
+      ...this.settings,
+      lightRagExcludePatterns: remaining,
+    })
+    new Notice(
+      `Re-included in graph sync. Edit the file to re-ingest it, or use "${CMD_INGEST_FOLDER}".`,
+    )
+  }
+
+  async batchRemoveFolderFromGraph(folder: TFolder) {
+    const files = this.getAllSupportedFiles(folder)
+    if (files.length === 0) {
+      new Notice('Empty folder or no supported files.')
+      return
+    }
+
+    new ConfirmModal(this.app, {
+      title: 'Remove folder from graph',
+      message: `Remove ${files.length} file${
+        files.length === 1 ? '' : 's'
+      } in "${folder.path}" (and its subfolders) from the ${BACKEND_NAME} graph?\n\nThe files themselves stay in the vault.`,
+      ctaText: 'Remove',
+      onConfirm: () => {
+        void this.executeBatchRemoveFolderFromGraph(folder, files)
+      },
+    }).open()
+  }
+
+  private async executeBatchRemoveFolderFromGraph(
+    folder: TFolder,
+    files: TFile[],
+  ) {
+    const notice = new Notice(`Removing ${files.length} files from graph...`, 0)
+    const syncFolder = this.settings.lightRagSyncFolder.trim()
+    const isInWatchedFolder = (path: string) =>
+      !!syncFolder && (path === syncFolder || path.startsWith(syncFolder + '/'))
+
+    try {
+      const ragEngine = await this.getRAGEngine()
+      let removed = 0
+      let missing = 0
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        notice.setMessage(`Removing (${i + 1}/${files.length}):\n${file.name}`)
+        try {
+          const ok = await ragEngine.deleteDocumentByFilePath(
+            file.path,
+            file.name,
+          )
+          if (ok) {
+            removed++
+            if (isInWatchedFolder(file.path)) {
+              this.docIndexService?.setRemoved(file.path)
+            }
+          } else {
+            missing++
+          }
+        } catch (err) {
+          console.error(`Error removing ${file.name}:`, err)
+          missing++
+        }
+      }
+
+      if (removed > 0) {
+        void this.refreshIngestedFolderPaths()
+      }
+
+      notice.setMessage(
+        `Removed ${removed} from "${folder.path}"` +
+          (missing > 0 ? ` (${missing} not in graph)` : ''),
+      )
+      window.setTimeout(() => notice.hide(), 4000)
+      this.decorateFileExplorer()
+    } catch (error) {
+      console.error('Batch remove error:', error)
+      notice.setMessage('Error removing files from graph.')
+      window.setTimeout(() => notice.hide(), 5000)
     }
   }
 
@@ -890,9 +1152,9 @@ export default class NeuralComposerPlugin extends Plugin {
 
   onunload() {
     window.clearInterval(this.heartbeatInterval)
-    this.timeoutIds.forEach((id) => clearTimeout(id))
+    this.timeoutIds.forEach((id) => window.clearTimeout(id))
     this.timeoutIds = []
-    this.modifyDebounceMap.forEach((id) => clearTimeout(id))
+    this.modifyDebounceMap.forEach((id) => window.clearTimeout(id))
     this.modifyDebounceMap.clear()
 
     if (this.ragEngine) {
@@ -990,7 +1252,7 @@ export default class NeuralComposerPlugin extends Plugin {
     this.stopLightRagServer()
     // Use timeout to allow process to fully die
     this.timeoutIds.push(
-      setTimeout(() => {
+      window.setTimeout(() => {
         if (!skipEnvUpdate) this.updateEnvFile()
         void this.startLightRagServer()
       }, 2000),
@@ -1200,15 +1462,28 @@ export default class NeuralComposerPlugin extends Plugin {
       // API Keys
       const providersNeeded = new Set([llmProvider, embedProvider])
       envContent += `\n# API Keys\n`
+      let openAiKeyWritten = false
       providersNeeded.forEach((p) => {
         if (p && p.apiKey) {
           const keyName = p.id.toUpperCase()
           if (keyName === 'GEMINI') envContent += `GEMINI_API_KEY=${p.apiKey}\n`
-          if (keyName === 'OPENAI') envContent += `OPENAI_API_KEY=${p.apiKey}\n`
+          if (keyName === 'OPENAI') {
+            envContent += `OPENAI_API_KEY=${p.apiKey}\n`
+            openAiKeyWritten = true
+          }
           if (keyName === 'ANTHROPIC')
             envContent += `ANTHROPIC_API_KEY=${p.apiKey}\n`
         }
       })
+      // Providers that use LightRAG's "openai" binding (e.g. LM Studio,
+      // OpenRouter, Groq) don't necessarily have an OPENAI_API_KEY, but
+      // LightRAG's Python client accesses os.environ['OPENAI_API_KEY']
+      // directly and raises KeyError when it's absent. Writing a placeholder
+      // satisfies the client without affecting auth (the real key is in
+      // LLM_BINDING_API_KEY / EMBEDDING_BINDING_API_KEY).
+      if (!openAiKeyWritten) {
+        envContent += `OPENAI_API_KEY=no-api-key\n`
+      }
 
       // Entity Types
       if (this.settings.useCustomEntityTypes) {
@@ -1272,7 +1547,7 @@ export default class NeuralComposerPlugin extends Plugin {
         url,
         method: 'POST',
         headers: this.settings.lightRagApiKey
-          ? { Authorization: `Bearer ${this.settings.lightRagApiKey}` }
+          ? { 'X-API-Key': this.settings.lightRagApiKey }
           : {},
         throw: false,
       })
@@ -1375,8 +1650,8 @@ export default class NeuralComposerPlugin extends Plugin {
         },
       )
 
-      this.serverProcess.stderr?.on('data', (data) => {
-        const msg = data.toString()
+      this.serverProcess.stderr?.on('data', (data: Buffer | string) => {
+        const msg = String(data)
         const now = Date.now()
 
         if (!this.lastErrorTime || now - this.lastErrorTime > 5000) {
@@ -1417,7 +1692,7 @@ export default class NeuralComposerPlugin extends Plugin {
         }
       })
 
-      this.serverProcess.on('close', (code) => {
+      this.serverProcess.on('close', (_code) => {
         this.serverProcess = null
         this.updateStatusUI('offline')
       })
@@ -1425,7 +1700,7 @@ export default class NeuralComposerPlugin extends Plugin {
       // --- DETECCIÓN REACTIVA (LINTER SAFE) ---
       void (async () => {
         for (let i = 0; i < 15; i++) {
-          await new Promise((r) => setTimeout(r, 1000))
+          await new Promise((r) => window.setTimeout(r, 1000))
           const alive = await this.isPortInUse(this.getServerPort())
           if (alive) {
             this.updateStatusUI('online')
@@ -1445,6 +1720,13 @@ export default class NeuralComposerPlugin extends Plugin {
 
   async loadSettings() {
     this.settings = parseNeuralComposerSettings(await this.loadData())
+    // Mobile cannot spawn a local LightRAG server (no child_process / fs).
+    // Force remote-server mode on so the rest of the plugin treats the backend
+    // as remote-only and never tries to auto-start or shell out.
+    if (!Platform.isDesktop) {
+      this.settings.lightRagUseRemote = true
+      this.settings.enableAutoStartServer = false
+    }
     await this.saveData(this.settings)
   }
 
@@ -1688,7 +1970,9 @@ export default class NeuralComposerPlugin extends Plugin {
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
       })
 
-      const data = response.json
+      const data = response.json as {
+        candidates?: { content?: { parts?: { text?: string }[] } }[]
+      }
       return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
     }
 
@@ -1713,7 +1997,9 @@ export default class NeuralComposerPlugin extends Plugin {
       }),
     })
 
-    const data = response.json
+    const data = response.json as {
+      choices?: { message?: { content?: string } }[]
+    }
     return data.choices?.[0]?.message?.content || ''
   }
 
@@ -1747,15 +2033,18 @@ export default class NeuralComposerPlugin extends Plugin {
       })
 
       if (response.status === 200) {
-        const data: {
+        const data = response.json as {
           pipeline_busy?: boolean
           core_version?: string
           api_version?: string
-        } = response.json
+        }
         const isBusy = data?.pipeline_busy ?? false
         // Store the server version (core_version is canonical; api_version as fallback)
         this.setServerVersion(data?.core_version ?? data?.api_version ?? null)
         this.updateStatusUI(isBusy ? 'busy' : 'online')
+        if (!this.ingestedFolderPathsLoaded) {
+          void this.refreshIngestedFolderPaths()
+        }
       } else {
         this.setServerVersion(null)
         this.updateStatusUI('offline')
