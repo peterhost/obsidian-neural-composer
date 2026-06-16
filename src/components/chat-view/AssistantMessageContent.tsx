@@ -11,7 +11,7 @@ import {
 import AssistantMessageReasoning from './AssistantMessageReasoning'
 import MarkdownCodeComponent from './MarkdownCodeComponent'
 import MarkdownReferenceBlock from './MarkdownReferenceBlock'
-import { ObsidianMarkdown } from './ObsidianMarkdown'
+import { SvgAwareMarkdown } from './ObsidianMarkdown'
 
 export default function AssistantMessageContent({
   content,
@@ -118,7 +118,7 @@ const AssistantTextRenderer = React.memo(function AssistantTextRenderer({
       {blocks.map((block, index) =>
         block.type === 'string' ? (
           <div key={index}>
-            <ObsidianMarkdown
+            <SvgAwareMarkdown
               content={formatAssistantMarkdown(block.content)}
               scale="sm"
             />
