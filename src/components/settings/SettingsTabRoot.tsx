@@ -1,4 +1,4 @@
-import { App } from 'obsidian'
+import { App, Platform } from 'obsidian'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useSettings } from '../../contexts/settings-context'
@@ -228,6 +228,8 @@ function CommandBar({ onModelsClick }: { onModelsClick: () => void }) {
         flexShrink: 0,
         background: 'var(--background-secondary)',
         borderBottom: '1px solid var(--background-modifier-border)',
+        overflowX: 'auto',
+        overflowY: 'hidden',
       }}
     >
       {/* Top row: Models toggle + Support */}
@@ -500,7 +502,9 @@ export function SettingsTabRoot({ app, plugin }: SettingsTabRootProps) {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          padding: '12px 0',
+          // On mobile, Obsidian's modal back button (←) overlays the top of the
+          // settings content area. Extra top padding pushes the nav items below it.
+          padding: Platform.isDesktop ? '12px 0' : '56px 0 12px',
           gap: 2,
         }}
       >
@@ -552,6 +556,9 @@ export function SettingsTabRoot({ app, plugin }: SettingsTabRootProps) {
           flexDirection: 'column',
           minWidth: 0,
           overflow: 'hidden',
+          // Match the nav rail offset so CommandBar clears the Obsidian modal
+          // back button that overlays the top of the content area on mobile.
+          paddingTop: Platform.isDesktop ? 0 : 56,
         }}
       >
         <CommandBar onModelsClick={() => switchTab('models')} />

@@ -9,7 +9,6 @@ import {
 import { useEffect, useRef, useState } from 'react'
 
 import NeuralComposerPlugin from '../../../main'
-import { NeuralComposerSettings } from '../../../settings/schema/setting.types'
 
 class FolderSuggest extends AbstractInputSuggest<TFolder> {
   private readonly input: HTMLInputElement
@@ -93,31 +92,10 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
     settingsRef.current.empty()
     const container = settingsRef.current
 
-    // Text inputs persist via `plugin.setSettings`, which fires the settings-
-    // change listener, which sets `settings` (a dep of this effect), which
-    // empties the container and rebuilds the DOM — destroying the focused
-    // input on every keystroke. Debouncing the persistence side-steps that:
-    // the user can keep typing freely; we save (and let the rebuild happen)
-    // only after they pause. Especially bad on mobile, where the server URL
-    // is the very first thing a user has to type.
-    const saveTimers = new Map<string, number>()
-    const debouncedSet = <K extends keyof NeuralComposerSettings>(
-      key: K,
-      value: NeuralComposerSettings[K],
-      delay = 500,
-      onSaved?: () => void,
-    ) => {
-      const existing = saveTimers.get(key as string)
-      if (existing) window.clearTimeout(existing)
-      const t = window.setTimeout(() => {
-        saveTimers.delete(key as string)
-        void (async () => {
-          await plugin.setSettings({ ...plugin.settings, [key]: value })
-          onSaved?.()
-        })()
-      }, delay)
-      saveTimers.set(key as string, t)
-    }
+    // All text inputs use blur-based saving: the DOM is only rebuilt when the
+    // user finishes editing a field (focus leaves), never while they are still
+    // typing. This prevents the settings-change listener from triggering a
+    // useEffect re-run (and container.empty()) mid-keystroke on any platform.
 
     // Header row: title + version badge side by side
     const headerRow = container.createDiv({ cls: 'nc-server-header-row' })
@@ -164,33 +142,51 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
       })
     }
 
+    // On non-desktop the Setting layout is horizontal (info left, control right),
+    // which leaves text inputs too narrow. stacked() flips to column so the
+    // control sits below the description at full width.
+    const stacked = (s: Setting) => {
+      if (!Platform.isDesktop) s.settingEl.addClass('nrlcmp-setting-stacked')
+      return s
+    }
+
     if (useRemote || !Platform.isDesktop) {
       // --- REMOTE MODE ---
-      new Setting(container)
-        .setName('Server URL')
-        .setDesc(
-          'Base URL of the remote LightRAG server (e.g., http://192.168.1.100:9621).',
-        )
-        .addText((text) =>
-          text
-            .setPlaceholder(`${YOUR_SERVER}`)
-            .setValue(plugin.settings.lightRagServerUrl)
-            .onChange((value) => {
-              debouncedSet('lightRagServerUrl', value)
-            }),
-        )
+      stacked(
+        new Setting(container)
+          .setName('Server URL')
+          .setDesc(
+            'Base URL of the remote LightRAG server (e.g., http://192.168.1.100:9621).',
+          )
+          .addText((text) => {
+            text
+              .setPlaceholder(`${YOUR_SERVER}`)
+              .setValue(plugin.settings.lightRagServerUrl)
+            text.inputEl.addEventListener('blur', () => {
+              void plugin.setSettings({
+                ...plugin.settings,
+                lightRagServerUrl: text.getValue(),
+              })
+            })
+          }),
+      )
 
-      new Setting(container)
-        .setName('API key')
-        .setDesc('Optional authentication key for the remote server.')
-        .addText((text) =>
-          text
-            .setPlaceholder('Leave empty if not required')
-            .setValue(plugin.settings.lightRagApiKey)
-            .onChange((value) => {
-              debouncedSet('lightRagApiKey', value)
-            }),
-        )
+      stacked(
+        new Setting(container)
+          .setName('API key')
+          .setDesc('Optional authentication key for the remote server.')
+          .addText((text) => {
+            text
+              .setPlaceholder('Leave empty if not required')
+              .setValue(plugin.settings.lightRagApiKey)
+            text.inputEl.addEventListener('blur', () => {
+              void plugin.setSettings({
+                ...plugin.settings,
+                lightRagApiKey: text.getValue(),
+              })
+            })
+          }),
+      )
     } else {
       // --- LOCAL MODE ---
       new Setting(container)
@@ -210,95 +206,112 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
       new Setting(container)
         .setName(`${BACKEND_NAME} command path`)
         .setDesc('Path to the LightRAG server executable.')
-        .addText((text) =>
+        .addText((text) => {
           text
             .setPlaceholder('LightRAG server')
             .setValue(plugin.settings.lightRagCommand)
-            .onChange((value) => {
-              debouncedSet('lightRagCommand', value)
-            }),
-        )
+          text.inputEl.addEventListener('blur', () => {
+            void plugin.setSettings({
+              ...plugin.settings,
+              lightRagCommand: text.getValue(),
+            })
+          })
+        })
 
       new Setting(container)
         .setName('Graph data directory')
         .setDesc('Folder for the graph database and index files.')
-        .addText((text) =>
+        .addText((text) => {
           text
             .setPlaceholder('.neural_memory')
             .setValue(plugin.settings.lightRagWorkDir)
-            .onChange((value) => {
-              debouncedSet('lightRagWorkDir', value, 500, () =>
-                plugin.updateEnvFile(),
-              )
-            }),
-        )
+          text.inputEl.addEventListener('blur', () => {
+            void (async () => {
+              await plugin.setSettings({
+                ...plugin.settings,
+                lightRagWorkDir: text.getValue(),
+              })
+              plugin.updateEnvFile()
+            })()
+          })
+        })
     }
 
-    // 3. Graph Logic Model
-    new Setting(container)
-      .setName(`Graph logic model (${TERM_LLM})`)
-      .setDesc(
-        `Select the model ${BACKEND_NAME} will use for indexing/reasoning.`,
-      )
-      .addDropdown((dropdown) => {
-        settings.chatModels.forEach((model) => {
-          dropdown.addOption(model.id, `${model.providerId} - ${model.model}`)
-        })
-        dropdown.addOption('', 'Same as chat model (default)')
-        dropdown.setValue(settings.lightRagModelId || '')
-        dropdown.onChange((value) => {
-          void (async () => {
-            await plugin.setSettings({
-              ...plugin.settings,
-              lightRagModelId: value,
-            })
-            plugin.updateEnvFile()
-          })()
-        })
-      })
-
-    // 3.5 Graph Embedding Model
-    new Setting(container)
-      .setName('Graph embedding model')
-      .setDesc(
-        'Select the model used for vectorizing your notes, (must match the dimensions used during ingestion).',
-      )
-      .addDropdown((dropdown) => {
-        settings.embeddingModels.forEach((model) => {
-          dropdown.addOption(
-            model.id,
-            `${model.providerId} - ${model.model} (${model.dimension || '?'} dim)`,
-          )
+    // Graph Logic Model, Embedding Model, Summary Language, Ontology, and
+    // Reranking are all written to the local server's .env by updateEnvFile().
+    // On remote mode (or mobile) the server runs elsewhere and has its own
+    // .env — the plugin can't reach it, so showing these settings is misleading.
+    if (!useRemote && Platform.isDesktop) {
+      // 3. Graph Logic Model
+      new Setting(container)
+        .setName(`Graph logic model (${TERM_LLM})`)
+        .setDesc(
+          `Select the model ${BACKEND_NAME} will use for indexing/reasoning.`,
+        )
+        .addDropdown((dropdown) => {
+          settings.chatModels.forEach((model) => {
+            dropdown.addOption(model.id, `${model.providerId} - ${model.model}`)
+          })
+          dropdown.addOption('', 'Same as chat model (default)')
+          dropdown.setValue(settings.lightRagModelId || '')
+          dropdown.onChange((value) => {
+            void (async () => {
+              await plugin.setSettings({
+                ...plugin.settings,
+                lightRagModelId: value,
+              })
+              plugin.updateEnvFile()
+            })()
+          })
         })
 
-        dropdown.addOption('', 'Same as chat model (default)')
-        dropdown.setValue(settings.lightRagEmbeddingModelId || '')
-
-        dropdown.onChange((value) => {
-          void (async () => {
-            await plugin.setSettings({
-              ...plugin.settings,
-              lightRagEmbeddingModelId: value,
-            })
-            plugin.updateEnvFile()
-          })()
-        })
-      })
-
-    // 4. Language
-    new Setting(container)
-      .setName('Summary language')
-      .setDesc(`Language used by ${BACKEND_NAME} for internal summaries.`)
-      .addText((text) =>
-        text
-          .setPlaceholder('English')
-          .setValue(plugin.settings.lightRagSummaryLanguage)
-          .onChange((value) => {
-            debouncedSet('lightRagSummaryLanguage', value, 500, () =>
-              plugin.updateEnvFile(),
+      // 3.5 Graph Embedding Model
+      new Setting(container)
+        .setName('Graph embedding model')
+        .setDesc(
+          'Select the model used for vectorizing your notes, (must match the dimensions used during ingestion).',
+        )
+        .addDropdown((dropdown) => {
+          settings.embeddingModels.forEach((model) => {
+            dropdown.addOption(
+              model.id,
+              `${model.providerId} - ${model.model} (${model.dimension || '?'} dim)`,
             )
-          }),
-      )
+          })
+
+          dropdown.addOption('', 'Same as chat model (default)')
+          dropdown.setValue(settings.lightRagEmbeddingModelId || '')
+
+          dropdown.onChange((value) => {
+            void (async () => {
+              await plugin.setSettings({
+                ...plugin.settings,
+                lightRagEmbeddingModelId: value,
+              })
+              plugin.updateEnvFile()
+            })()
+          })
+        })
+
+      // 4. Language
+      new Setting(container)
+        .setName('Summary language')
+        .setDesc(`Language used by ${BACKEND_NAME} for internal summaries.`)
+        .addText((text) => {
+          text
+            .setPlaceholder('English')
+            .setValue(plugin.settings.lightRagSummaryLanguage)
+          text.inputEl.addEventListener('blur', () => {
+            void (async () => {
+              await plugin.setSettings({
+                ...plugin.settings,
+                lightRagSummaryLanguage: text.getValue(),
+              })
+              plugin.updateEnvFile()
+            })()
+          })
+        })
+    } // end !useRemote && Platform.isDesktop (model / language block)
 
     // 5. Citations
     new Setting(container)
@@ -320,23 +333,28 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
     // --- INCREMENTAL SYNC ---
     container.createEl('h4', { text: 'Vault sync' })
 
-    new Setting(container)
-      .setName('Watched folder')
-      .setDesc(
-        'Vault-relative folder to watch for changes. ' +
-          'When set, deleting or renaming a note removes it from the graph automatically, ' +
-          'and saving a note re-indexes it after 5 s of inactivity. ' +
-          'Leave empty to disable. Only files you have previously ingested are affected.',
-      )
-      .addText((text) => {
-        text
-          .setPlaceholder('e.g. Main/Knowledge')
-          .setValue(plugin.settings.lightRagSyncFolder)
-          .onChange((value) => {
-            debouncedSet('lightRagSyncFolder', value)
+    stacked(
+      new Setting(container)
+        .setName('Watched folder')
+        .setDesc(
+          'Vault-relative folder to watch for changes. ' +
+            'When set, deleting or renaming a note removes it from the graph automatically, ' +
+            'and saving a note re-indexes it after 5 s of inactivity. ' +
+            'Leave empty to disable. Only files you have previously ingested are affected.',
+        )
+        .addText((text) => {
+          text
+            .setPlaceholder('e.g. Main/Knowledge')
+            .setValue(plugin.settings.lightRagSyncFolder)
+          text.inputEl.addEventListener('blur', () => {
+            void plugin.setSettings({
+              ...plugin.settings,
+              lightRagSyncFolder: text.getValue(),
+            })
           })
-        new FolderSuggest(plugin.app, text.inputEl)
-      })
+          new FolderSuggest(plugin.app, text.inputEl)
+        }),
+    )
 
     new Setting(container)
       .setName('Exclude hidden files and folders')
@@ -355,20 +373,22 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
           }),
       )
 
-    new Setting(container)
-      .setName('Exclude patterns')
-      .setDesc(
-        'Glob patterns (one per line) for vault paths that should never be ' +
-          'ingested into the graph. Patterns are vault-relative ' +
-          '(e.g. "Main/Templates/**"). ' +
-          'You can also right-click a file or folder and choose "Exclude from graph sync".',
-      )
-      .addTextArea((textArea) => {
-        textArea
-          .setPlaceholder('Main/Templates/**\nMain/Inbox/scratch.md')
-          .setValue(plugin.settings.lightRagExcludePatterns.join('\n'))
-          .onChange((value) => {
-            const patterns = value
+    stacked(
+      new Setting(container)
+        .setName('Exclude patterns')
+        .setDesc(
+          'Glob patterns (one per line) for vault paths that should never be ' +
+            'ingested into the graph. Patterns are vault-relative ' +
+            '(e.g. "Main/Templates/**"). ' +
+            'You can also right-click a file or folder and choose "Exclude from graph sync".',
+        )
+        .addTextArea((textArea) => {
+          textArea
+            .setPlaceholder('Main/Templates/**\nMain/Inbox/scratch.md')
+            .setValue(plugin.settings.lightRagExcludePatterns.join('\n'))
+          textArea.inputEl.addEventListener('blur', () => {
+            const patterns = textArea
+              .getValue()
               .split('\n')
               .map((p) => p.trim())
               .filter((p) => p.length > 0)
@@ -377,232 +397,259 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
               lightRagExcludePatterns: patterns,
             })
           })
-        textArea.inputEl.rows = 4
-        textArea.inputEl.setCssStyles({ width: '100%' })
-      })
+          textArea.inputEl.rows = 4
+          textArea.inputEl.setCssStyles({ width: '100%' })
+        }),
+    )
 
-    // --- ONTOLOGY SECTION ---
-    container.createEl('h4', { text: 'Ontology (categories)' })
+    if (!useRemote && Platform.isDesktop) {
+      // --- ONTOLOGY SECTION ---
+      container.createEl('h4', { text: 'Ontology (categories)' })
 
-    new Setting(container)
-      .setName('Use custom entity types')
-      .setDesc(
-        `Enable to define your own knowledge categories. Disable to use ${BACKEND_NAME} defaults.`,
-      )
-      .addToggle((toggle) =>
-        toggle.setValue(useCustomOntology).onChange((value) => {
+      new Setting(container)
+        .setName('Use custom entity types')
+        .setDesc(
+          `Enable to define your own knowledge categories. Disable to use ${BACKEND_NAME} defaults.`,
+        )
+        .addToggle((toggle) =>
+          toggle.setValue(useCustomOntology).onChange((value) => {
+            void (async () => {
+              await plugin.setSettings({
+                ...plugin.settings,
+                useCustomEntityTypes: value,
+              })
+              setUseCustomOntology(value)
+              plugin.updateEnvFile()
+            })()
+          }),
+        )
+
+      // CONDITIONAL ONTOLOGY BLOCK
+      if (useCustomOntology) {
+        const warningDiv = container.createDiv({
+          cls: 'nrlcmp-setting-warning',
+        })
+
+        // FIX: Sentence case
+        warningDiv.createEl('strong', { text: 'Critical warning:' })
+        warningDiv.createEl('br')
+        // FIX: Sentence case (Entity Types -> entity types)
+        warningDiv.createSpan({
+          text: 'Changing entity types fundamentally alters how the graph is built.',
+        })
+        warningDiv.createEl('br')
+        // FIX: Sentence case (Graph Data folder -> graph data folder)
+        warningDiv.createSpan({
+          text: 'If you already have data ingested, you ',
+        })
+        warningDiv.createEl('strong', {
+          text: 'Must delete your graph data folder',
+        })
+        warningDiv.createSpan({ text: ' and re-ingest all documents.' })
+
+        new Setting(container)
+          .setName('Ontology source folder')
+          .setDesc(
+            'Vault-relative folder with representative notes to analyze (e.g. Main/Memories).',
+          )
+          .addText((text) => {
+            text
+              .setPlaceholder(`${FOLDER_DIR}`)
+              .setValue(plugin.settings.lightRagOntologyFolder)
+            text.inputEl.addEventListener('blur', () => {
+              void plugin.setSettings({
+                ...plugin.settings,
+                lightRagOntologyFolder: text.getValue(),
+              })
+            })
+            new FolderSuggest(plugin.app, text.inputEl)
+          })
+
+        let typesTextArea: HTMLTextAreaElement
+
+        new Setting(container)
+          .setName('Entity types definition')
+          .setDesc('Define the "categories" of your field of knowledge.')
+          .addButton((button) =>
+            button
+              .setButtonText('Analyze & generate')
+              .setCta()
+              .onClick(() => {
+                void (async () => {
+                  const newTypes = await plugin.generateEntityTypes()
+                  if (newTypes && typesTextArea) {
+                    typesTextArea.value = newTypes
+                    // Save directly — button click doesn't blur the textarea
+                    await plugin.setSettings({
+                      ...plugin.settings,
+                      lightRagEntityTypes: newTypes,
+                    })
+                    plugin.updateEnvFile()
+                  }
+                })()
+              }),
+          )
+
+        const textAreaContainer = container.createDiv({
+          cls: 'nrlcmp-textarea-container',
+        })
+        typesTextArea = textAreaContainer.createEl('textarea', {
+          cls: 'nrlcmp-setting-textarea',
+        })
+        typesTextArea.value = plugin.settings.lightRagEntityTypes
+        typesTextArea.addEventListener('blur', (e) => {
+          const target = e.target as HTMLTextAreaElement
           void (async () => {
             await plugin.setSettings({
               ...plugin.settings,
-              useCustomEntityTypes: value,
+              lightRagEntityTypes: target.value,
             })
-            setUseCustomOntology(value)
             plugin.updateEnvFile()
           })()
-        }),
-      )
+        })
+      }
 
-    // CONDITIONAL ONTOLOGY BLOCK
-    if (useCustomOntology) {
-      const warningDiv = container.createDiv({ cls: 'nrlcmp-setting-warning' })
-
-      // FIX: Sentence case
-      warningDiv.createEl('strong', { text: 'Critical warning:' })
-      warningDiv.createEl('br')
-      // FIX: Sentence case (Entity Types -> entity types)
-      warningDiv.createSpan({
-        text: 'Changing entity types fundamentally alters how the graph is built.',
-      })
-      warningDiv.createEl('br')
-      // FIX: Sentence case (Graph Data folder -> graph data folder)
-      warningDiv.createSpan({ text: 'If you already have data ingested, you ' })
-      warningDiv.createEl('strong', {
-        text: 'Must delete your graph data folder',
-      })
-      warningDiv.createSpan({ text: ' and re-ingest all documents.' })
+      // --- RERANKING SECTION ---
+      container.createEl('h4', { text: 'Reranking (precision)' })
 
       new Setting(container)
-        .setName('Ontology source folder')
-        .setDesc(
-          'Vault-relative folder with representative notes to analyze (e.g. Main/Memories).',
-        )
-        .addText((text) => {
-          text
-            .setPlaceholder(`${FOLDER_DIR}`)
-            .setValue(plugin.settings.lightRagOntologyFolder)
-            .onChange((value) => {
-              debouncedSet('lightRagOntologyFolder', value)
-            })
-          new FolderSuggest(plugin.app, text.inputEl)
+        .setName('Rerank provider')
+        .setDesc('Service to re-order results. Use "custom" for local servers.')
+        .addDropdown((dropdown) => {
+          dropdown.addOption('', 'None (disabled)')
+          dropdown.addOption('jina', 'Jina AI')
+          dropdown.addOption('cohere', 'Cohere')
+          dropdown.addOption('custom', 'Custom / local')
+
+          dropdown.setValue(
+            currentRerankBinding === 'jina' || currentRerankBinding === 'cohere'
+              ? currentRerankBinding
+              : currentRerankBinding
+                ? 'custom'
+                : '',
+          )
+
+          dropdown.onChange((value) => {
+            void (async () => {
+              const newModel =
+                value === 'jina'
+                  ? 'jina-reranker-v2-base-multilingual'
+                  : value === 'cohere'
+                    ? 'rerank-v3.5'
+                    : plugin.settings.lightRagRerankModel
+
+              await plugin.setSettings({
+                ...plugin.settings,
+                lightRagRerankBinding: value,
+                lightRagRerankModel: newModel,
+              })
+              plugin.updateEnvFile()
+              setCurrentRerankBinding(value)
+            })()
+          })
         })
 
-      let typesTextArea: HTMLTextAreaElement
+      if (currentRerankBinding && currentRerankBinding !== '') {
+        // 1. MODEL
+        new Setting(container)
+          .setName('Rerank model')
+          .setDesc('E.g. "BAAI/bge-reranker-v2-m3" for local.')
+          .addText((text) => {
+            text
+              .setPlaceholder('Model name')
+              .setValue(plugin.settings.lightRagRerankModel)
+            text.inputEl.addEventListener('blur', () => {
+              void (async () => {
+                await plugin.setSettings({
+                  ...plugin.settings,
+                  lightRagRerankModel: text.getValue(),
+                })
+                plugin.updateEnvFile()
+              })()
+            })
+          })
 
+        // 2. API KEY
+        new Setting(container)
+          .setName(`Rerank ${TERM_API} key`)
+          .setDesc('Leave empty for local open servers.')
+          .addText((text) => {
+            text
+              .setPlaceholder('Your key here')
+              .setValue(plugin.settings.lightRagRerankApiKey)
+            text.inputEl.addEventListener('blur', () => {
+              void (async () => {
+                await plugin.setSettings({
+                  ...plugin.settings,
+                  lightRagRerankApiKey: text.getValue(),
+                })
+                plugin.updateEnvFile()
+              })()
+            })
+          })
+
+        // 3. HOST URL
+        if (currentRerankBinding === 'custom') {
+          new Setting(container)
+            .setName('Local/custom host URL')
+            .setDesc(
+              'The full URL to the rerank endpoint (e.g. http://localhost:8000/v1/rerank).',
+            )
+            .addText((text) => {
+              text
+                .setPlaceholder(`${RERANK_ENDPOINT}`)
+                .setValue(plugin.settings.lightRagRerankHost || '')
+              text.inputEl.addEventListener('blur', () => {
+                void (async () => {
+                  await plugin.setSettings({
+                    ...plugin.settings,
+                    lightRagRerankHost: text.getValue(),
+                  })
+                  plugin.updateEnvFile()
+                })()
+              })
+            })
+
+          // 4. BINDING
+          new Setting(container)
+            .setName('Binding type')
+            .setDesc(
+              `Internal binding type for ${BACKEND_NAME} (usually "cohere" for compatible local ${TERM_APIs}).`,
+            )
+            .addText((text) => {
+              text
+                .setPlaceholder(`${COHERE}`)
+                .setValue(plugin.settings.lightRagRerankBindingType || 'cohere')
+              text.inputEl.addEventListener('blur', () => {
+                void (async () => {
+                  await plugin.setSettings({
+                    ...plugin.settings,
+                    lightRagRerankBindingType: text.getValue(),
+                  })
+                  plugin.updateEnvFile()
+                })()
+              })
+            })
+        }
+      }
+
+      // Apply changes & restart — after Reranking, before Visualization
       new Setting(container)
-        .setName('Entity types definition')
-        .setDesc('Define the "categories" of your field of knowledge.')
+        .setName('Apply changes & restart')
+        .setDesc(
+          'You *must* restart the server after changing any setting above to apply the new configuration (.env).',
+        )
+        .setClass('nrlcmp-restart-setting')
         .addButton((button) =>
           button
-            .setButtonText('Analyze & generate')
+            .setButtonText('Restart server now')
             .setCta()
             .onClick(() => {
-              // Removed async
-              void (async () => {
-                // Wrapped in void async IIFE
-                const newTypes = await plugin.generateEntityTypes()
-                if (newTypes && typesTextArea) {
-                  typesTextArea.value = newTypes
-                  typesTextArea.dispatchEvent(new Event('change'))
-                }
-              })()
+              new Notice('Restarting server...')
+              plugin.restartLightRagServer()
             }),
         )
-
-      const textAreaContainer = container.createDiv({
-        cls: 'nrlcmp-textarea-container',
-      })
-      typesTextArea = textAreaContainer.createEl('textarea', {
-        cls: 'nrlcmp-setting-textarea',
-      })
-      typesTextArea.value = plugin.settings.lightRagEntityTypes
-      typesTextArea.onchange = (e) => {
-        // Removed async
-        const target = e.target as HTMLTextAreaElement
-        void (async () => {
-          // Wrapped
-          await plugin.setSettings({
-            ...plugin.settings,
-            lightRagEntityTypes: target.value,
-          })
-          plugin.updateEnvFile()
-        })()
-      }
-    }
-
-    // --- RERANKING SECTION ---
-    container.createEl('h4', { text: 'Reranking (precision)' })
-
-    new Setting(container)
-      .setName('Rerank provider')
-      .setDesc('Service to re-order results. Use "custom" for local servers.')
-      .addDropdown((dropdown) => {
-        dropdown.addOption('', 'None (disabled)')
-        dropdown.addOption('jina', 'Jina AI')
-        dropdown.addOption('cohere', 'Cohere')
-        dropdown.addOption('custom', 'Custom / local')
-
-        dropdown.setValue(
-          currentRerankBinding === 'jina' || currentRerankBinding === 'cohere'
-            ? currentRerankBinding
-            : currentRerankBinding
-              ? 'custom'
-              : '',
-        )
-
-        dropdown.onChange((value) => {
-          void (async () => {
-            const newModel =
-              value === 'jina'
-                ? 'jina-reranker-v2-base-multilingual'
-                : value === 'cohere'
-                  ? 'rerank-v3.5'
-                  : plugin.settings.lightRagRerankModel
-
-            await plugin.setSettings({
-              ...plugin.settings,
-              lightRagRerankBinding: value,
-              lightRagRerankModel: newModel,
-            })
-            plugin.updateEnvFile()
-            setCurrentRerankBinding(value)
-          })()
-        })
-      })
-
-    if (currentRerankBinding && currentRerankBinding !== '') {
-      // 1. MODEL
-      new Setting(container)
-        .setName('Rerank model')
-        .setDesc('E.g. "BAAI/bge-reranker-v2-m3" for local.')
-        .addText((text) =>
-          text
-            .setPlaceholder('Model name')
-            .setValue(plugin.settings.lightRagRerankModel)
-            .onChange((value) => {
-              debouncedSet('lightRagRerankModel', value, 500, () =>
-                plugin.updateEnvFile(),
-              )
-            }),
-        )
-
-      // 2. API KEY
-      new Setting(container)
-        .setName(`Rerank ${TERM_API} key`)
-        .setDesc('Leave empty for local open servers.')
-        .addText((text) =>
-          text
-            .setPlaceholder('Your key here')
-            .setValue(plugin.settings.lightRagRerankApiKey)
-            .onChange((value) => {
-              debouncedSet('lightRagRerankApiKey', value, 500, () =>
-                plugin.updateEnvFile(),
-              )
-            }),
-        )
-
-      // 3. HOST URL
-      if (currentRerankBinding === 'custom') {
-        new Setting(container)
-          .setName('Local/custom host URL')
-          .setDesc(
-            'The full URL to the rerank endpoint (e.g. http://localhost:8000/v1/rerank).',
-          )
-          .addText((text) =>
-            text
-              .setPlaceholder(`${RERANK_ENDPOINT}`)
-              .setValue(plugin.settings.lightRagRerankHost || '')
-              .onChange((value) => {
-                debouncedSet('lightRagRerankHost', value, 500, () =>
-                  plugin.updateEnvFile(),
-                )
-              }),
-          )
-
-        // 4. BINDING
-        new Setting(container)
-          .setName('Binding type')
-          .setDesc(
-            `Internal binding type for ${BACKEND_NAME} (usually "cohere" for compatible local ${TERM_APIs}).`,
-          )
-          .addText((text) =>
-            text
-              .setPlaceholder(`${COHERE}`)
-              .setValue(plugin.settings.lightRagRerankBindingType || 'cohere')
-              .onChange((value) => {
-                debouncedSet('lightRagRerankBindingType', value, 500, () =>
-                  plugin.updateEnvFile(),
-                )
-              }),
-          )
-      }
-    }
-
-    // Apply changes & restart — after Reranking, before Visualization
-    new Setting(container)
-      .setName('Apply changes & restart')
-      .setDesc(
-        'You *must* restart the server after changing any setting above to apply the new configuration (.env).',
-      )
-      .setClass('nrlcmp-restart-setting')
-      .addButton((button) =>
-        button
-          .setButtonText('Restart server now')
-          .setCta()
-          .onClick(() => {
-            new Notice('Restarting server...')
-            plugin.restartLightRagServer()
-          }),
-      )
+    } // end !useRemote && Platform.isDesktop (ontology / reranking / restart block)
 
     // VISUALIZATION — Advanced env config moved to Advanced tab
     container.createEl('h4', { text: 'Visualization' })
@@ -624,16 +671,6 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
           })
         })
       })
-
-    // Cancel any pending debounced save when the effect re-runs (e.g. because
-    // another setting just changed and the DOM is about to rebuild). The save
-    // is intentionally lost in that case — the user typed something but didn't
-    // pause long enough for it to persist, and the input is about to be
-    // recreated with the current setting value anyway.
-    return () => {
-      saveTimers.forEach((t) => window.clearTimeout(t))
-      saveTimers.clear()
-    }
   }, [settings, currentRerankBinding, useCustomOntology, useRemote, plugin])
 
   // Reactively update the version badge on every server info change

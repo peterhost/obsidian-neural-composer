@@ -1,4 +1,4 @@
-import { App, Notice, Setting } from 'obsidian'
+import { App, Notice, Platform, Setting } from 'obsidian'
 import { useEffect, useRef } from 'react'
 
 import NeuralComposerPlugin from '../../../main'
@@ -42,6 +42,23 @@ export function ServerActionsSection({
     if (!containerRef.current) return
     containerRef.current.empty()
     const container = containerRef.current
+
+    // This section manages the LOCAL server's .env file and process.
+    // It has no meaning on mobile or when connected to a remote server.
+    if (!Platform.isDesktop) {
+      container.createEl('p', {
+        text: `Server management requires the desktop app. When connecting from a mobile device, configure your ${BACKEND_NAME} server's .env directly on the machine where it runs.`,
+        cls: 'setting-item-description',
+      })
+      return
+    }
+    if (plugin.settings.lightRagUseRemote) {
+      container.createEl('p', {
+        text: `Server management is only available in local mode. When using a remote ${BACKEND_NAME} server, edit the server's .env file directly on that machine.`,
+        cls: 'setting-item-description',
+      })
+      return
+    }
 
     // Debounce timer for the env textarea — declared here so the cleanup
     // function can cancel any pending save when the effect tears down.

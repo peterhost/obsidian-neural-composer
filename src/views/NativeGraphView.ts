@@ -722,6 +722,7 @@ export class NativeGraphView extends ItemView {
   ) {
     this.graph = new Graph()
     const LABEL_THRESHOLD = 4
+    const isDarkTheme = activeDocument.body.classList.contains('theme-dark')
 
     // Tier node sizing by form factor: phones get the tightest values so dense
     // graphs stay legible, tablets get a middle ground (more screen but still
@@ -755,8 +756,12 @@ export class NativeGraphView extends ItemView {
       if (this.graph?.hasNode(src) && this.graph?.hasNode(tgt)) {
         if (!this.graph.hasEdge(src, tgt)) {
           this.graph.addEdge(src, tgt, {
-            color: '#333',
-            size: 0.5,
+            // Solid colors avoid the canvas accumulation problem: semi-transparent
+            // edges stack up in dense areas and create a blinding bright mass.
+            // Dark mode: slightly lighter than #111 bg. Light mode: slightly
+            // darker than #f0f0f0 bg.
+            color: isDarkTheme ? '#2e2e2e' : '#c8c8c8',
+            size: 0.3,
             hidden: false,
           })
         }
@@ -1200,11 +1205,54 @@ export class NativeGraphView extends ItemView {
       'Type an entity name and press Enter to center the graph on it',
     )
 
+    // Separator
+    tb.createEl('span', { cls: 'nrlcmp-toolbar-sep' })
+
+    // Depth controls — only meaningful in explore mode (currentRootLabel set).
+    // Created before loadEntity so the closure can enable/disable them.
+    const btnLess = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
+    setIcon(btnLess, 'minus')
+    btnLess.disabled = true
+    setTooltip(btnLess, 'Switch to explore mode first')
+    btnLess.onclick = () => {
+      if (!this.currentRootLabel) return
+      this.currentMaxDepth = Math.max(1, this.currentMaxDepth - 1)
+      void this.render(graphContainer)
+    }
+
+    const btnMore = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
+    setIcon(btnMore, 'plus')
+    btnMore.disabled = true
+    setTooltip(btnMore, 'Switch to explore mode first')
+    btnMore.onclick = () => {
+      if (!this.currentRootLabel) return
+      this.currentMaxDepth = Math.min(10, this.currentMaxDepth + 1)
+      void this.render(graphContainer)
+    }
+
+    const setExploreMode = (active: boolean) => {
+      btnLess.disabled = !active
+      btnMore.disabled = !active
+      setTooltip(
+        btnLess,
+        active
+          ? 'Decrease subgraph depth (−1)'
+          : 'Switch to explore mode first',
+      )
+      setTooltip(
+        btnMore,
+        active
+          ? 'Increase subgraph depth (+1)'
+          : 'Switch to explore mode first',
+      )
+    }
+
     const loadEntity = () => {
       const val = exploreInput.value.trim()
       if (!val) return
       this.currentRootLabel = val
       exploreInput.value = ''
+      setExploreMode(true)
       void this.render(graphContainer)
     }
     exploreInput.addEventListener('keydown', (e) => {
@@ -1219,41 +1267,6 @@ export class NativeGraphView extends ItemView {
     // Separator
     tb.createEl('span', { cls: 'nrlcmp-toolbar-sep' })
 
-    // Depth controls — only meaningful in explore mode (currentRootLabel set)
-    const isExplore = !!this.currentRootLabel
-    const btnLess = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
-    setIcon(btnLess, 'minus')
-    setTooltip(
-      btnLess,
-      isExplore
-        ? 'Decrease subgraph depth (−1)'
-        : 'Switch to explore mode first',
-    )
-    btnLess.disabled = !isExplore
-    btnLess.onclick = () => {
-      if (!this.currentRootLabel) return
-      this.currentMaxDepth = Math.max(1, this.currentMaxDepth - 1)
-      void this.render(graphContainer)
-    }
-
-    const btnMore = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
-    setIcon(btnMore, 'plus')
-    setTooltip(
-      btnMore,
-      isExplore
-        ? 'Increase subgraph depth (+1)'
-        : 'Switch to explore mode first',
-    )
-    btnMore.disabled = !isExplore
-    btnMore.onclick = () => {
-      if (!this.currentRootLabel) return
-      this.currentMaxDepth = Math.min(10, this.currentMaxDepth + 1)
-      void this.render(graphContainer)
-    }
-
-    // Separator
-    tb.createEl('span', { cls: 'nrlcmp-toolbar-sep' })
-
     const btnReload = tb.createEl('button', { cls: 'nrlcmp-toolbar-btn' })
     setIcon(btnReload, 'refresh-cw')
     setTooltip(btnReload, 'Back to full overview (all nodes)')
@@ -1261,6 +1274,7 @@ export class NativeGraphView extends ItemView {
       this.currentRootLabel = ''
       this.currentMaxDepth = 3
       this.currentMaxNodes = 1000
+      setExploreMode(false)
       void this.render(graphContainer)
     }
 

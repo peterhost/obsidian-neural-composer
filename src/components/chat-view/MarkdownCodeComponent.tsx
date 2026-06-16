@@ -7,7 +7,7 @@ import { parseTagContents } from '../../utils/chat/parse-tag-content'
 import { openMarkdownFile } from '../../utils/obsidian'
 
 import MarkdownReferenceBlock from './MarkdownReferenceBlock'
-import { ObsidianMarkdown } from './ObsidianMarkdown'
+import { ObsidianMarkdown, SvgAwareMarkdown } from './ObsidianMarkdown'
 import { MemoizedSyntaxHighlighterWrapper } from './SyntaxHighlighterWrapper'
 
 /**
@@ -24,7 +24,7 @@ function MarkdownPreviewRenderer({ content }: { content: string }) {
       {blocks.map((block, index) => {
         if (block.type === 'string') {
           return (
-            <ObsidianMarkdown key={index} content={block.content} scale="sm" />
+            <SvgAwareMarkdown key={index} content={block.content} scale="sm" />
           )
         }
         if (
