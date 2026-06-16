@@ -21,5 +21,12 @@ jobs:
         run: npx prettier --check .
       - name: ESLint
         run: npx eslint . --max-warnings 0
+      - name: Check forbidden eslint-disable comments (Obsidian bot policy)
+        run: |
+          if grep -rn 'eslint-disable.*import/no-nodejs-modules' src/; then
+            echo "❌ Disabling 'import/no-nodejs-modules' is not allowed by the Obsidian plugin review bot."
+            echo "   Use Platform.isDesktop guards and dynamic imports instead."
+            exit 1
+          fi
       - name: Test
         run: npm test
