@@ -9,7 +9,6 @@ import {
 import { useEffect, useRef, useState } from 'react'
 
 import NeuralComposerPlugin from '../../../main'
-import { NeuralComposerSettings } from '../../../settings/schema/setting.types'
 
 class FolderSuggest extends AbstractInputSuggest<TFolder> {
   private readonly input: HTMLInputElement
