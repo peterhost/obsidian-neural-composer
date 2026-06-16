@@ -1235,11 +1235,15 @@ export class NativeGraphView extends ItemView {
       btnMore.disabled = !active
       setTooltip(
         btnLess,
-        active ? 'Decrease subgraph depth (−1)' : 'Switch to explore mode first',
+        active
+          ? 'Decrease subgraph depth (−1)'
+          : 'Switch to explore mode first',
       )
       setTooltip(
         btnMore,
-        active ? 'Increase subgraph depth (+1)' : 'Switch to explore mode first',
+        active
+          ? 'Increase subgraph depth (+1)'
+          : 'Switch to explore mode first',
       )
     }
 

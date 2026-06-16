@@ -3038,7 +3038,8 @@ button.nrlcmp-chat-input-model-select {
 /* On tablet/iPad (> 720px) the sidebar is an inline flex child.
    Hiding it collapses it so the graph zone can use the full width. */
 @media (min-width: 721px) {
-  .nrlcmp-graph-view.nrlcmp-mobile-layout.nrlcmp-sidebar-hidden .nrlcmp-sidebar {
+  .nrlcmp-graph-view.nrlcmp-mobile-layout.nrlcmp-sidebar-hidden
+    .nrlcmp-sidebar {
     display: none;
   }
 }
