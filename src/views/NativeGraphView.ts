@@ -756,9 +756,11 @@ export class NativeGraphView extends ItemView {
       if (this.graph?.hasNode(src) && this.graph?.hasNode(tgt)) {
         if (!this.graph.hasEdge(src, tgt)) {
           this.graph.addEdge(src, tgt, {
-            color: isDarkTheme
-              ? 'rgba(200, 200, 200, 0.15)'
-              : 'rgba(0, 0, 0, 0.12)',
+            // Solid colors avoid the canvas accumulation problem: semi-transparent
+            // edges stack up in dense areas and create a blinding bright mass.
+            // Dark mode: slightly lighter than #111 bg. Light mode: slightly
+            // darker than #f0f0f0 bg.
+            color: isDarkTheme ? '#2e2e2e' : '#c8c8c8',
             size: 0.3,
             hidden: false,
           })
