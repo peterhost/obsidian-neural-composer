@@ -722,6 +722,7 @@ export class NativeGraphView extends ItemView {
   ) {
     this.graph = new Graph()
     const LABEL_THRESHOLD = 4
+    const isDarkTheme = activeDocument.body.classList.contains('theme-dark')
 
     // Tier node sizing by form factor: phones get the tightest values so dense
     // graphs stay legible, tablets get a middle ground (more screen but still
@@ -755,8 +756,10 @@ export class NativeGraphView extends ItemView {
       if (this.graph?.hasNode(src) && this.graph?.hasNode(tgt)) {
         if (!this.graph.hasEdge(src, tgt)) {
           this.graph.addEdge(src, tgt, {
-            color: '#333',
-            size: 0.5,
+            color: isDarkTheme
+              ? 'rgba(200, 200, 200, 0.15)'
+              : 'rgba(0, 0, 0, 0.12)',
+            size: 0.3,
             hidden: false,
           })
         }
