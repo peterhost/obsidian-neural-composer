@@ -13,6 +13,9 @@ node_modules
 main.js
 meta.json
 
+# Output of `npm run package` (Obsidian-ready plugin folder)
+dist/
+
 # Exclude sourcemaps
 *.map
 
