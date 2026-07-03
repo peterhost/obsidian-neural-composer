@@ -33,3 +33,10 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Prettier formatting and an `obsidianmd/ui/sentence-case` lint violation
   introduced by the new settings UI copy above.
+
+### Docs
+
+- Added `README2.md`, split into a user guide (frontmatter syntax,
+  examples, settings walkthrough) and a developer guide (files touched,
+  function signatures, endpoint shapes, known constraints) for the
+  frontmatter people-entities feature.
