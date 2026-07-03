@@ -46,6 +46,7 @@ describe('parseNeuralComposerSettings', () => {
       },
 
       enableAutoStartServer: false,
+      enableFrontmatterPeopleEntities: false,
       graphViewMode: '2d',
       lightRagApiKey: '',
       lightRagChunkOverlap: 100,

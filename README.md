@@ -111,6 +111,7 @@ A green dot in the status bar confirms the server is running. Right-click any fo
 | **Watched Folder** | Settings → Graph & Vault → Watched folder |
 | **Remote Server** | Settings → Graph & Vault → Use remote server |
 | **Custom Ontology** | Settings → Graph & Vault → Ontology section — teach the graph domain-specific entity types (e.g. "Experiment", "Theorem") |
+| **People from frontmatter** | Add a `people: [Name1, Name2]` (or `person: Name`) field to a note's frontmatter to reinforce Person-entity detection. Settings → Graph & Vault → "Create people from frontmatter" additionally guarantees each declared name exists as a graph entity. |
 | **Reranking** | Settings → Graph & Vault → Reranking — Jina AI, Cohere, or a custom local endpoint |
 | **MCP Servers** | Settings → Tools (MCP) |
 | **Graph Visualization** | Settings → Graph & Vault → Graph rendering engine — 2D (fast) or 3D (immersive) |

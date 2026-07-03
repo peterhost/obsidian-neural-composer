@@ -30,6 +30,7 @@ import {
 } from './settings/schema/setting.types'
 import { parseNeuralComposerSettings } from './settings/schema/settings'
 import { NeuralComposerSettingTab } from './settings/SettingTab'
+import { buildPeopleHint, getDeclaredPeople } from './utils/frontmatter'
 import {
   getExcludePatternForPath,
   isExcludedFromGraphSync,
@@ -415,11 +416,14 @@ export default class NeuralComposerPlugin extends Plugin {
           try {
             const ragEngine = await this.getRAGEngine()
             let success = false
+            const people =
+              ext === 'md' ? getDeclaredPeople(this.app, file) : []
 
             if (TEXT_BASED_EXTENSIONS.includes(ext)) {
               const content = await this.app.vault.read(file)
+              const hint = ext === 'md' ? buildPeopleHint(people) : ''
               const finalContent =
-                ext === 'md' ? `Title: ${title}\n\n${content}` : content
+                ext === 'md' ? `Title: ${title}\n\n${hint}${content}` : content
               success = await ragEngine.insertDocument(finalContent, file.path)
             } else {
               success = await ragEngine.uploadDocument(file)
@@ -428,6 +432,12 @@ export default class NeuralComposerPlugin extends Plugin {
             if (success) {
               notice.setMessage(`Sent. Processing in background...`)
               await this.monitorPipeline(notice)
+              if (
+                this.settings.enableFrontmatterPeopleEntities &&
+                people.length > 0
+              ) {
+                await ragEngine.ensurePersonEntities(people, file.path)
+              }
             } else {
               notice.setMessage(`Upload failed.`)
               window.setTimeout(() => notice.hide(), 5000)
@@ -905,6 +915,7 @@ export default class NeuralComposerPlugin extends Plugin {
     try {
       const ragEngine = await this.getRAGEngine()
       let successCount = 0
+      const declaredPeopleByPath: { path: string; people: string[] }[] = []
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
@@ -916,16 +927,26 @@ export default class NeuralComposerPlugin extends Plugin {
 
         try {
           let result = false
+          const people =
+            ext === 'md' ? getDeclaredPeople(this.app, file) : []
           if (TEXT_BASED_EXTENSIONS.includes(ext)) {
             const content = await this.app.vault.read(file)
+            const hint = ext === 'md' ? buildPeopleHint(people) : ''
             const finalContent =
-              ext === 'md' ? `Title: ${file.basename}\n\n${content}` : content
+              ext === 'md'
+                ? `Title: ${file.basename}\n\n${hint}${content}`
+                : content
             result = await ragEngine.insertDocument(finalContent, file.path)
           } else {
             result = await ragEngine.uploadDocument(file)
           }
 
-          if (result) successCount++
+          if (result) {
+            successCount++
+            if (people.length > 0) {
+              declaredPeopleByPath.push({ path: file.path, people })
+            }
+          }
           await new Promise((resolve) => window.setTimeout(resolve, 200))
         } catch (err) {
           console.error(`Error processing ${file.name}:`, err)
@@ -936,6 +957,11 @@ export default class NeuralComposerPlugin extends Plugin {
         `Uploaded files (${successCount}).\nStart processing...`,
       )
       await this.monitorPipeline(notice)
+      if (this.settings.enableFrontmatterPeopleEntities) {
+        for (const { path, people } of declaredPeopleByPath) {
+          await ragEngine.ensurePersonEntities(people, path)
+        }
+      }
       void this.refreshIngestedFolderPaths()
     } catch (error) {
       console.error('Batch error:', error)

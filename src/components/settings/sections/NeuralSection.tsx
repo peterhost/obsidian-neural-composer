@@ -651,6 +651,25 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
         )
     } // end !useRemote && Platform.isDesktop (ontology / reranking / restart block)
 
+    // --- FRONTMATTER PEOPLE ENTITIES ---
+    // Plain HTTP calls to lightRagServerUrl, so (unlike the ontology block
+    // above) this works with a remote server too, not just a local .env.
+    new Setting(container)
+      .setName('Create people from frontmatter')
+      .setDesc(
+        'When a note has a "people:" (or "person:") frontmatter field, guarantee each name exists as a Person entity in the graph, even if extraction misses it.',
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(plugin.settings.enableFrontmatterPeopleEntities)
+          .onChange((value) => {
+            void plugin.setSettings({
+              ...plugin.settings,
+              enableFrontmatterPeopleEntities: value,
+            })
+          }),
+      )
+
     // VISUALIZATION — Advanced env config moved to Advanced tab
     container.createEl('h4', { text: 'Visualization' })
 

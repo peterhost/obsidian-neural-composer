@@ -108,6 +108,10 @@ export const NeuralComposerSettingsSchema = z.object({
   // NUEVO INTERRUPTOR:
   useCustomEntityTypes: z.boolean().catch(false),
 
+  // Guarantees frontmatter-declared `people:` names exist as Person entities
+  // in the graph, on top of the always-on text hint injected at ingestion.
+  enableFrontmatterPeopleEntities: z.boolean().catch(false),
+
   graphViewMode: z.enum(['2d', '3d']).catch('2d'),
 
   // --- NUEVO CAMPO: CONFIGURACIÓN LIBRE ---
@@ -196,6 +200,7 @@ export const DEFAULT_SETTINGS: NeuralComposerSettings = {
   lightRagOntologyFolder: '',
   // NUEVO DEFAULT:
   useCustomEntityTypes: false,
+  enableFrontmatterPeopleEntities: false,
   graphViewMode: '2d', // Default seguro para todos
   // DEFAULTS NUEVOS
   lightRagMaxAsync: 4,

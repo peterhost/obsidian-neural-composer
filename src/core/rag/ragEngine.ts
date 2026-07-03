@@ -5,6 +5,7 @@ import { VectorManager } from '../../database/modules/vector/VectorManager'
 import { SelectEmbedding } from '../../database/schema'
 import { NeuralComposerSettings } from '../../settings/schema/setting.types'
 import { EmbeddingModelClient } from '../../types/embedding'
+import { buildPeopleHint, getDeclaredPeople } from '../../utils/frontmatter'
 import { isExcludedFromGraphSync } from '../../utils/glob-utils'
 
 import { getEmbeddingModelClient } from './embedding'
@@ -359,11 +360,66 @@ export class RAGEngine {
     const textExts = ['md', 'txt', 'csv', 'json', 'html', 'htm', 'xml']
     if (textExts.includes(ext)) {
       const content = await this.app.vault.read(file)
+      const hint =
+        ext === 'md' ? buildPeopleHint(getDeclaredPeople(this.app, file)) : ''
       const finalContent =
-        ext === 'md' ? `Title: ${file.basename}\n\n${content}` : content
+        ext === 'md' ? `Title: ${file.basename}\n\n${hint}${content}` : content
       return this.insertDocument(finalContent, file.path)
     }
     return this.uploadDocument(file)
+  }
+
+  /**
+   * Guarantees each frontmatter-declared person exists as a "Person" entity
+   * in LightRAG's graph, independent of whether the server's LLM-based
+   * extraction picked them up from the note body. These graph-mutation
+   * routes (/graph/entity/exists, /graph/entity/create) aren't documented
+   * in every LightRAG server version, so failures are logged and swallowed
+   * rather than surfaced — this is a best-effort enhancement, not a
+   * requirement for ingestion to succeed.
+   */
+  async ensurePersonEntities(
+    people: string[],
+    sourcePath: string,
+  ): Promise<void> {
+    for (const name of people) {
+      try {
+        const existsResponse = await requestUrl({
+          url: `${this.settings.lightRagServerUrl}/graph/entity/exists?name=${encodeURIComponent(name)}`,
+          method: 'GET',
+          headers: this.getLightRagHeaders(),
+          throw: false,
+        })
+        if (existsResponse.status >= 400) continue
+        const exists = (existsResponse.json as { exists?: boolean })?.exists
+        if (exists) continue
+
+        const createResponse = await requestUrl({
+          url: `${this.settings.lightRagServerUrl}/graph/entity/create`,
+          method: 'POST',
+          headers: this.getLightRagHeaders(),
+          body: JSON.stringify({
+            entity_name: name,
+            entity_data: {
+              entity_type: 'Person',
+              description: `Declared in frontmatter of ${sourcePath}`,
+              source_id: sourcePath,
+            },
+          }),
+          throw: false,
+        })
+        if (createResponse.status >= 400) {
+          console.warn(
+            `Could not create Person entity "${name}" from ${sourcePath}: ${createResponse.status} ${createResponse.text}`,
+          )
+        }
+      } catch (error) {
+        console.warn(
+          `Could not ensure Person entity "${name}" from ${sourcePath}:`,
+          error,
+        )
+      }
+    }
   }
 
   // --- 3. MASTER QUERY ---
