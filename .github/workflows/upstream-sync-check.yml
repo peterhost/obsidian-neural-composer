@@ -1,0 +1,83 @@
+name: Upstream sync check
+
+# Checks daily whether oscampo/obsidian-neural-composer's main branch has
+# commits this fork's main doesn't have yet, and opens/updates a GitHub
+# issue when it does — so watching this repo's issues (or being assigned)
+# is enough to get notified, without polling upstream manually.
+
+on:
+  schedule:
+    - cron: '23 6 * * *' # ~06:23 UTC daily
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/oscampo/obsidian-neural-composer.git
+          git fetch upstream main
+
+      - name: Compare with upstream/main
+        id: diff
+        run: echo "count=$(git rev-list --count HEAD..upstream/main)" >> "$GITHUB_OUTPUT"
+
+      - name: Write commit summary
+        if: steps.diff.outputs.count != '0'
+        run: |
+          {
+            echo "${{ steps.diff.outputs.count }} new commit(s) on upstream \`main\` (oscampo/obsidian-neural-composer) not yet in this fork's \`main\`:"
+            echo
+            git log --pretty='- %h %s (%an)' HEAD..upstream/main
+            echo
+            echo "Diff: https://github.com/oscampo/obsidian-neural-composer/compare/$(git rev-parse HEAD)...main"
+          } > /tmp/upstream-sync-body.md
+
+      - name: Ensure label exists
+        if: steps.diff.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create upstream-sync \
+            --repo "${{ github.repository }}" \
+            --color ededed \
+            --description "Upstream oscampo/obsidian-neural-composer has commits to review" \
+            --force
+
+      - name: Find existing open sync issue
+        if: steps.diff.outputs.count != '0'
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          number=$(gh issue list --repo "${{ github.repository }}" --label upstream-sync --state open --json number --jq '.[0].number // empty')
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+
+      - name: Open sync issue
+        if: steps.diff.outputs.count != '0' && steps.existing.outputs.number == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --repo "${{ github.repository }}" \
+            --title "Upstream has ${{ steps.diff.outputs.count }} new commit(s) to review" \
+            --label upstream-sync \
+            --assignee "${{ github.repository_owner }}" \
+            --body-file /tmp/upstream-sync-body.md
+
+      - name: Update existing sync issue
+        if: steps.diff.outputs.count != '0' && steps.existing.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment "${{ steps.existing.outputs.number }}" \
+            --repo "${{ github.repository }}" \
+            --body-file /tmp/upstream-sync-body.md
