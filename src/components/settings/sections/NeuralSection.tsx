@@ -657,7 +657,7 @@ export const NeuralSection = ({ plugin }: { plugin: NeuralComposerPlugin }) => {
     new Setting(container)
       .setName('Create people from frontmatter')
       .setDesc(
-        'When a note has a "people:" (or "person:") frontmatter field, guarantee each name exists as a Person entity in the graph, even if extraction misses it.',
+        'When a note has a "people:" (or "person:") frontmatter field, guarantee each name exists as a person entity in the graph, even if extraction misses it.',
       )
       .addToggle((toggle) =>
         toggle

@@ -416,8 +416,7 @@ export default class NeuralComposerPlugin extends Plugin {
           try {
             const ragEngine = await this.getRAGEngine()
             let success = false
-            const people =
-              ext === 'md' ? getDeclaredPeople(this.app, file) : []
+            const people = ext === 'md' ? getDeclaredPeople(this.app, file) : []
 
             if (TEXT_BASED_EXTENSIONS.includes(ext)) {
               const content = await this.app.vault.read(file)
@@ -927,8 +926,7 @@ export default class NeuralComposerPlugin extends Plugin {
 
         try {
           let result = false
-          const people =
-            ext === 'md' ? getDeclaredPeople(this.app, file) : []
+          const people = ext === 'md' ? getDeclaredPeople(this.app, file) : []
           if (TEXT_BASED_EXTENSIONS.includes(ext)) {
             const content = await this.app.vault.read(file)
             const hint = ext === 'md' ? buildPeopleHint(people) : ''
