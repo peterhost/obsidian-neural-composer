@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - '*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. 1.4.1)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -28,8 +34,9 @@ jobs:
 
       - name: Set Tag variable
         run: |
-          echo "TAG=${{ github.ref_name }}" >> $GITHUB_ENV
-          echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "TAG=$TAG" >> $GITHUB_ENV
+          echo "VERSION=${TAG#v}" >> $GITHUB_ENV
 
       - name: Bump version
         run: npm run version $VERSION
@@ -57,12 +64,12 @@ jobs:
         with:
           subject-path: styles.css
 
-      - name: Create release
+      - name: Create or update release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "$TAG" \
-            --title="$TAG" \
-            main.js manifest.json styles.css 2>/dev/null || \
-          gh release upload "$TAG" \
-            main.js manifest.json styles.css --clobber
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" main.js manifest.json styles.css --clobber
+          else
+            gh release create "$TAG" --title="$TAG" main.js manifest.json styles.css
+          fi
