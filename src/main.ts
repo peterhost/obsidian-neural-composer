@@ -1307,11 +1307,17 @@ export default class NeuralComposerPlugin extends Plugin {
       envContent += `CHUNK_SIZE=${this.settings.lightRagChunkSize}\n`
       envContent += `CHUNK_OVERLAP_SIZE=${this.settings.lightRagChunkOverlap}\n\n`
 
+      // Plugin provider IDs → LightRAG binding names.
+      // LightRAG uses 'google' (not 'gemini') and 'azure_openai' (not 'azure').
+      const LIGHTRAG_BINDING_MAP: Record<string, string> = {
+        gemini: 'google',
+        azure: 'azure_openai',
+      }
+
       // LLM CONFIGURATION
       if (llmModelObj && llmProvider) {
         envContent += `# LLM Configuration\n`
 
-        // Lista de proveedores nativos que LightRAG conoce por nombre
         const nativeProviders = [
           'openai',
           'gemini',
@@ -1324,7 +1330,9 @@ export default class NeuralComposerPlugin extends Plugin {
         const isNative = nativeProviders.includes(llmProvider.id)
 
         if (isNative) {
-          envContent += `LLM_BINDING=${llmProvider.id}\n`
+          const llmBindingName =
+            LIGHTRAG_BINDING_MAP[llmProvider.id] ?? llmProvider.id
+          envContent += `LLM_BINDING=${llmBindingName}\n`
 
           if (llmProvider.id === 'ollama' && llmProvider.baseUrl) {
             envContent += `OLLAMA_HOST=${llmProvider.baseUrl}\n`
@@ -1369,17 +1377,19 @@ export default class NeuralComposerPlugin extends Plugin {
       if (embedModelObj && embedProvider) {
         envContent += `\n# Embedding Configuration\n`
 
-        const nativeProviders = [
+        const nativeEmbedProviders = [
           'openai',
           'gemini',
           'ollama',
           'anthropic',
           'azure',
         ]
-        const isNativeEmbed = nativeProviders.includes(embedProvider.id)
+        const isNativeEmbed = nativeEmbedProviders.includes(embedProvider.id)
 
         if (isNativeEmbed) {
-          envContent += `EMBEDDING_BINDING=${embedProvider.id}\n`
+          const embedBindingName =
+            LIGHTRAG_BINDING_MAP[embedProvider.id] ?? embedProvider.id
+          envContent += `EMBEDDING_BINDING=${embedBindingName}\n`
 
           // LightRAG bug workaround: get_default_host('ollama') reads LLM_BINDING_HOST
           // as a fallback instead of using a proper Ollama default. When LLM_BINDING_HOST
