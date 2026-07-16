@@ -68,12 +68,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # gh release view only sees published releases; use the API to detect drafts too
-          RELEASE_EXISTS=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
-            --jq "[.[] | select(.tag_name == \"$TAG\")] | length")
-          if [ "${RELEASE_EXISTS:-0}" -gt 0 ]; then
+          # gh release upload uses the public /releases/tags/{tag} endpoint which
+          # does NOT return draft releases. Find the release by ID via the API
+          # (which includes drafts), publish it if needed, then upload assets.
+          RELEASE_ID=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq ".[] | select(.tag_name == \"$TAG\") | .id" | head -1)
+          if [ -n "$RELEASE_ID" ]; then
+            # Publish the release so gh release upload can find it by tag
+            gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
+              --method PATCH --field draft=false > /dev/null
             gh release upload "$TAG" main.js manifest.json styles.css --clobber
-            gh release edit "$TAG" --draft=false 2>/dev/null || true
           else
             gh release create "$TAG" --title="$TAG" main.js manifest.json styles.css
           fi
