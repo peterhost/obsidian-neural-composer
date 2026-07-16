@@ -68,8 +68,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if gh release view "$TAG" > /dev/null 2>&1; then
+          # gh release view only sees published releases; use the API to detect drafts too
+          RELEASE_EXISTS=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            --jq "[.[] | select(.tag_name == \"$TAG\")] | length")
+          if [ "${RELEASE_EXISTS:-0}" -gt 0 ]; then
             gh release upload "$TAG" main.js manifest.json styles.css --clobber
+            gh release edit "$TAG" --draft=false 2>/dev/null || true
           else
             gh release create "$TAG" --title="$TAG" main.js manifest.json styles.css
           fi
