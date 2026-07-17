@@ -70,16 +70,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # gh release upload uses the public /releases/tags/{tag} endpoint which
-          # does NOT return draft releases. Find the release by ID via the API
-          # (which includes drafts), publish it if needed, then upload assets.
           RELEASE_ID=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
             --jq ".[] | select(.tag_name == \"$TAG\") | .id" | head -1)
-          if [ -n "$RELEASE_ID" ]; then
-            # Publish the release so gh release upload can find it by tag
-            gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
-              --method PATCH --field draft=false > /dev/null
-            gh release upload "$TAG" main.js manifest.json styles.css --clobber
-          else
+          if [ -z "$RELEASE_ID" ]; then
             gh release create "$TAG" --title="$TAG" main.js manifest.json styles.css
+          else
+            # Upload assets directly via API (bypasses gh release upload which
+            # has a 404 regression when the release was pre-created by the user)
+            for file in main.js manifest.json styles.css; do
+              ASSET_ID=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" \
+                --jq ".[] | select(.name == \"$file\") | .id" 2>/dev/null | head -1)
+              if [ -n "$ASSET_ID" ]; then
+                gh api "repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID" \
+                  --method DELETE > /dev/null 2>/dev/null || true
+              fi
+              gh api \
+                --method POST \
+                -H "Content-Type: application/octet-stream" \
+                "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=$file" \
+                --input "$file"
+            done
           fi
