@@ -59,9 +59,7 @@ export class MenuOption {
   constructor(key: string) {
     this.key = key
     this.ref = { current: null }
-    this.setRefElement = this.setRefElement.bind(
-      this,
-    ) as typeof this.setRefElement
+    this.setRefElement = this.setRefElement.bind(this)
   }
 
   setRefElement(element: HTMLElement | null) {
