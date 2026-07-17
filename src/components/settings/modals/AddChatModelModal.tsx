@@ -90,7 +90,7 @@ function AddChatModelModalComponent({
         <ObsidianDropdown
           value={formData.providerId}
           options={Object.fromEntries(
-            plugin.settings.providers.map((provider) => [
+            plugin.settings.providers.map((provider): [string, string] => [
               provider.id,
               provider.id,
             ]),
