@@ -488,12 +488,9 @@ export function useMenuAnchorRef(
   shouldIncludePageYOffset__EXPERIMENTAL = true,
 ): MutableRefObject<HTMLElement> {
   const [editor] = useLexicalComposerContext()
-  // Detached positioning-anchor element (not attached to any DOM tree until
-  // the menu is positioned), so Obsidian's createEl/createSpan — which
-  // require an existing parent to attach to — don't apply here.
-  const anchorElementRef = useRef<HTMLElement>(
-    activeDocument.createElement('div'),
-  )
+  // createDiv() with no `parent` option creates a detached positioning-anchor
+  // element (not attached to any DOM tree until the menu is positioned).
+  const anchorElementRef = useRef<HTMLElement>(createDiv())
 
   const positionMenu = useCallback(() => {
     // Limpieza de estilo inicial

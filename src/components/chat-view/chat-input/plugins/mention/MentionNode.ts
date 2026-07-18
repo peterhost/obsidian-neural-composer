@@ -111,10 +111,9 @@ export class MentionNode extends TextNode {
   }
 
   exportDOM(): DOMExportOutput {
-    // Lexical's DOMExportOutput contract requires returning a detached element
-    // (not yet attached to any container), so Obsidian's createEl/createSpan
-    // helpers — which require an existing parent to attach to — don't apply here.
-    const element = activeDocument.createElement('span')
+    // createSpan() with no `parent` option creates a detached element, which
+    // is what Lexical's DOMExportOutput contract requires here.
+    const element = createSpan()
     element.setAttribute(MENTION_NODE_ATTRIBUTE, 'true')
     element.setAttribute(
       MENTION_NODE_MENTION_NAME_ATTRIBUTE,
