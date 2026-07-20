@@ -4,6 +4,15 @@ name: Upstream sync check
 # commits this fork's main doesn't have yet, and opens/updates a GitHub
 # issue when it does — so watching this repo's issues (or being assigned)
 # is enough to get notified, without polling upstream manually.
+#
+# Drift is measured from the SHA recorded in .github/upstream-sync-state,
+# not from this fork's main via `git log`. Fork syncs are squash-merged
+# (see PR #5), which breaks commit ancestry between this fork's main and
+# upstream/main even when their content is identical — an ancestry-based
+# `git rev-list HEAD..upstream/main` would then report the same commits as
+# new forever. Whoever performs an upstream sync must update
+# .github/upstream-sync-state to the synced upstream commit as part of
+# that sync.
 
 on:
   schedule:
@@ -29,17 +38,22 @@ jobs:
 
       - name: Compare with upstream/main
         id: diff
-        run: echo "count=$(git rev-list --count HEAD..upstream/main)" >> "$GITHUB_OUTPUT"
+        run: |
+          synced_sha=$(cat .github/upstream-sync-state)
+          echo "synced_sha=$synced_sha" >> "$GITHUB_OUTPUT"
+          echo "count=$(git rev-list --count "$synced_sha"..upstream/main)" >> "$GITHUB_OUTPUT"
 
       - name: Write commit summary
         if: steps.diff.outputs.count != '0'
         run: |
           {
-            echo "${{ steps.diff.outputs.count }} new commit(s) on upstream \`main\` (oscampo/obsidian-neural-composer) not yet in this fork's \`main\`:"
+            echo "${{ steps.diff.outputs.count }} new commit(s) on upstream \`main\` (oscampo/obsidian-neural-composer) not yet synced into this fork (last synced: ${{ steps.diff.outputs.synced_sha }}):"
             echo
-            git log --pretty='- %h %s (%an)' HEAD..upstream/main
+            git log --pretty='- %h %s (%an)' "${{ steps.diff.outputs.synced_sha }}..upstream/main"
             echo
-            echo "Diff: https://github.com/oscampo/obsidian-neural-composer/compare/$(git rev-parse HEAD)...main"
+            echo "Diff: https://github.com/oscampo/obsidian-neural-composer/compare/${{ steps.diff.outputs.synced_sha }}...main"
+            echo
+            echo "After syncing, update \`.github/upstream-sync-state\` to upstream's new tip SHA."
           } > /tmp/upstream-sync-body.md
 
       - name: Ensure label exists
