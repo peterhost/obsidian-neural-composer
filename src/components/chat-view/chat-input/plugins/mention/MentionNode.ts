@@ -111,7 +111,9 @@ export class MentionNode extends TextNode {
   }
 
   exportDOM(): DOMExportOutput {
-    const element = activeDocument.createElement('span')
+    // createSpan() with no `parent` option creates a detached element, which
+    // is what Lexical's DOMExportOutput contract requires here.
+    const element = createSpan()
     element.setAttribute(MENTION_NODE_ATTRIBUTE, 'true')
     element.setAttribute(
       MENTION_NODE_MENTION_NAME_ATTRIBUTE,

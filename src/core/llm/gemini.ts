@@ -5,7 +5,6 @@ import {
   Tool as GeminiTool,
   GenerateContentResult,
   GenerateContentStreamResult,
-  GenerationConfig,
   GoogleGenerativeAI,
   Part,
   Schema,
@@ -118,7 +117,7 @@ export class GeminiProvider extends BaseLLMProvider<
 
       const model = this.client.getGenerativeModel({
         model: request.model,
-        generationConfig: generationConfig as GenerationConfig,
+        generationConfig: generationConfig,
         systemInstruction: systemInstruction,
       })
 
@@ -194,7 +193,7 @@ export class GeminiProvider extends BaseLLMProvider<
 
       const model = this.client.getGenerativeModel({
         model: request.model,
-        generationConfig: generationConfig as GenerationConfig,
+        generationConfig: generationConfig,
         systemInstruction: systemInstruction,
       })
 
@@ -289,7 +288,7 @@ export class GeminiProvider extends BaseLLMProvider<
               if (toolCall.thought_signature) {
                 part.thoughtSignature = toolCall.thought_signature
               }
-              return part as FunctionCallPart
+              return part
             } catch {
               // If the arguments are not valid JSON, return an empty object
               const part: FunctionCallPartWithThinking = {
@@ -298,7 +297,7 @@ export class GeminiProvider extends BaseLLMProvider<
               if (toolCall.thought_signature) {
                 part.thoughtSignature = toolCall.thought_signature
               }
-              return part as FunctionCallPart
+              return part
             }
           }) ?? []),
         ]
@@ -436,11 +435,14 @@ export class GeminiProvider extends BaseLLMProvider<
     // we use filter to exclude the key. This satisfies the linter.
     const record = schema as Record<string, unknown>
 
-    return Object.fromEntries(
-      Object.entries(record)
-        .filter(([key]) => key !== 'additionalProperties') // Exclude here
-        .map(([key, value]) => [key, this.removeAdditionalProperties(value)]),
-    )
+    const cleanedEntries: [string, unknown][] = Object.entries(record)
+      .filter(([key]) => key !== 'additionalProperties') // Exclude here
+      .map(([key, value]): [string, unknown] => [
+        key,
+        this.removeAdditionalProperties(value),
+      ])
+
+    return Object.fromEntries(cleanedEntries)
   }
 
   private static parseRequestTool(tool: RequestTool): GeminiTool {

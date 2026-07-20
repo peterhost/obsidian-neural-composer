@@ -25,6 +25,16 @@ import { RecursiveMarkdownTextSplitter } from '../../../utils/text-splitter'
 
 import { VectorRepository } from './VectorRepository'
 
+/**
+ * Shape of a text chunk produced from a file's content, before it has been
+ * embedded (i.e. before `model`/`dimension`/`embedding` are attached).
+ * Naming this explicitly (rather than letting it be inferred through a
+ * chain of `Promise.all(...).flat()` / `map()` calls) keeps every downstream
+ * usage (batching, retries, error reporting) statically typed instead of
+ * silently widening to `any`.
+ */
+type PendingContentChunk = Omit<InsertEmbedding, 'model' | 'dimension'>
+
 export class VectorManager {
   private app: App
   private repository: VectorRepository
@@ -134,45 +144,42 @@ export class VectorManager {
     })
 
     const failedFiles: { path: string; error: string }[] = []
-    const contentChunks = (
-      await Promise.all(
-        filesToIndex.map(async (file) => {
-          try {
-            const fileContent = await this.app.vault.cachedRead(file)
-            // Remove null bytes from the content
+    const contentChunkLists: PendingContentChunk[][] = await Promise.all(
+      filesToIndex.map(async (file): Promise<PendingContentChunk[]> => {
+        try {
+          const fileContent = await this.app.vault.cachedRead(file)
+          // Remove null bytes from the content
 
-            // FIX: Generate null byte at runtime using ASCII code 0 to bypass static analysis checks
-            // for control characters in literals. Using split/join is safer than Regex here.
-            const sanitizedContent = fileContent
-              .split(String.fromCharCode(0))
-              .join('')
+          // FIX: Generate null byte at runtime using ASCII code 0 to bypass static analysis checks
+          // for control characters in literals. Using split/join is safer than Regex here.
+          const sanitizedContent = fileContent
+            .split(String.fromCharCode(0))
+            .join('')
 
-            const fileDocuments = await textSplitter.createDocuments([
-              sanitizedContent,
-            ])
-            return fileDocuments.map(
-              (chunk): Omit<InsertEmbedding, 'model' | 'dimension'> => {
-                return {
-                  path: file.path,
-                  mtime: file.stat.mtime,
-                  content: chunk.pageContent,
-                  metadata: {
-                    startLine: chunk.metadata.loc.lines.from,
-                    endLine: chunk.metadata.loc.lines.to,
-                  },
-                }
-              },
-            )
-          } catch (error) {
-            failedFiles.push({
+          const fileDocuments = await textSplitter.createDocuments([
+            sanitizedContent,
+          ])
+          return fileDocuments.map((chunk): PendingContentChunk => {
+            return {
               path: file.path,
-              error: error instanceof Error ? error.message : 'Unknown error',
-            })
-            return [] // Return empty array for failed files
-          }
-        }),
-      )
-    ).flat()
+              mtime: file.stat.mtime,
+              content: chunk.pageContent,
+              metadata: {
+                startLine: chunk.metadata.loc.lines.from,
+                endLine: chunk.metadata.loc.lines.to,
+              },
+            }
+          })
+        } catch (error) {
+          failedFiles.push({
+            path: file.path,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          })
+          return [] // Return empty array for failed files
+        }
+      }),
+    )
+    const contentChunks: PendingContentChunk[] = contentChunkLists.flat()
 
     if (failedFiles.length > 0) {
       const errorDetails =
@@ -203,7 +210,7 @@ export class VectorManager {
     })
 
     let completedChunks = 0
-    const batchChunks = chunkArray(contentChunks, 100)
+    const batchChunks: PendingContentChunk[][] = chunkArray(contentChunks, 100)
     const failedChunks: {
       path: string
       metadata: VectorMetaData
@@ -213,10 +220,10 @@ export class VectorManager {
     try {
       for (const batchChunk of batchChunks) {
         const embeddingChunks: (InsertEmbedding | null)[] = await Promise.all(
-          batchChunk.map(async (chunk) => {
+          batchChunk.map(async (chunk: PendingContentChunk) => {
             try {
-              return await backOff(
-                async () => {
+              return await backOff<InsertEmbedding>(
+                async (): Promise<InsertEmbedding> => {
                   if (chunk.content.length === 0) {
                     throw new Error(
                       `Chunk content is empty in file: ${chunk.path}`,

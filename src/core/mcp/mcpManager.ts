@@ -8,6 +8,7 @@ import {
   McpServerStatus,
   McpTool,
   McpToolCallResult,
+  McpToolListResult,
 } from '../../types/mcp.types'
 import {
   ToolCallResponse,
@@ -250,13 +251,14 @@ export class McpManager {
     }
 
     try {
-      const toolList = await client.listTools()
+      const toolList: McpToolListResult = await client.listTools()
+      const tools: McpTool[] = toolList.tools
       return {
         name,
         config: serverConfig,
         status: McpServerStatus.Connected,
         client,
-        tools: toolList.tools,
+        tools,
       }
     } catch (error) {
       return {
@@ -279,20 +281,26 @@ export class McpManager {
       return this.availableToolsCache
     }
 
-    const availableTools = (
+    const availableTools: McpTool[] = (
       await Promise.all(
         this.servers.map(async (server): Promise<McpTool[]> => {
           if (server.status !== McpServerStatus.Connected) {
             return []
           }
           try {
-            const toolList = await server.client.listTools()
-            return toolList.tools
-              .filter((tool) => !server.config.toolOptions[tool.name]?.disabled)
-              .map((tool) => ({
-                ...tool,
-                name: getToolName(server.name, tool.name),
-              }))
+            const toolList: McpToolListResult = await server.client.listTools()
+            const tools: McpTool[] = toolList.tools
+            return tools
+              .filter(
+                (tool: McpTool): boolean =>
+                  !server.config.toolOptions[tool.name]?.disabled,
+              )
+              .map(
+                (tool: McpTool): McpTool => ({
+                  ...tool,
+                  name: getToolName(server.name, tool.name),
+                }),
+              )
           } catch (error) {
             console.error(
               `Failed to list tools for MCP server ${server.name}: ${error instanceof Error ? error.message : String(error)}`,

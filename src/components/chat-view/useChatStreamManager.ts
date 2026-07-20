@@ -93,7 +93,13 @@ export function useChatStreamManager({
       chatMessages: ChatMessage[]
       conversationId: string
     }) => {
-      const lastMessage = chatMessages.at(-1)
+      // Avoid Array.prototype.at(): its type is only available via the
+      // @types/node ES2022 polyfill (this tsconfig's `lib` doesn't include
+      // ES2022), so in type-checking environments without that ambient
+      // declaration the call/result silently resolve to `any`. Plain index
+      // access is well-typed under any lib configuration.
+      const lastMessage: ChatMessage | undefined =
+        chatMessages[chatMessages.length - 1]
       if (!lastMessage) {
         // chatMessages is empty
         return
