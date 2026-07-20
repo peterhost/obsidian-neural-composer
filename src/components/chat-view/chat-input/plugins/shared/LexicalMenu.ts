@@ -59,9 +59,7 @@ export class MenuOption {
   constructor(key: string) {
     this.key = key
     this.ref = { current: null }
-    this.setRefElement = this.setRefElement.bind(
-      this,
-    ) as typeof this.setRefElement
+    this.setRefElement = this.setRefElement.bind(this)
   }
 
   setRefElement(element: HTMLElement | null) {
@@ -490,9 +488,9 @@ export function useMenuAnchorRef(
   shouldIncludePageYOffset__EXPERIMENTAL = true,
 ): MutableRefObject<HTMLElement> {
   const [editor] = useLexicalComposerContext()
-  const anchorElementRef = useRef<HTMLElement>(
-    activeDocument.createElement('div'),
-  )
+  // createDiv() with no `parent` option creates a detached positioning-anchor
+  // element (not attached to any DOM tree until the menu is positioned).
+  const anchorElementRef = useRef<HTMLElement>(createDiv())
 
   const positionMenu = useCallback(() => {
     // Limpieza de estilo inicial

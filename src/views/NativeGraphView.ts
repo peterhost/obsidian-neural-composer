@@ -711,7 +711,7 @@ export class NativeGraphView extends ItemView {
       id: nodeId,
       ...attrs,
       type: attrs.node_type || attrs.type,
-    } as unknown as GraphNode)
+    })
   }
 
   // --- ENGINE 2D ---

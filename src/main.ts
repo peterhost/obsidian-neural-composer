@@ -128,6 +128,96 @@ type FileSystemAdapterWithBasePath = {
   getBasePath: () => string
 }
 
+// --- Minimal Node.js API surface used by this plugin -----------------------
+// Node's built-in modules are loaded dynamically via `window.require` on
+// desktop only (see onload()) so they never appear in the static import graph
+// the Obsidian plugin linter rejects. We deliberately describe only the exact
+// shapes this file (and NativeGraphView, which reuses these instances via
+// `plugin._nodeFs` / `plugin._nodePath`) calls at runtime, rather than typing
+// these fields as `typeof import('fs')` / `typeof import('child_process')` /
+// etc. Those ambient-module type references depend on @types/node resolving
+// identically across every TypeScript/tooling environment this plugin is
+// built or linted in; when that resolution fails or differs, they silently
+// degrade to `any` instead of producing a type error. Local interfaces make
+// the types explicit and environment-independent.
+
+/** A Node Buffer, described only by the capability actually used here. */
+type BufferLike = {
+  toString(encoding?: string): string
+}
+
+type NodeFsLike = {
+  existsSync(path: string): boolean
+  mkdirSync(path: string, options?: { recursive?: boolean }): string | undefined
+  writeFileSync(path: string, data: string): void
+  readFileSync(path: string, encoding: string): string
+}
+
+type NodePathLike = {
+  join(...paths: string[]): string
+}
+
+type NodeReadableStreamLike = {
+  on(
+    event: 'data',
+    listener: (chunk: BufferLike | string) => void,
+  ): NodeReadableStreamLike
+}
+
+type NodeChildProcessLike = {
+  readonly stdout: NodeReadableStreamLike | null
+  readonly stderr: NodeReadableStreamLike | null
+  kill(signal?: string): boolean
+  on(
+    event: 'close',
+    listener: (code: number | null) => void,
+  ): NodeChildProcessLike
+  on(event: 'error', listener: (err: Error) => void): NodeChildProcessLike
+}
+
+type NodeSpawnOptions = {
+  cwd?: string
+  shell?: boolean
+  env?: Record<string, string | undefined>
+}
+
+type NodeExecSyncOptions = {
+  stdio?: 'ignore' | 'inherit' | 'pipe'
+}
+
+type NodeChildProcessModuleLike = {
+  spawn(
+    command: string,
+    args: string[],
+    options?: NodeSpawnOptions,
+  ): NodeChildProcessLike
+  execSync(command: string, options?: NodeExecSyncOptions): BufferLike | string
+}
+
+type NodeSocketLike = {
+  setTimeout(ms: number): NodeSocketLike
+  once(event: 'error' | 'timeout', listener: () => void): NodeSocketLike
+  connect(port: number, host: string, listener: () => void): NodeSocketLike
+  destroy(): void
+}
+
+type NodeNetModuleLike = {
+  Socket: new () => NodeSocketLike
+}
+
+type NodeProcessLike = {
+  platform: string
+  env: Record<string, string | undefined>
+}
+
+/** Minimal shape of Node's global `process`, used only for the platform name
+ *  and the environment variable map. Declared locally (shadowing the ambient
+ *  @types/node global within this module only) for the same reason as the
+ *  interfaces above — it keeps this file's typing independent of whether
+ *  @types/node resolves in a given build environment. This has no runtime
+ *  effect: `process` still resolves to the real global object. */
+declare const process: NodeProcessLike | undefined
+
 export default class NeuralComposerPlugin extends Plugin {
   settings: NeuralComposerSettings
   initialChatProps?: ChatProps
@@ -142,7 +232,7 @@ export default class NeuralComposerPlugin extends Plugin {
 
   private timeoutIds: number[] = []
   private modifyDebounceMap: Map<string, number> = new Map()
-  private serverProcess: import('child_process').ChildProcess | null = null
+  private serverProcess: NodeChildProcessLike | null = null
   private lastErrorTime: number = 0
   public docIndexService: DocIndexService | null = null
   private fileExplorerDecorator: FileExplorerDecorator | null = null
@@ -186,10 +276,10 @@ export default class NeuralComposerPlugin extends Plugin {
   // Node.js modules — loaded lazily on desktop only, always null on mobile.
   // fs/path are public so views (e.g. NativeGraphView) can reuse them instead
   // of importing Node built-ins themselves.
-  _nodeFs: typeof import('fs') | null = null
-  _nodePath: typeof import('path') | null = null
-  private _nodeChildProcess: typeof import('child_process') | null = null
-  private _nodeNet: typeof import('net') | null = null
+  _nodeFs: NodeFsLike | null = null
+  _nodePath: NodePathLike | null = null
+  private _nodeChildProcess: NodeChildProcessModuleLike | null = null
+  private _nodeNet: NodeNetModuleLike | null = null
 
   // --- STATUS BAR PROPERTIES ---
   private statusBarEl: HTMLElement
@@ -231,12 +321,12 @@ export default class NeuralComposerPlugin extends Plugin {
       const nodeRequire = (
         window as unknown as { require: (id: string) => unknown }
       ).require
-      this._nodeFs = nodeRequire('fs') as typeof import('fs')
-      this._nodePath = nodeRequire('path') as typeof import('path')
+      this._nodeFs = nodeRequire('fs') as NodeFsLike
+      this._nodePath = nodeRequire('path') as NodePathLike
       this._nodeChildProcess = nodeRequire(
         'child_process',
-      ) as typeof import('child_process')
-      this._nodeNet = nodeRequire('net') as typeof import('net')
+      ) as NodeChildProcessModuleLike
+      this._nodeNet = nodeRequire('net') as NodeNetModuleLike
     }
 
     // --- ZERO-CONFIG & PORTABILITY ---
@@ -1331,11 +1421,17 @@ export default class NeuralComposerPlugin extends Plugin {
       envContent += `CHUNK_SIZE=${this.settings.lightRagChunkSize}\n`
       envContent += `CHUNK_OVERLAP_SIZE=${this.settings.lightRagChunkOverlap}\n\n`
 
+      // Plugin provider IDs → LightRAG binding names.
+      // LightRAG uses 'google' (not 'gemini') and 'azure_openai' (not 'azure').
+      const LIGHTRAG_BINDING_MAP: Record<string, string> = {
+        gemini: 'google',
+        azure: 'azure_openai',
+      }
+
       // LLM CONFIGURATION
       if (llmModelObj && llmProvider) {
         envContent += `# LLM Configuration\n`
 
-        // Lista de proveedores nativos que LightRAG conoce por nombre
         const nativeProviders = [
           'openai',
           'gemini',
@@ -1348,7 +1444,9 @@ export default class NeuralComposerPlugin extends Plugin {
         const isNative = nativeProviders.includes(llmProvider.id)
 
         if (isNative) {
-          envContent += `LLM_BINDING=${llmProvider.id}\n`
+          const llmBindingName =
+            LIGHTRAG_BINDING_MAP[llmProvider.id] ?? llmProvider.id
+          envContent += `LLM_BINDING=${llmBindingName}\n`
 
           if (llmProvider.id === 'ollama' && llmProvider.baseUrl) {
             envContent += `OLLAMA_HOST=${llmProvider.baseUrl}\n`
@@ -1393,17 +1491,19 @@ export default class NeuralComposerPlugin extends Plugin {
       if (embedModelObj && embedProvider) {
         envContent += `\n# Embedding Configuration\n`
 
-        const nativeProviders = [
+        const nativeEmbedProviders = [
           'openai',
           'gemini',
           'ollama',
           'anthropic',
           'azure',
         ]
-        const isNativeEmbed = nativeProviders.includes(embedProvider.id)
+        const isNativeEmbed = nativeEmbedProviders.includes(embedProvider.id)
 
         if (isNativeEmbed) {
-          envContent += `EMBEDDING_BINDING=${embedProvider.id}\n`
+          const embedBindingName =
+            LIGHTRAG_BINDING_MAP[embedProvider.id] ?? embedProvider.id
+          envContent += `EMBEDDING_BINDING=${embedBindingName}\n`
 
           // LightRAG bug workaround: get_default_host('ollama') reads LLM_BINDING_HOST
           // as a fallback instead of using a proper Ollama default. When LLM_BINDING_HOST
@@ -1674,7 +1774,7 @@ export default class NeuralComposerPlugin extends Plugin {
         },
       )
 
-      this.serverProcess.stderr?.on('data', (data: Buffer | string) => {
+      this.serverProcess.stderr?.on('data', (data: BufferLike | string) => {
         const msg = String(data)
         const now = Date.now()
 

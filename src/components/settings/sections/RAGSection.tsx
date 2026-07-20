@@ -32,7 +32,7 @@ export function RAGSection({ app, plugin }: RAGSectionProps) {
         <ObsidianDropdown
           value={settings.embeddingModelId}
           options={Object.fromEntries(
-            settings.embeddingModels.map((embeddingModel) => [
+            settings.embeddingModels.map((embeddingModel): [string, string] => [
               embeddingModel.id,
               `${embeddingModel.id}${RECOMMENDED_MODELS_FOR_EMBEDDING.includes(embeddingModel.id) ? ' (Recommended)' : ''}`,
             ]),

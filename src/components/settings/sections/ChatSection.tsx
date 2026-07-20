@@ -25,7 +25,7 @@ export function ChatSection() {
           options={Object.fromEntries(
             settings.chatModels
               .filter(({ enable }) => enable ?? true)
-              .map((chatModel) => [
+              .map((chatModel): [string, string] => [
                 chatModel.id,
                 `${chatModel.id}${RECOMMENDED_MODELS_FOR_CHAT.includes(chatModel.id) ? ' (Recommended)' : ''}`,
               ]),
@@ -48,7 +48,7 @@ export function ChatSection() {
           options={Object.fromEntries(
             settings.chatModels
               .filter(({ enable }) => enable ?? true)
-              .map((chatModel) => [
+              .map((chatModel): [string, string] => [
                 chatModel.id,
                 `${chatModel.id}${RECOMMENDED_MODELS_FOR_APPLY.includes(chatModel.id) ? ' (Recommended)' : ''}`,
               ]),

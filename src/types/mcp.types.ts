@@ -1,9 +1,14 @@
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import type { CallToolResult, Tool } from '@modelcontextprotocol/sdk/types'
+import type {
+  CallToolResult,
+  ListToolsResult,
+  Tool,
+} from '@modelcontextprotocol/sdk/types'
 import { z } from 'zod'
 
 export type McpTool = Tool
 export type McpToolCallResult = CallToolResult
+export type McpToolListResult = ListToolsResult
 export type McpClient = Client
 
 export const mcpServerParametersSchema = z.object({

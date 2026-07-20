@@ -145,7 +145,7 @@ function AddEmbeddingModelModalComponent({
                 (provider) =>
                   PROVIDER_TYPES_INFO[provider.type].supportEmbedding,
               )
-              .map((provider) => [provider.id, provider.id]),
+              .map((provider): [string, string] => [provider.id, provider.id]),
           )}
           onChange={(value: string) => {
             const provider = plugin.settings.providers.find(

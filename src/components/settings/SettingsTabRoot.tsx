@@ -1,3 +1,4 @@
+import type { LucideIcon } from 'lucide-react'
 import { App, Platform } from 'obsidian'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -39,10 +40,9 @@ type TabId =
 type TabDef = {
   id: TabId
   label: string
-  Icon: React.FC<{ size?: number; strokeWidth?: number }>
+  Icon: LucideIcon
 }
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment -- lucide-react ESM icon paths lack precise TS declarations */
 const TABS: TabDef[] = [
   { id: 'providers', label: 'Providers', Icon: KeyRound },
   { id: 'models', label: 'Models', Icon: Cpu },
@@ -52,7 +52,6 @@ const TABS: TabDef[] = [
   { id: 'advanced', label: 'Advanced', Icon: Settings2 },
   { id: 'help', label: 'Help', Icon: CircleHelp },
 ]
-/* eslint-enable @typescript-eslint/no-unsafe-assignment -- lucide-react ESM icon paths lack precise TS declarations */
 
 // ---------------------------------------------------------------------------
 // Brand logo tile — violet rounded square with brain-circuit glyph inside

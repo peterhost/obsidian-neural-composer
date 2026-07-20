@@ -15,7 +15,8 @@
     "jsx": "react-jsx",
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "strictBindCallApply": true
   },
   "include": [
     "src/**/*.ts",
