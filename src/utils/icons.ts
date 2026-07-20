@@ -1,55 +1,112 @@
 // Curated lucide-react icon barrel — only the icons actually used in this plugin.
 // Imported from individual paths so esbuild bundles ~37 icons instead of all 1500+.
 // To add a new icon: import it here and re-export. Do NOT import from 'lucide-react' directly.
-export { default as ArrowBigUp } from 'lucide-react/dist/esm/icons/arrow-big-up'
-export { default as Brain } from 'lucide-react/dist/esm/icons/brain'
-export { default as BrainCircuit } from 'lucide-react/dist/esm/icons/brain-circuit'
-export { default as CircleHelp } from 'lucide-react/dist/esm/icons/circle-help'
-export { default as ArrowDown } from 'lucide-react/dist/esm/icons/arrow-down'
-export { default as ArrowRightLeft } from 'lucide-react/dist/esm/icons/arrow-right-left'
-export { default as ArrowUp } from 'lucide-react/dist/esm/icons/arrow-up'
-export { default as Book } from 'lucide-react/dist/esm/icons/book'
-export { default as Check } from 'lucide-react/dist/esm/icons/check'
-export { default as CheckIcon } from 'lucide-react/dist/esm/icons/check'
-export { default as ChevronDown } from 'lucide-react/dist/esm/icons/chevron-down'
-export { default as ChevronRight } from 'lucide-react/dist/esm/icons/chevron-right'
-export { default as ChevronUp } from 'lucide-react/dist/esm/icons/chevron-up'
-export { default as CircleMinus } from 'lucide-react/dist/esm/icons/circle-minus'
-export { default as CircleStop } from 'lucide-react/dist/esm/icons/circle-stop'
-export { default as Coins } from 'lucide-react/dist/esm/icons/coins'
-export { default as Command } from 'lucide-react/dist/esm/icons/command'
-export { default as CornerDownLeft } from 'lucide-react/dist/esm/icons/corner-down-left'
-export { default as CornerDownLeftIcon } from 'lucide-react/dist/esm/icons/corner-down-left'
-export { default as Copy } from 'lucide-react/dist/esm/icons/copy'
-export { default as CopyIcon } from 'lucide-react/dist/esm/icons/copy'
-export { default as Cpu } from 'lucide-react/dist/esm/icons/cpu'
-export { default as Edit } from 'lucide-react/dist/esm/icons/edit'
-export { default as Eye } from 'lucide-react/dist/esm/icons/eye'
-export { default as EyeOff } from 'lucide-react/dist/esm/icons/eye-off'
-export { default as File } from 'lucide-react/dist/esm/icons/file'
-export { default as FileIcon } from 'lucide-react/dist/esm/icons/file'
-export { default as FolderClosed } from 'lucide-react/dist/esm/icons/folder-closed'
-export { default as FolderClosedIcon } from 'lucide-react/dist/esm/icons/folder-closed'
-export { default as Folders } from 'lucide-react/dist/esm/icons/folders'
-export { default as FoldersIcon } from 'lucide-react/dist/esm/icons/folders'
-export { default as History } from 'lucide-react/dist/esm/icons/history'
-export { default as Image } from 'lucide-react/dist/esm/icons/image'
-export { default as ImageIcon } from 'lucide-react/dist/esm/icons/image'
-export { default as Info } from 'lucide-react/dist/esm/icons/info'
-export { default as KeyRound } from 'lucide-react/dist/esm/icons/key-round'
-export { default as Link } from 'lucide-react/dist/esm/icons/link'
-export { default as LinkIcon } from 'lucide-react/dist/esm/icons/link'
-export { default as Loader2 } from 'lucide-react/dist/esm/icons/loader-2'
-export { default as MessageSquare } from 'lucide-react/dist/esm/icons/message-square'
-export { default as Pencil } from 'lucide-react/dist/esm/icons/pencil'
-export { default as Pickaxe } from 'lucide-react/dist/esm/icons/pickaxe'
-export { default as PickaxeIcon } from 'lucide-react/dist/esm/icons/pickaxe'
-export { default as Play } from 'lucide-react/dist/esm/icons/play'
-export { default as Plus } from 'lucide-react/dist/esm/icons/plus'
-export { default as RefreshCw } from 'lucide-react/dist/esm/icons/refresh-cw'
-export { default as Settings } from 'lucide-react/dist/esm/icons/settings'
-export { default as Settings2 } from 'lucide-react/dist/esm/icons/settings-2'
-export { default as Share2 } from 'lucide-react/dist/esm/icons/share-2'
-export { default as Trash2 } from 'lucide-react/dist/esm/icons/trash-2'
-export { default as Wrench } from 'lucide-react/dist/esm/icons/wrench'
-export { default as X } from 'lucide-react/dist/esm/icons/x'
+// lucide-react's deep icon import paths ship no .d.ts files, so the default
+// exports resolve to `any`; typing each one explicitly here fixes that at the
+// source instead of relying on eslint-disable at every call site.
+import type { LucideIcon } from 'lucide-react'
+import ArrowBigUp_ from 'lucide-react/dist/esm/icons/arrow-big-up'
+import ArrowDown_ from 'lucide-react/dist/esm/icons/arrow-down'
+import ArrowRightLeft_ from 'lucide-react/dist/esm/icons/arrow-right-left'
+import ArrowUp_ from 'lucide-react/dist/esm/icons/arrow-up'
+import Book_ from 'lucide-react/dist/esm/icons/book'
+import Brain_ from 'lucide-react/dist/esm/icons/brain'
+import BrainCircuit_ from 'lucide-react/dist/esm/icons/brain-circuit'
+import Check_ from 'lucide-react/dist/esm/icons/check'
+import CheckIcon_ from 'lucide-react/dist/esm/icons/check'
+import ChevronDown_ from 'lucide-react/dist/esm/icons/chevron-down'
+import ChevronRight_ from 'lucide-react/dist/esm/icons/chevron-right'
+import ChevronUp_ from 'lucide-react/dist/esm/icons/chevron-up'
+import CircleHelp_ from 'lucide-react/dist/esm/icons/circle-help'
+import CircleMinus_ from 'lucide-react/dist/esm/icons/circle-minus'
+import CircleStop_ from 'lucide-react/dist/esm/icons/circle-stop'
+import Coins_ from 'lucide-react/dist/esm/icons/coins'
+import Command_ from 'lucide-react/dist/esm/icons/command'
+import Copy_ from 'lucide-react/dist/esm/icons/copy'
+import CopyIcon_ from 'lucide-react/dist/esm/icons/copy'
+import CornerDownLeft_ from 'lucide-react/dist/esm/icons/corner-down-left'
+import CornerDownLeftIcon_ from 'lucide-react/dist/esm/icons/corner-down-left'
+import Cpu_ from 'lucide-react/dist/esm/icons/cpu'
+import Edit_ from 'lucide-react/dist/esm/icons/edit'
+import Eye_ from 'lucide-react/dist/esm/icons/eye'
+import EyeOff_ from 'lucide-react/dist/esm/icons/eye-off'
+import File_ from 'lucide-react/dist/esm/icons/file'
+import FileIcon_ from 'lucide-react/dist/esm/icons/file'
+import FolderClosed_ from 'lucide-react/dist/esm/icons/folder-closed'
+import FolderClosedIcon_ from 'lucide-react/dist/esm/icons/folder-closed'
+import Folders_ from 'lucide-react/dist/esm/icons/folders'
+import FoldersIcon_ from 'lucide-react/dist/esm/icons/folders'
+import History_ from 'lucide-react/dist/esm/icons/history'
+import Image_ from 'lucide-react/dist/esm/icons/image'
+import ImageIcon_ from 'lucide-react/dist/esm/icons/image'
+import Info_ from 'lucide-react/dist/esm/icons/info'
+import KeyRound_ from 'lucide-react/dist/esm/icons/key-round'
+import Link_ from 'lucide-react/dist/esm/icons/link'
+import LinkIcon_ from 'lucide-react/dist/esm/icons/link'
+import Loader2_ from 'lucide-react/dist/esm/icons/loader-2'
+import MessageSquare_ from 'lucide-react/dist/esm/icons/message-square'
+import Pencil_ from 'lucide-react/dist/esm/icons/pencil'
+import Pickaxe_ from 'lucide-react/dist/esm/icons/pickaxe'
+import PickaxeIcon_ from 'lucide-react/dist/esm/icons/pickaxe'
+import Play_ from 'lucide-react/dist/esm/icons/play'
+import Plus_ from 'lucide-react/dist/esm/icons/plus'
+import RefreshCw_ from 'lucide-react/dist/esm/icons/refresh-cw'
+import Settings_ from 'lucide-react/dist/esm/icons/settings'
+import Settings2_ from 'lucide-react/dist/esm/icons/settings-2'
+import Share2_ from 'lucide-react/dist/esm/icons/share-2'
+import Trash2_ from 'lucide-react/dist/esm/icons/trash-2'
+import Wrench_ from 'lucide-react/dist/esm/icons/wrench'
+import X_ from 'lucide-react/dist/esm/icons/x'
+
+export const ArrowBigUp: LucideIcon = ArrowBigUp_ as LucideIcon
+export const ArrowDown: LucideIcon = ArrowDown_ as LucideIcon
+export const ArrowRightLeft: LucideIcon = ArrowRightLeft_ as LucideIcon
+export const ArrowUp: LucideIcon = ArrowUp_ as LucideIcon
+export const Book: LucideIcon = Book_ as LucideIcon
+export const Brain: LucideIcon = Brain_ as LucideIcon
+export const BrainCircuit: LucideIcon = BrainCircuit_ as LucideIcon
+export const Check: LucideIcon = Check_ as LucideIcon
+export const CheckIcon: LucideIcon = CheckIcon_ as LucideIcon
+export const ChevronDown: LucideIcon = ChevronDown_ as LucideIcon
+export const ChevronRight: LucideIcon = ChevronRight_ as LucideIcon
+export const ChevronUp: LucideIcon = ChevronUp_ as LucideIcon
+export const CircleHelp: LucideIcon = CircleHelp_ as LucideIcon
+export const CircleMinus: LucideIcon = CircleMinus_ as LucideIcon
+export const CircleStop: LucideIcon = CircleStop_ as LucideIcon
+export const Coins: LucideIcon = Coins_ as LucideIcon
+export const Command: LucideIcon = Command_ as LucideIcon
+export const Copy: LucideIcon = Copy_ as LucideIcon
+export const CopyIcon: LucideIcon = CopyIcon_ as LucideIcon
+export const CornerDownLeft: LucideIcon = CornerDownLeft_ as LucideIcon
+export const CornerDownLeftIcon: LucideIcon = CornerDownLeftIcon_ as LucideIcon
+export const Cpu: LucideIcon = Cpu_ as LucideIcon
+export const Edit: LucideIcon = Edit_ as LucideIcon
+export const Eye: LucideIcon = Eye_ as LucideIcon
+export const EyeOff: LucideIcon = EyeOff_ as LucideIcon
+export const File: LucideIcon = File_ as LucideIcon
+export const FileIcon: LucideIcon = FileIcon_ as LucideIcon
+export const FolderClosed: LucideIcon = FolderClosed_ as LucideIcon
+export const FolderClosedIcon: LucideIcon = FolderClosedIcon_ as LucideIcon
+export const Folders: LucideIcon = Folders_ as LucideIcon
+export const FoldersIcon: LucideIcon = FoldersIcon_ as LucideIcon
+export const History: LucideIcon = History_ as LucideIcon
+export const Image: LucideIcon = Image_ as LucideIcon
+export const ImageIcon: LucideIcon = ImageIcon_ as LucideIcon
+export const Info: LucideIcon = Info_ as LucideIcon
+export const KeyRound: LucideIcon = KeyRound_ as LucideIcon
+export const Link: LucideIcon = Link_ as LucideIcon
+export const LinkIcon: LucideIcon = LinkIcon_ as LucideIcon
+export const Loader2: LucideIcon = Loader2_ as LucideIcon
+export const MessageSquare: LucideIcon = MessageSquare_ as LucideIcon
+export const Pencil: LucideIcon = Pencil_ as LucideIcon
+export const Pickaxe: LucideIcon = Pickaxe_ as LucideIcon
+export const PickaxeIcon: LucideIcon = PickaxeIcon_ as LucideIcon
+export const Play: LucideIcon = Play_ as LucideIcon
+export const Plus: LucideIcon = Plus_ as LucideIcon
+export const RefreshCw: LucideIcon = RefreshCw_ as LucideIcon
+export const Settings: LucideIcon = Settings_ as LucideIcon
+export const Settings2: LucideIcon = Settings2_ as LucideIcon
+export const Share2: LucideIcon = Share2_ as LucideIcon
+export const Trash2: LucideIcon = Trash2_ as LucideIcon
+export const Wrench: LucideIcon = Wrench_ as LucideIcon
+export const X: LucideIcon = X_ as LucideIcon

@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - '*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. 1.4.1)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -28,8 +34,9 @@ jobs:
 
       - name: Set Tag variable
         run: |
-          echo "TAG=${{ github.ref_name }}" >> $GITHUB_ENV
-          echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "TAG=$TAG" >> $GITHUB_ENV
+          echo "VERSION=${TAG#v}" >> $GITHUB_ENV
 
       - name: Bump version
         run: npm run version $VERSION
@@ -57,12 +64,28 @@ jobs:
         with:
           subject-path: styles.css
 
-      - name: Create release
+      - name: Create or update release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "$TAG" \
-            --title="$TAG" \
-            main.js manifest.json styles.css 2>/dev/null || \
-          gh release upload "$TAG" \
-            main.js manifest.json styles.css --clobber
+          RELEASE_ID=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq ".[] | select(.tag_name == \"$TAG\") | .id" | head -1)
+          if [ -z "$RELEASE_ID" ]; then
+            gh release create "$TAG" --title="$TAG" main.js manifest.json styles.css
+          else
+            # Upload assets directly via API (bypasses gh release upload which
+            # has a 404 regression when the release was pre-created by the user)
+            for file in main.js manifest.json styles.css; do
+              ASSET_ID=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" \
+                --jq ".[] | select(.name == \"$file\") | .id" 2>/dev/null | head -1)
+              if [ -n "$ASSET_ID" ]; then
+                gh api "repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID" \
+                  --method DELETE > /dev/null 2>/dev/null || true
+              fi
+              gh api \
+                --method POST \
+                -H "Content-Type: application/octet-stream" \
+                "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=$file" \
+                --input "$file"
+            done
+          fi

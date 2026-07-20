@@ -138,10 +138,9 @@ function ProviderFormComponent({
             <ObsidianDropdown
               value={formData.type}
               options={Object.fromEntries(
-                Object.entries(PROVIDER_TYPES_INFO).map(([key, info]) => [
-                  key,
-                  info.label,
-                ]),
+                Object.entries(PROVIDER_TYPES_INFO).map(
+                  ([key, info]): [string, string] => [key, info.label],
+                ),
               )}
               onChange={(value: string) =>
                 setFormData(
